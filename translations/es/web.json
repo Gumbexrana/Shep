@@ -1,0 +1,2257 @@
+{
+  "settings": {
+    "title": "Configuración",
+    "saving": "Guardando...",
+    "saved": "Guardado",
+    "failedToSave": "Error al guardar la configuración",
+    "sections": {
+      "language": "Idioma",
+      "agent": "Agente",
+      "adaptiveModels": "Modelos adaptativos",
+      "environment": "Entorno",
+      "workflow": "Flujo de trabajo",
+      "worktree": "Worktree",
+      "ci": "CI",
+      "timeouts": "Tiempos límite",
+      "notifications": "Notificaciones",
+      "flags": "Opciones",
+      "chat": "Chat",
+      "homePage": "Home page",
+      "layout": "Diseño",
+      "database": "Base de datos",
+      "integrations": "Integraciones",
+      "security": "Security",
+      "messaging": "Messaging",
+      "mcp": "MCP",
+      "harness": "Harness del agente",
+      "selfLearning": "Autoaprendizaje",
+      "telemetry": "Métricas de uso",
+      "a2a": "Conectar agentes"
+    },
+    "language": {
+      "title": "Idioma",
+      "description": "Elige tu idioma de visualización preferido",
+      "label": "Idioma de visualización",
+      "placeholder": "Selecciona un idioma",
+      "failedToSave": "Error al guardar la configuración de idioma"
+    },
+    "agent": {
+      "title": "Agente preferido",
+      "sectionTitle": "Agente",
+      "description": "Elige tu agente de codificación AI y método de autenticación",
+      "sectionDescription": "Agente de codificación AI y autenticación",
+      "agentType": "Tipo de agente",
+      "agentAndModel": "Agente y modelo",
+      "agentAndModelDescription": "Proveedor y modelo para todas las operaciones",
+      "effort": "Esfuerzo de razonamiento",
+      "effortDescription": "Razonamiento por turno en nuevas funciones (Claude Code)",
+      "effortFailed": "No se pudo guardar el esfuerzo",
+      "authMethod": "Método de autenticación",
+      "apiToken": "Token de API",
+      "apiTokenPlaceholder": "Ingresa tu token de API",
+      "apiTokenHelper": "Se guarda automáticamente al salir del campo",
+      "failedToSave": "Error al guardar la configuración del agente",
+      "hint": "Elige qué agente de codificación AI impulsa tus funcionalidades. Cada agente admite diferentes modelos y capacidades. La autenticación se resuelve automáticamente a través de tu sesión activa.",
+      "links": {
+        "agentSystem": "Sistema de agentes",
+        "addingAgents": "Agregar agentes",
+        "configurationGuide": "Guía de configuración"
+      }
+    },
+    "environment": {
+      "title": "IDE y terminal",
+      "sectionTitle": "Entorno",
+      "description": "Configura tu editor, shell y preferencias de terminal predeterminados",
+      "sectionDescription": "Preferencias de editor, shell y terminal",
+      "defaultEditor": "Editor predeterminado",
+      "defaultEditorDescription": "Editor que se abre para operaciones de archivos",
+      "shellPreference": "Preferencia de shell",
+      "shell": "Shell",
+      "shellDescription": "Shell predeterminado para scripts generados",
+      "terminalEmulator": "Emulador de terminal",
+      "terminal": "Terminal",
+      "terminalDescription": "Emulador de terminal para sesiones de shell",
+      "systemTerminal": "Terminal del sistema",
+      "failedToSave": "Error al guardar la configuración de IDE y terminal",
+      "hint": "Tu editor preferido abre archivos para revisión. La configuración de shell controla los scripts generados. El emulador de terminal se abre al iniciar sesiones de shell desde la interfaz web.",
+      "links": {
+        "configurationGuide": "Guía de configuración"
+      }
+    },
+    "workflow": {
+      "title": "Flujo de trabajo",
+      "description": "Configura el comportamiento de PR, puertas de aprobación y configuración de CI",
+      "sectionDescription": "Comportamiento de automatización después de la implementación",
+      "defaultMode": "Modo predeterminado de funcionalidad",
+      "defaultModeDescription": "Modo predeterminado para nuevas funcionalidades creadas vía CLI o interfaz web",
+      "maxParallelFeatures": "Máximo de funcionalidades paralelas",
+      "maxParallelFeaturesDescription": "Número máximo de funcionalidades que ejecutan un agente a la vez. 0 significa sin límite. Las funcionalidades adicionales se ponen en cola y comienzan automáticamente cuando se libera un espacio.",
+      "decisionTimeout": "Plazo de las preguntas",
+      "decisionTimeoutDescription": "Cuánto espera un agente en segundo plano tu respuesta antes de continuar con la opción recomendada.",
+      "modeRegular": "Regular",
+      "modeFast": "Rápido",
+      "modeExploration": "Exploración",
+      "subsections": {
+        "approve": "Aprobar",
+        "evidence": "Evidencia",
+        "git": "Git"
+      },
+      "autoApprovePrd": "Auto-aprobar PRD",
+      "autoApprovePrdDescription": "Omitir la revisión manual de requisitos",
+      "autoApprovePlan": "Auto-aprobar plan",
+      "autoApprovePlanDescription": "Omitir la revisión manual del plan de implementación",
+      "autoApproveMerge": "Auto-aprobar fusión",
+      "autoApproveMergeDescription": "Fusionar sin revisión manual",
+      "collectEvidence": "Recopilar evidencia",
+      "collectEvidenceDescription": "Capturar capturas de pantalla y artefactos después de la implementación",
+      "addEvidenceToPr": "Agregar evidencia al PR",
+      "addEvidenceToPrDescription": "Incluir evidencia en el cuerpo del pull request",
+      "pushOnComplete": "Push al completar",
+      "pushOnCompleteDescription": "Enviar al remoto cuando la implementación termine",
+      "openPrOnComplete": "Abrir PR al completar",
+      "openPrOnCompleteDescription": "Crear un pull request al terminar",
+      "watchCiAfterPush": "Monitorear CI después del push",
+      "watchCiAfterPushDescription": "Monitorear CI y auto-corregir fallos. Deshabilita para evitar límites de velocidad.",
+      "approvalGates": "Puertas de aprobación",
+      "prdAutoApproval": "Auto-aprobación de PRD",
+      "planAutoApproval": "Auto-aprobación de plan",
+      "mergeAutoApproval": "Auto-aprobación de fusión",
+      "ciSettings": "Configuración de CI",
+      "ciWatchFixLoop": "Ciclo de monitoreo/corrección de CI",
+      "maxFixAttempts": "Máximo de intentos de corrección",
+      "watchTimeout": "Tiempo límite de monitoreo (segundos)",
+      "maxLogCharacters": "Máximo de caracteres de registro",
+      "pollInterval": "Intervalo de consulta (segundos)",
+      "hideCiStatus": "Ocultar estado de CI",
+      "stageTimeouts": "Tiempos límite por etapa",
+      "failedToSave": "Error al guardar la configuración del flujo de trabajo",
+      "hint": "Controla qué tan autónoma es cada ejecución de funcionalidad. Auto-aprobar omite la pausa de revisión humana en cada fase. Las opciones de push y PR controlan qué sucede después de una implementación exitosa.",
+      "links": {
+        "approvalGates": "Puertas de aprobación",
+        "pushAndPrFlags": "Opciones de push y PR"
+      }
+    },
+    "worktree": {
+      "title": "Aprovisionamiento de worktree",
+      "description": "Reemplaza o amplía cómo Shep crea el worktree de cada funcionalidad",
+      "createCommand": "Comando de creación personalizado",
+      "createCommandDescription": "Se ejecuta en lugar de `git worktree add`, desde el repositorio principal. Déjalo vacío para usar el worktree de git integrado.",
+      "createCommandPlaceholder": "my-tool worktree add \"$SHEP_WORKTREE_PATH\" \"$SHEP_BRANCH\"",
+      "postCreateCommand": "Comando posterior a la creación",
+      "postCreateCommandDescription": "Se ejecuta dentro del nuevo worktree una vez que existe: enlazar node_modules, copiar configuración no versionada, precalentar cachés.",
+      "postCreateCommandPlaceholder": "ln -s \"$SHEP_REPO_PATH/node_modules\" node_modules",
+      "commandTimeout": "Tiempo de espera del comando (ms)",
+      "commandTimeoutDescription": "Se aplica a cada comando. Auméntalo si el hook ejecuta una instalación.",
+      "envVarsHint": "Variables disponibles: SHEP_REPO_PATH, SHEP_WORKTREE_PATH, SHEP_BRANCH, SHEP_START_POINT (vacío si la rama ya existe). Un comando fallido hace fallar la creación de la funcionalidad.",
+      "hint": "Úsalo cuando un worktree de git simple no basta: monorepos que necesitan node_modules enlazado, o proyectos que solo compilan desde un directorio preparado.",
+      "links": {
+        "worktreeGuide": "Aprovisionamiento de worktree personalizado"
+      }
+    },
+    "adaptiveModels": {
+      "title": "Selección adaptativa de modelo",
+      "description": "Ejecuta cada tarea planificada en un modelo acorde a su complejidad",
+      "enabled": "Enrutar tareas por complejidad",
+      "enabledDescription": "Tras la planificación, cada tarea se ejecuta en el modelo que corresponde a su complejidad en lugar del modelo fijado. Las tareas simples usan un modelo más pequeño y rápido.",
+      "derived": "Derivado del modelo fijado",
+      "planUnavailable": "No se pudieron resolver los modelos por nivel para el agente actual.",
+      "ceilingHint": "El modelo fijado {{model}} en {{agent}} es el techo: ningún nivel es más capaz que él ni sale de su familia de modelos.",
+      "singleModelHint": "{{model}} no tiene un nivel inferior conocido en el catálogo de este agente, así que todas las tareas seguirían ejecutándose en él. Fija un modelo con un hermano más pequeño o elige los modelos por nivel abajo.",
+      "tiers": {
+        "high": "Complejidad alta",
+        "highDescription": "Diseño nuevo, cambios transversales, trabajo de seguridad o concurrencia.",
+        "medium": "Complejidad media",
+        "mediumDescription": "Trabajo de funcionalidad habitual que sigue un patrón establecido.",
+        "low": "Complejidad baja",
+        "lowDescription": "Ediciones mecánicas: claves de traducción, valores de enum, stories, renombrados."
+      },
+      "hint": "Actívalo cuando fijes un modelo insignia pero la mayor parte de tu lista de tareas sea mecánica. El modelo fijado sigue siendo el techo, así que esto solo puede reducir el coste.",
+      "links": {
+        "configurationGuide": "Guía de configuración"
+      }
+    },
+    "ci": {
+      "title": "Integración continua",
+      "description": "Límites y tiempos límite para el monitoreo de CI",
+      "maxFixAttempts": "Máximo de intentos de corrección",
+      "maxFixAttemptsDescription": "Reintentos del agente en CI fallido",
+      "watchTimeout": "Tiempo límite de monitoreo",
+      "watchTimeoutDescription": "Espera máxima para la finalización de CI",
+      "maxLogSize": "Tamaño máximo de registro",
+      "maxLogSizeDescription": "Truncar registros de CI más allá de este límite",
+      "pollInterval": "Intervalo de consulta",
+      "pollIntervalDescription": "Con qué frecuencia consultar GitHub para actualizaciones de estado de CI",
+      "hideCiStatus": "Ocultar estado de CI",
+      "hideCiStatusDescription": "Ocultar las insignias de estado de CI del cajón de funcionalidades y la revisión de fusión",
+      "hint": "Cuando una funcionalidad se completa, el agente puede monitorear CI y auto-corregir fallos. Estos límites previenen reintentos descontrolados y controlan cuánta salida de registro se envía al agente para análisis.",
+      "links": {
+        "cicdPipeline": "Pipeline de CI/CD",
+        "ciSecurityGates": "Puertas de seguridad de CI"
+      }
+    },
+    "stageTimeouts": {
+      "title": "Tiempos límite por etapa",
+      "description": "Tiempo máximo de ejecución por etapa del agente",
+      "subsections": {
+        "featureAgent": "Agente de funcionalidad",
+        "analyzeRepoAgent": "Agente de análisis de repositorio"
+      },
+      "analyze": "Analizar",
+      "analyzeDescription": "Tiempo límite de análisis de repositorio",
+      "requirements": "Requisitos",
+      "requirementsDescription": "Tiempo límite de recopilación de requisitos",
+      "research": "Investigación",
+      "researchDescription": "Tiempo límite de investigación técnica",
+      "plan": "Plan",
+      "planDescription": "Tiempo límite de planificación de implementación",
+      "implement": "Implementar",
+      "implementDescription": "Tiempo límite de implementación de código",
+      "fastImplement": "Implementación Rápida",
+      "fastImplementDescription": "Tiempo límite de implementación en modo rápido",
+      "merge": "Fusión",
+      "mergeDescription": "Tiempo límite de creación y fusión de PR",
+      "hint": "Cada agente tiene tiempos límite de etapa configurables independientemente. Cuando una etapa excede su tiempo límite, el agente es terminado. Tiempos límite más largos son útiles para implementaciones complejas. El agente de funcionalidad tiene un valor predeterminado de 30 minutos por etapa. El agente de análisis de repositorio tiene un valor predeterminado de 10 minutos."
+    },
+    "notifications": {
+      "title": "Notificaciones",
+      "description": "Configura los canales de notificación y preferencias de eventos",
+      "sectionDescription": "Cómo y cuándo te notificamos",
+      "channels": "Canales",
+      "inApp": "En la aplicación",
+      "inAppLabel": "En la aplicación",
+      "inAppDescription": "Notificaciones dentro de la interfaz de Shep",
+      "subsections": {
+        "agentEvents": "Eventos del agente",
+        "pullRequestEvents": "Eventos de Pull Request"
+      },
+      "events": {
+        "agentStarted": "Agente iniciado",
+        "phaseCompleted": "Fase completada",
+        "waitingApproval": "Esperando aprobación",
+        "agentCompleted": "Agente completado",
+        "agentFailed": "Agente fallido",
+        "mergeReviewReady": "Revisión de fusión lista",
+        "prMerged": "PR fusionado",
+        "prClosed": "PR cerrado",
+        "prChecksPassed": "Verificaciones de PR aprobadas",
+        "prChecksFailed": "Verificaciones de PR fallidas",
+        "prBlocked": "PR bloqueado"
+      },
+      "failedToSave": "Error al guardar la configuración de notificaciones",
+      "hint": "Las notificaciones de la aplicación te mantienen al tanto. Ajusta qué eventos del ciclo de vida del agente generan una notificación.",
+      "links": {
+        "notificationSystem": "Sistema de notificaciones"
+      }
+    },
+    "featureFlags": {
+      "title": "Opciones experimentales",
+      "description": "Activa o desactiva funcionalidades experimentales y beta",
+      "sectionDescription": "Habilitar o deshabilitar funcionalidades experimentales",
+      "badge": "Experimental",
+      "envDeploy": "Despliegues",
+      "envDeployDescription": "Habilitar flujos de trabajo de despliegue en entornos",
+      "debug": "Depuración",
+      "debugDescription": "Mostrar paneles de depuración y registro detallado",
+      "reactFileManager": "Administrador de archivos React",
+      "reactFileManagerDescription": "Usar el administrador de archivos React integrado en lugar del selector de carpetas nativo del SO",
+      "projects": "Proyectos",
+      "projectsDescription": "Habilitar la navegación de Proyectos y las páginas de gestión de proyectos en la interfaz web",
+      "codeReview": "AI Code Review",
+      "codeReviewDescription": "Enable AI-powered code review that analyzes PR diffs and posts inline comments to GitHub",
+      "collaboration": "Agent Collaboration & Supervision",
+      "collaborationDescription": "Enable agent-to-agent messaging, supervisor delegation, and the unified agent questions inbox",
+      "aspm": "Application Security Posture Management",
+      "aspmDescription": "Enable the ASPM module — findings ingestion, posture dashboard, remediation campaigns, exceptions, and AI-change review queue",
+      "bedrockIntegration": "Project Bedrock Memory",
+      "bedrockIntegrationDescription": "Enable project-bedrock memory integration (markdown project memory for AI coding agents) — surfaces toggles, drawers, and tabs across applications, repositories, and features. Requires Python 3.9+ and pipx.",
+      "whatsappDispatch": "Despacho de tareas por WhatsApp",
+      "whatsappDispatchDescription": "Despacha y dirige los agentes de shep desde WhatsApp: crea funciones, recibe actualizaciones del agente y aprueba puertas respondiendo en un chat.",
+      "clusters": "Clústeres",
+      "clustersDescription": "Habilitar la navegación de clústeres y la gestión de clústeres Kubernetes en la interfaz web",
+      "hint": "Funcionalidades experimentales que aún están en desarrollo. Habilítalas bajo tu propio riesgo — pueden cambiar o ser eliminadas en versiones futuras. El modo de depuración agrega registro detallado útil para la resolución de problemas.",
+      "queryAwareHarness": "Harness del agente sensible a la consulta",
+      "queryAwareHarnessDescription": "Experimental: el agente Shep Harness, /harness, la pestaña Contexto de la funcionalidad y las solicitudes de permiso",
+      "githubImport": "Importación de GitHub",
+      "githubImportDescription": "Clonar o bifurcar repositorios de GitHub y añadirlos a Shep",
+      "scheduledWorkflows": "Flujos programados",
+      "scheduledWorkflowsDescription": "Crear, programar y ejecutar flujos automatizados con un calendario cron",
+      "spaces": "Espacios",
+      "spacesDescription": "Espacios y líneas de producto que mantienen separados el conocimiento y los accesos de agentes de cada contexto",
+      "trackers": "Trackers",
+      "trackersDescription": "Mantener las incidencias de Linear y Jira sincronizadas con los proyectos de Shep en ambos sentidos",
+      "knowledge": "Conocimiento",
+      "knowledgeDescription": "Sincronizar páginas de Notion elegidas con el conocimiento de un espacio para sus agentes",
+      "signals": "Señales",
+      "signalsDescription": "Recoger señales de clientes e incidentes como evidencia para oportunidades",
+      "opportunities": "Oportunidades",
+      "opportunitiesDescription": "Ordenar oportunidades por valor por hora de revisión y llenar la capacidad de la semana",
+      "feedback": "Comentarios",
+      "feedbackDescription": "Recibir comentarios de clientes mediante un endpoint con clave y agruparlos en temas",
+      "discovery": "Descubrimiento",
+      "discoveryDescription": "Dejar que un agente proponga oportunidades a partir de la evidencia suelta de un espacio",
+      "incidents": "Incidentes",
+      "incidentsDescription": "Abrir incidentes a partir de alertas y que un agente ordene las causas y proponga soluciones",
+      "outcomes": "Resultados",
+      "outcomesDescription": "Comprobar si el trabajo entregado resolvió aquello para lo que se hizo",
+      "docsFirst": "Docs primero",
+      "docsFirstDescription": "Permitir que los espacios exijan documentación escrita al planificar, con un control de fusión de docs",
+      "autopilot": "Piloto automático",
+      "autopilotDescription": "Dejar que un espacio investigue, corrija y construya por sí solo dentro de su política",
+      "factory": "Fábrica",
+      "factoryDescription": "Mostrar la página de estado de la fábrica de cada espacio",
+      "sdlcBoard": "Tablero SDLC",
+      "sdlcBoardDescription": "Mostrar el tablero SDLC: un tablero en vivo de las tareas de los agentes en las funcionalidades activas",
+      "agentCoordination": "Coordinación de agentes",
+      "agentCoordinationDescription": "Cuando dos funcionalidades activas cambian los mismos archivos, un agente decide si una debe esperar a la otra",
+      "selfLearning": "Arnés autodidacta",
+      "selfLearningDescription": "Shep aprende de cada ejecución de una funcionalidad y propone mejores instrucciones, habilidades y scripts para sus agentes. Tú apruebas cada cambio",
+      "groupPlatform": "Plataforma",
+      "groupSoftwareFactory": "Fábrica de software",
+      "groupExperimental": "Experimental",
+      "defaultOn": "Predeterminado: activado",
+      "defaultOff": "Predeterminado: desactivado",
+      "openView": "Abrir la vista de feature flags",
+      "backToSettings": "Volver a la configuración",
+      "pageDescription": "Todo lo que Shep puede activar o desactivar. Los cambios se aplican al instante; las páginas y comandos CLI de una función desactivada se ocultan.",
+      "onCount": "{{on}} de {{total}} activados"
+    },
+    "interactiveAgent": {
+      "title": "Agente interactivo",
+      "description": "Configuración de la pestaña de chat para sesiones de agente interactivo por funcionalidad",
+      "enableChatTab": "Habilitar pestaña de chat",
+      "enableChatTabDescription": "Mostrar la pestaña de chat en todas las páginas de detalle de funcionalidad",
+      "autoTimeout": "Tiempo de espera automático",
+      "autoTimeoutDescription": "Minutos de inactividad antes de que el agente se detenga automáticamente (1-120)",
+      "maxConcurrentSessions": "Máximo de sesiones concurrentes",
+      "maxConcurrentSessionsDescription": "Número máximo de sesiones de agente interactivo activas a la vez (1-10)",
+      "hint": "La pestaña de chat genera un proceso de agente persistente por funcionalidad. El tiempo de espera automático detiene las sesiones inactivas automáticamente para conservar recursos. El límite de sesiones concurrentes previene el uso excesivo de recursos en las máquinas de los desarrolladores."
+    },
+    "homePage": {
+      "title": "Home page",
+      "description": "Choose which page opens when you navigate to the root URL",
+      "label": "Default page",
+      "labelDescription": "The page you land on when opening the web UI",
+      "options": {
+        "control-center": "Control Center",
+        "applications": "Apps",
+        "features": "Features"
+      },
+      "hint": "This controls where you land when you open the web UI. You can change it at any time."
+    },
+    "fabLayout": {
+      "title": "Diseño",
+      "description": "Controlar la posición de los botones de acción flotantes en el centro de control",
+      "swapPosition": "Intercambiar posiciones de FAB",
+      "swapPositionDescription": "Mover el botón de Chat a la izquierda y el de Crear a la derecha",
+      "hint": "Los dos botones de acción flotantes (Crear y Chat) se ubican en las esquinas inferiores del centro de control. Active esta opción para intercambiar sus posiciones."
+    },
+    "security": {
+      "title": "Supply Chain Security",
+      "sectionTitle": "Supply Chain Security",
+      "sectionDescription": "Configure security mode and review policy enforcement findings",
+      "mode": "Security mode",
+      "modeDescription": "Controls how the policy engine responds to violations",
+      "modeDisabled": "Disabled",
+      "modeAdvisory": "Advisory",
+      "modeEnforce": "Enforce",
+      "policySource": "Policy source",
+      "policySourceNone": "No policy loaded",
+      "lastEvaluation": "Last evaluation",
+      "lastEvaluationNever": "Never",
+      "recentFindings": "Recent findings",
+      "noFindings": "No security findings recorded",
+      "runEnforcement": "Run enforcement",
+      "running": "Running...",
+      "severity": {
+        "Low": "Low",
+        "Medium": "Medium",
+        "High": "High",
+        "Critical": "Critical"
+      },
+      "hint": "Security mode controls how the policy engine handles violations. Advisory mode logs findings without blocking. Enforce mode blocks risky actions and fails builds.",
+      "links": {
+        "securitySpec": "Security spec"
+      },
+      "badge": {
+        "advisory": "Security: Advisory",
+        "enforce": "Security: Enforce",
+        "disabled": "Security: Disabled"
+      },
+      "panel": {
+        "title": "Security",
+        "governance": "Governance",
+        "dependencies": "Dependencies",
+        "noFindings": "No security findings",
+        "findingsByCategory": "Findings by category",
+        "totalFindings": "{{count}} finding(s)"
+      }
+    },
+    "database": {
+      "title": "Base de datos",
+      "description": "Ruta de la base de datos y administración",
+      "sectionDescription": "Información de almacenamiento local",
+      "location": "Ubicación",
+      "locationDescription": "Ruta a la base de datos SQLite local",
+      "size": "Tamaño",
+      "hint": "Toda la configuración se almacena en una base de datos SQLite local en ~/.shep/data. La base de datos usa un patrón de registro único con migraciones automáticas al inicio.",
+      "links": {
+        "settingsService": "Servicio de configuración",
+        "settingsSpec": "Especificación de configuración"
+      }
+    },
+    "whatsapp": {
+      "title": "WhatsApp",
+      "description": "Dispatch and steer shep agents from WhatsApp. Send a message to start work, then reply in the thread to keep going.",
+      "hint": "Only numbers in the authorized list can dispatch. Baileys uses your linked WhatsApp Web account (ToS risk); the Cloud API is ban-safe but needs a Meta Business account.",
+      "enable": "Enable WhatsApp integration",
+      "enableDescription": "Connect WhatsApp so you can dispatch and steer agents from your phone.",
+      "adapter": "Adapter",
+      "adapterDescription": "Baileys links a personal/business number; the Cloud API uses the official WhatsApp Business API.",
+      "adapterBaileys": "Baileys (WhatsApp Web)",
+      "adapterCloudApi": "Cloud API (official)",
+      "allowedNumbers": "Authorized senders",
+      "allowedNumbersDescription": "Comma-separated E.164 numbers allowed to dispatch tasks.",
+      "cloudPhoneNumberId": "Cloud API phone number ID",
+      "cloudAccessToken": "Cloud API access token",
+      "cloudVerifyToken": "Webhook verify token",
+      "cloudAppSecret": "App secret",
+      "baileysHint": "Install the optional Baileys package (pnpm add @whiskeysockets/baileys), then link your number — the QR appears here once the server is running.",
+      "cloudApiHint": "Enter your Meta app credentials, then point the WhatsApp webhook at this shep instance.",
+      "statusValue": {
+        "disconnected": "Disconnected",
+        "connecting": "Connecting",
+        "awaiting-scan": "Scan QR",
+        "connected": "Connected",
+        "error": "Error"
+      }
+    },
+    "harness": {
+      "title": "Harness del agente",
+      "experimental": "Experimental",
+      "description": "Cómo construye Shep Harness el contexto del modelo, en qué modelo se ejecuta y cómo pregunta antes de actuar",
+      "hint": "El harness se ejecuta sobre un backend SDK (OpenRouter, Together AI, Ollama o LLMProxy). La relevancia del contexto la puede puntuar un modelo local de código abierto o Jev, o hacerse de forma determinista, sin red.",
+      "mode": "Modo de contexto",
+      "modeDescription": "Sensible a la consulta crea un plan de contexto nuevo y específico para cada llamada al modelo; el modo base conserva una transcripción",
+      "backend": "Backend del modelo",
+      "backendDescription": "Agente SDK al que llama el harness; su clave proviene del token del agente o de su variable de entorno",
+      "model": "Modelo del backend",
+      "modelDescription": "ID del modelo en el backend; déjalo vacío para usar el predeterminado del backend",
+      "modelPlaceholder": "Predeterminado del backend",
+      "budget": "Modo de presupuesto",
+      "budgetDescription": "Equilibra coste y calidad al ajustar el contexto al presupuesto de tokens",
+      "maxTurns": "Límite de turnos",
+      "maxTurnsDescription": "Llamadas al modelo por tarea antes de detenerse",
+      "modelTimeout": "Tiempo límite por llamada al modelo (segundos)",
+      "modelTimeoutDescription": "Cuánto puede tardar una llamada al modelo; súbelo para modelos locales lentos",
+      "decisionsTitle": "Proveedor de relevancia del contexto",
+      "decisionsDescription": "Quién puntúa la relevancia de cada parte del estado para la consulta actual. Cualquier fallo del proveedor recurre a la puntuación determinista.",
+      "providerKind": "Proveedor",
+      "providerKindDescription": "Determinista (sin red), un servidor compatible con OpenAI, un reranker, el propio modelo del harness o Jev",
+      "providerEndpoint": "Endpoint",
+      "providerEndpointDescription": "URL base del proveedor",
+      "providerModel": "Modelo",
+      "providerModelDescription": "Modelo que debe usar el endpoint (opcional)",
+      "providerKeyEnv": "Variable de la clave API",
+      "providerKeyEnvDescription": "Nombre de la variable de entorno que contiene la clave, nunca la clave en sí",
+      "shadowTitle": "Modos sombra",
+      "shadow": {
+        "contextRouter": "Enrutador de contexto en sombra",
+        "contextRouterDescription": "Ejecutar en modo base y registrar los planes sensibles a la consulta que se habrían usado",
+        "permissions": "Riesgo de permisos en sombra",
+        "permissionsDescription": "Registrar las puntuaciones de riesgo de permisos de AI sin aplicarlas",
+        "toolRouter": "Enrutador de herramientas en sombra",
+        "toolRouterDescription": "Registrar el enrutamiento de capacidades sin aplicarlo"
+      },
+      "permissionsTitle": "Permisos",
+      "unknownDefault": "Acciones desconocidas",
+      "unknownDefaultDescription": "Qué ocurre cuando ninguna regla coincide con una acción",
+      "approvalTimeout": "Tiempo límite de aprobación (minutos)",
+      "approvalTimeoutDescription": "Una solicitud sin respuesta se deniega pasado este tiempo"
+    },
+    "selfLearning": {
+      "title": "Autoaprendizaje",
+      "experimental": "Experimental",
+      "description": "Shep aprende de cada ejecución de una funcionalidad y mejora las instrucciones, skills y comprobaciones de sus agentes",
+      "hint": "El aprendizaje está desactivado hasta que elijas un modo. Cada cambio aprendido es un candidato versionado que puedes revisar, adoptar o revertir en la página Aprendizaje.",
+      "mode": "Modo de aprendizaje",
+      "modes": {
+        "off": "Desactivado",
+        "offDescription": "No se aprende nada; las versiones del harness adoptadas siguen aplicándose",
+        "reflect": "Reflexionar",
+        "reflectDescription": "Tras cada ejecución, una revisión propone cambios al harness, sin intentos extra",
+        "explore": "Explorar",
+        "exploreDescription": "El paso de implementación prueba varias variantes del harness y conserva el mejor resultado"
+      },
+      "exploreTitle": "Presupuesto de exploración",
+      "exploreK": "k de exploración",
+      "exploreKDescription": "{{rollouts}} intentos de implementación por funcionalidad: unas {{rollouts}} veces el coste de un paso de implementación",
+      "exploreRecursion": "Forma de búsqueda",
+      "exploreRecursionDescription": "En paralelo prueba variantes independientes; en secuencia refina una variante ronda a ronda",
+      "recursion": {
+        "parallel": "En paralelo",
+        "sequential": "En secuencia"
+      },
+      "exploreMaxCostUsd": "Límite de coste (USD)",
+      "exploreMaxCostUsdDescription": "Superado este gasto, Explorar deja de iniciar intentos y conserva el mejor hasta ese momento",
+      "adoptionTitle": "Adopción",
+      "adoptionPolicy": "Política de adopción",
+      "adoptionPolicyDescription": "Los scripts y hooks siempre requieren que una persona los adopte, sea cual sea la política",
+      "policies": {
+        "manual": "Preguntarme siempre",
+        "auto-text-only": "Adoptar automáticamente cambios de texto probados",
+        "auto": "Adoptar automáticamente cambios de texto"
+      },
+      "alwaysOnCharCap": "Límite de texto permanente",
+      "alwaysOnCharCapDescription": "Máximo de caracteres de texto aprendido que se añade a cada prompt",
+      "regressionMinSample": "Muestra de regresión",
+      "regressionMinSampleDescription": "Ejecuciones necesarias en una versión antes de poder marcarla como regresión"
+    }
+  },
+  "navigation": {
+    "controlCenter": "Centro de control",
+    "dashboard": "Panel",
+    "features": "Funcionalidades",
+    "inventory": "Inventario",
+    "repositories": "Repositorios",
+    "settings": "Configuración",
+    "sessions": "Sesiones",
+    "tools": "Herramientas",
+    "skills": "Habilidades",
+    "applications": "Apps",
+    "agentQuestions": "Agent Questions",
+    "aspm": "Security",
+    "aspmDashboard": "Dashboard",
+    "aspmFindings": "Findings",
+    "aspmInventory": "Inventory",
+    "aspmOwners": "Owners",
+    "aspmAiReview": "AI Review",
+    "aspmCompliance": "Compliance",
+    "collaboration": "Collaboration",
+    "clusters": "Clústeres",
+    "plugins": "Plugins",
+    "projectMemory": "Project Memory",
+    "learning": "Aprendizaje",
+    "harness": "Harness",
+    "spaces": "Espacios",
+    "trackers": "Conexiones",
+    "opportunities": "Oportunidades",
+    "incidents": "Incidentes",
+    "factory": "Fábrica",
+    "chat": "Chat",
+    "agentActivity": "Actividad de agentes"
+  },
+  "sidebar": {
+    "features": "Funcionalidades",
+    "switchToLight": "Modo claro",
+    "switchToDark": "Modo oscuro",
+    "muteSounds": "Silenciar sonidos",
+    "unmuteSounds": "Activar sonidos",
+    "statusActionNeeded": "Acción necesaria",
+    "statusInProgress": "En progreso",
+    "statusPending": "Pendiente",
+    "statusBlocked": "Bloqueado",
+    "statusError": "Error",
+    "statusDone": "Completado"
+  },
+  "deleteFeature": {
+    "title": "¿Eliminar funcionalidad?",
+    "description": "Esto eliminará permanentemente <strong>{{featureName}}</strong> ({{featureId}}). Esta acción no se puede deshacer.",
+    "cleanupLabel": "Limpiar worktree y ramas",
+    "deleteSubFeatures": "Eliminar sub-funcionalidades",
+    "closePullRequest": "Cerrar pull request",
+    "cancel": "Cancelar",
+    "deleting": "Eliminando…",
+    "delete": "Eliminar"
+  },
+  "rejectFeedback": {
+    "defaultTitle": "Rechazar requisitos",
+    "defaultDescription": "Proporciona comentarios para que el agente los aborde en la próxima iteración. Los comentarios son obligatorios.",
+    "ariaLabel": "Comentarios de rechazo",
+    "placeholder": "Describe qué necesita cambiar...",
+    "cancel": "Cancelar",
+    "rejecting": "Rechazando…",
+    "confirmReject": "Confirmar rechazo"
+  },
+  "emptyState": {
+    "addProject": "Agregar un proyecto",
+    "addProjectDescription": "Agrega tu carpeta de proyecto para desbloquear la creación de funcionalidades.",
+    "addProjectDescriptionLine2": "Describe lo que necesitas — Shep se encarga del resto.",
+    "checkingSetup": "Verificando configuración…",
+    "ready": "{{label}} listo",
+    "notInstalled": "{{label}} no está instalado",
+    "reCheck": "Verificar de nuevo",
+    "needsAuth": "{{label}} necesita autenticación",
+    "open": "Abrir {{label}}",
+    "checking": "Verificando {{label}}…",
+    "notFound": "{{label}} no encontrado",
+    "docs": "Documentación",
+    "opening": "Abriendo…",
+    "chooseFolder": "Elige una carpeta",
+    "folderHint": "Cualquier carpeta funciona — git se inicializará automáticamente si es necesario.",
+    "orUseCli": "o usa el CLI",
+    "copyCommands": "Copiar comandos",
+    "git": "Git",
+    "gitRequired": "Requerido para todas las fases",
+    "githubCli": "GitHub CLI",
+    "githubCliRequired": "Requerido para pull requests",
+    "modes": {
+      "spec": {
+        "label": "Guiado por especificaciones",
+        "description": "Primero requisitos, investigación y un plan: los apruebas antes de escribir código.",
+        "stack": "Cualquier stack, elegido durante la investigación"
+      },
+      "fast": {
+        "label": "Rápido",
+        "description": "Implementa directamente a partir de tu descripción, sin fase de especificación.",
+        "stack": "Cualquier stack"
+      },
+      "application": {
+        "label": "Prototipo rápido",
+        "description": "Prototipo instantáneo de app web con la plantilla Vite + shadcn y vista previa en vivo. Sin fase de especificación.",
+        "stack": "Vite + React + Tailwind + shadcn"
+      }
+    },
+    "existingFolder": {
+      "body": "Tu descripción menciona {{path}}. Un proyecto nuevo empieza vacío y no mirará dentro de esa carpeta.",
+      "fallback": "Para continuar código existente, abre esa carpeta como proyecto.",
+      "action": "Trabajar en esta carpeta"
+    }
+  },
+  "welcome": {
+    "loadingAgents": "Cargando agentes…",
+    "chooseAgent": "Elige tu agente",
+    "pickModel": "Elige un modelo",
+    "selectAgentSubtitle": "Selecciona el agente de codificación AI que quieres que Shep use.",
+    "chooseModelSubtitle": "Elige qué modelo de {{label}} ejecutar.",
+    "ghCliNotice": "<0>GitHub CLI (gh)</0> es necesario para las capacidades completas de auto-reparación de CI/CD. <1>Instálalo aquí</1>.",
+    "ghCliRequired": "GitHub CLI (gh)",
+    "ghCliRequiredText": "es necesario para las capacidades completas de auto-reparación de CI/CD.",
+    "installHere": "Instálalo aquí",
+    "back": "Atrás"
+  },
+  "canvas": {
+    "noFeatures": "Aún no hay funcionalidades",
+    "noFeaturesDescription": "Comienza creando tu primera funcionalidad.",
+    "newFeature": "Nueva funcionalidad",
+    "hideArchived": "Ocultar archivadas",
+    "showArchived": "Mostrar archivadas",
+    "hideArchivedLabel": "Ocultar archivadas",
+    "showArchivedLabel": "Mostrar archivadas",
+    "zoomOut": "Alejar",
+    "zoomIn": "Acercar",
+    "fitView": "Ajustar vista",
+    "resetView": "Restablecer vista"
+  },
+  "common": {
+    "noData": "No hay datos disponibles",
+    "retry": "Reintentar",
+    "saving": "Guardando...",
+    "saved": "Guardado",
+    "decrease": "Disminuir",
+    "increase": "Aumentar",
+    "cancel": "Cancelar"
+  },
+  "featureNode": {
+    "archiveFeature": "Archivar función",
+    "deleteFeature": "Eliminar función",
+    "unarchiveFeature": "Desarchivar función",
+    "archiveConfirmTitle": "¿Archivar función?",
+    "archiveConfirmDescription": "<strong>{{name}}</strong> se ocultará del lienzo. Puedes desarchivarla más tarde.",
+    "cancel": "Cancelar",
+    "archive": "Archivar",
+    "fastMode": "Modo rápido",
+    "explorationMode": "Exploration Mode",
+    "specDriven": "Basado en especificación",
+    "copied": "¡Copiado!",
+    "chatWithAgent": "Chat con agente",
+    "stopDevServer": "Detener servidor",
+    "startDevServer": "Iniciar servidor",
+    "retryDevServer": "Reintentar servidor",
+    "starting": "Iniciando…",
+    "retry": "Reintentar",
+    "start": "Iniciar",
+    "failed": "Error",
+    "deleting": "Eliminando…",
+    "addFeature": "Agregar función",
+    "reviewRequirements": "Revisar requisitos",
+    "reviewTechnicalPlan": "Revisar plan técnico",
+    "reviewChanges": "Revisar cambios",
+    "review": "Revisar",
+    "creating": "Creando...",
+    "completedIn": "Completado en {{runtime}}",
+    "completed": "Completado",
+    "waitingOn": "Esperando {{blockedBy}}",
+    "blocked": "Bloqueado",
+    "pending": "Pendiente",
+    "somethingWentWrong": "Algo salió mal",
+    "openChat": "Abrir chat",
+    "viewSessions": "Ver sesiones",
+    "sessionsActive": "Sesiones (activas)",
+    "sessions": "Sesiones",
+    "agentSessions": "Sesiones del agente",
+    "noSessionsFound": "No se encontraron sesiones",
+    "showLess": "Mostrar menos",
+    "showMore": "Mostrar {{count}} más"
+  },
+  "applicationNode": {
+    "newFeature": "Nueva función"
+  },
+  "repositoryNode": {
+    "removeRepository": "Eliminar repositorio",
+    "removeFailed": "No se pudo eliminar el repositorio",
+    "removeConfirmTitle": "¿Eliminar repositorio?",
+    "removeConfirmDescription": "Esto eliminará <strong>{{name}}</strong> y todas sus funciones del espacio de trabajo.",
+    "removeConfirmDescriptionKeepFiles": "Los archivos del repositorio en disco no se verán afectados.",
+    "removeConfirmDescriptionDeleteFiles": "La carpeta del repositorio en disco se eliminará permanentemente. Esta acción no se puede deshacer.",
+    "deleteFromDiskLabel": "Eliminar también la carpeta del repositorio del disco",
+    "cancel": "Cancelar",
+    "remove": "Eliminar",
+    "openInIde": "Abrir en IDE",
+    "openInShell": "Abrir en terminal",
+    "openFolder": "Abrir carpeta",
+    "openRepository": "Abrir repositorio",
+    "webhookEnable": "Activar webhook",
+    "webhookDisable": "Desactivar webhook",
+    "webhookUnavailable": "Webhook no disponible — el túnel no está activo",
+    "chatWithAgent": "Chat con agente",
+    "newFeature": "Nueva función",
+    "new": "Nueva",
+    "behind": "{{count}} atrás",
+    "notAGitRepository": "No es un repositorio git",
+    "starting": "Iniciando...",
+    "run": "Ejecutar",
+    "startLocalEnvironment": "iniciar entorno local",
+    "stopDevServer": "Detener servidor",
+    "startDevServer": "Iniciar servidor",
+    "retry": "Reintentar"
+  },
+  "fab": {
+    "closeActions": "Cerrar acciones",
+    "createNew": "Crear nuevo",
+    "newFeature": "Nueva función",
+    "localFolder": "Carpeta local",
+    "folderOfRepos": "Carpeta de repositorios",
+    "adoptBranch": "Adoptar rama",
+    "fromGithub": "Desde GitHub",
+    "newApplication": "Empezar con una descripción",
+    "newSddFeature": "Nueva función SDD",
+    "newSddForApp": "Nueva función SDD para {{appName}}",
+    "openInControlCenterSdd": "Abrir en Control Center (modo SDD)",
+    "addFeature": "Añadir función"
+  },
+  "chat": {
+    "shepChat": "Shep Chat",
+    "writeMessage": "Escribe un mensaje...",
+    "attachFiles": "Adjuntar archivos",
+    "forceStopAgent": "Forzar detención del agente",
+    "stop": "Detener",
+    "clearChatHistory": "Limpiar historial del chat",
+    "clear": "Limpiar",
+    "noSession": "Sin sesión",
+    "yourMessage": "Tu mensaje",
+    "agentMessage": "Mensaje del agente",
+    "agentIsTyping": "El agente está escribiendo",
+    "showMore": "Mostrar más",
+    "showLess": "Mostrar menos",
+    "code": "Código",
+    "preview": "Vista previa",
+    "openFullscreen": "Abrir pantalla completa",
+    "htmlPreview": "Vista previa HTML",
+    "htmlPreviewFullscreen": "Vista previa HTML pantalla completa"
+  },
+  "createDrawer": {
+    "title": "NUEVA FUNCIÓN",
+    "creating": "Creando...",
+    "cancel": "Cancelar",
+    "createFeature": "+ Crear función",
+    "repository": "REPOSITORIO",
+    "describeFeature": "DESCRIBE TU FUNCIÓN",
+    "featurePlaceholder": "ej. Agregar login con GitHub OAuth con manejo de callback y renovación de token...",
+    "parentFeature": "FUNCIÓN PADRE",
+    "selectParent": "Seleccionar función padre...",
+    "searchFeatures": "Buscar funciones...",
+    "noParent": "Sin padre",
+    "noFeaturesFound": "No se encontraron funciones.",
+    "searchRepositories": "Buscar repositorios...",
+    "approve": "APROBACIÓN",
+    "approveDescription": "Auto-aprobar transiciones de fase sin revisión manual.",
+    "skippedInFastMode": "Omitido en modo rápido",
+    "all": "Todos",
+    "toggleAllApprovalGates": "Alternar todas las puertas de aprobación",
+    "evidence": "EVIDENCIA",
+    "evidenceDescription": "Recopilar y adjuntar evidencia después de la implementación.",
+    "collect": "Recopilar",
+    "collectDescription": "Capturar capturas de pantalla y artefactos después de la implementación.",
+    "addToPr": "Agregar al PR",
+    "requiresPr": "Requiere PR habilitado",
+    "requiresEvidence": "Requiere recopilación de evidencia habilitada",
+    "addToPrDescription": "Incluir evidencia en el cuerpo del pull request.",
+    "git": "GIT",
+    "push": "Enviar",
+    "pushDescription": "Enviar rama al remoto después de la implementación.",
+    "pr": "PR",
+    "prDescription": "Abrir un pull request después de enviar.",
+    "watch": "Vigilar",
+    "watchDescription": "Vigilar CI y auto-corregir errores.",
+    "sync": "Sync",
+    "syncDescription": "Pull latest main from remote before creating the feature branch.",
+    "commitSpecs": "Commit de specs",
+    "commitSpecsDescription": "Hacer commit de specs al repositorio.",
+    "forkAndPr": "Fork y PR",
+    "forkAndPrDescription": "Contribuir mediante fork (PR al upstream).",
+    "pendingMode": "Pendiente",
+    "pendingModeDescription": "Crear sin iniciar — iniciar manualmente después.",
+    "fastModeLabel": "Modo rápido",
+    "fastModeDescription": "Omitir fases SDLC e implementar directamente desde tu prompt.",
+    "modeGroupLabel": "Modo de construcción",
+    "modeApplication": "Aplicación",
+    "modeApplicationDescription": "Flujo completo de app con investigación, plan e implementación.",
+    "modeFast": "Rápido",
+    "modeFastDescription": "Omitir fases SDLC e implementar directamente desde tu prompt.",
+    "modeSpec": "Spec",
+    "modeSpecDescription": "Flujo dirigido por specs con pasos explícitos de PRD y plan.",
+    "lockedByApplication": "Bloqueado por contexto de aplicación — abre desde otro punto de entrada para cambiar.",
+    "fileDropZone": "Zona de arrastre de archivos",
+    "prd": "PRD",
+    "prdDescription": "Auto-aprobar transición de requisitos a planificación.",
+    "plan": "Plan",
+    "planDescription": "Auto-aprobar transición de planificación a implementación.",
+    "merge": "Merge",
+    "mergeDescription": "Auto-aprobar transición de merge a completado.",
+    "skills": "SKILLS",
+    "skillsDescription": "Curated skills to guide the agent during feature development.",
+    "injectSkills": "Inject",
+    "injectSkillsDescription": "Include curated skills in the feature worktree.",
+    "explore": {
+      "label": "APRENDER",
+      "toggle": "Explorar variantes del harness",
+      "k": "Presupuesto de exploración k",
+      "cost": "{{attempts}} intentos de implementación: unas {{attempts}} veces el coste de implementar"
+    },
+    "effort": "Esfuerzo",
+    "effortFromSettings": "Según ajustes"
+  },
+  "featureDrawer": {
+    "copyFeatureId": "Copiar ID de función",
+    "unarchiveFeature": "Desarchivar función",
+    "archiveFeature": "Archivar función",
+    "deleteFeature": "Eliminar función",
+    "stopDevServer": "Detener servidor",
+    "startDevServer": "Iniciar servidor",
+    "failedToReject": "Error al rechazar {{label}}",
+    "rejected": "{{label}} rechazado — agente re-iterando (iteración {{n}})",
+    "excessiveIterations": "Iteración {{n}} — considera aprobar o ajustar el feedback",
+    "failedToApprove": "Error al aprobar {{label}}",
+    "approved": "{{label}} aprobado — agente reanudando",
+    "failedToApproveRequirements": "Error al aprobar requisitos",
+    "requirementsApproved": "Requisitos aprobados — agente reanudando",
+    "featureResumed": "Función reanudada — agente reiniciando",
+    "featureStarted": "Función iniciada",
+    "approvePlan": "Aprobar plan",
+    "sendRevisionFeedback": "Enviar feedback de revisión"
+  },
+  "coordinationNote": {
+    "waitsFor": "Espera a {{peer}}",
+    "runsAlongside": "Avanza junto a {{peer}}",
+    "anotherFeature": "otra funcionalidad",
+    "sharedFiles": "Archivos compartidos ({{count}})",
+    "decidedBy": "Decidido por el agente coordinador · {{when}}",
+    "title": "Coordinación de agentes"
+  },
+  "overviewTab": {
+    "created": "Creado",
+    "runtime": "Tiempo de ejecución",
+    "runningFor": "En ejecución",
+    "blockedBy": "Bloqueado por",
+    "error": "Error",
+    "prd": "PRD",
+    "plan": "Plan",
+    "merge": "Merge",
+    "collect": "Recopilar",
+    "addToPr": "Agregar al PR",
+    "push": "Enviar",
+    "pr": "PR",
+    "watch": "Vigilar",
+    "commitSpecs": "Commit de specs",
+    "forkAndPr": "Fork y PR",
+    "effortValue": "Esfuerzo {{level}}"
+  },
+  "activityTab": {
+    "copyPromptToClipboard": "Copiar prompt al portapapeles",
+    "execution": "Ejecución",
+    "wait": "Espera",
+    "cost": "Costo",
+    "modelUsed": "Ejecutado en {{model}}",
+    "noActivityRecorded": "Sin actividad registrada",
+    "decisions": {
+      "title": "Decisiones",
+      "pending": "Esperando una respuesta",
+      "answered": "{{actor}} respondió: {{answer}}",
+      "defaulted": "Sin respuesta antes del plazo: se continuó con la opción recomendada: {{answer}}",
+      "cancelled": "Cancelada sin respuesta"
+    }
+  },
+  "logTab": {
+    "structuredView": "Vista estructurada",
+    "rawView": "Vista sin formato",
+    "noLogOutput": "Sin salida de log"
+  },
+  "planTab": {
+    "noPlanCreated": "Plan aún no creado"
+  },
+  "branchSyncStatus": {
+    "refreshSyncStatus": "Actualizar estado de sincronización",
+    "rebaseOnMain": "Rebase en Main"
+  },
+  "drawerActionBar": {
+    "fileDropZone": "Zona de arrastre de archivos",
+    "askAiToRevise": "Pedir a la IA que revise...",
+    "attachFiles": "Adjuntar archivos",
+    "reject": "Rechazar",
+    "sendRevisionFeedback": "Enviar feedback de revisión",
+    "approve": "Aprobar",
+    "fileTooLarge": "\"{{name}}\" excede el límite de 10 MB",
+    "fileTypeNotAllowed": "Tipo de archivo \"{{ext}}\" no permitido",
+    "uploadFailed": "Error en la carga"
+  },
+  "taskProgress": {
+    "done": "Hecho",
+    "inProgress": "En progreso",
+    "review": "En revisión",
+    "todo": "Pendiente",
+    "noTasksDefined": "Sin tareas definidas"
+  },
+  "repositoryDrawer": {
+    "openInIde": "Abrir en IDE",
+    "openInShell": "Abrir en terminal",
+    "openFolder": "Abrir carpeta",
+    "syncMain": "Sincronizar Main"
+  },
+  "adoptBranch": {
+    "failedToAdopt": "Error al adoptar rama",
+    "repository": "Repositorio",
+    "branchName": "Nombre de rama",
+    "searchRepositories": "Buscar repositorios...",
+    "searchBranches": "Buscar ramas..."
+  },
+  "githubImport": {
+    "title": "Importar desde GitHub",
+    "description": "Clonar un repositorio GitHub y agregarlo a Shep.",
+    "githubUrl": "URL de GitHub",
+    "urlPlaceholder": "owner/repo o https://github.com/owner/repo",
+    "searchRepositories": "Buscar repositorios..."
+  },
+  "versionBadge": {
+    "version": "Versión",
+    "branch": "Rama",
+    "commit": "Commit",
+    "path": "Ruta"
+  },
+  "mergeReview": {
+    "download": "Descargar",
+    "dataUnavailable": "Datos de revisión de merge no disponibles"
+  },
+  "baseDrawer": {
+    "close": "Cerrar",
+    "stopDevServer": "Detener servidor",
+    "startDevServer": "Iniciar servidor"
+  },
+  "addRepository": {
+    "addRepository": "Agregar repositorio"
+  },
+  "modelPicker": {
+    "searchPlaceholder": "Buscar o escribir un ID de modelo…"
+  },
+  "effortSelect": {
+    "agentDefault": "Predeterminado del agente",
+    "levels": {
+      "low": "Bajo",
+      "medium": "Medio",
+      "high": "Alto",
+      "xhigh": "Muy alto",
+      "max": "Máximo"
+    }
+  },
+  "skills": {
+    "searchPlaceholder": "Buscar habilidades..."
+  },
+  "tools": {
+    "noCategoryTools": "Sin herramientas en esta categoría."
+  },
+  "accessibility": {
+    "close": "Cerrar",
+    "loading": "Cargando",
+    "send": "Enviar",
+    "imageNotes": "Notas de imagen",
+    "viewServerLogs": "Ver logs del servidor",
+    "toggleSidebar": "Alternar barra lateral"
+  },
+  "agentEditor": {
+    "prompts": "Prompts",
+    "graph": "Grafo",
+    "playground": "Zona de pruebas",
+    "usePrompt": "Usar prompt:",
+    "noAgentsRegistered": "No hay agentes registrados",
+    "emptyRegistryPrefix": "El registro de prompts integrado está vacío - registra slots en",
+    "emptyRegistrySuffix": "para mostrar agentes en este editor.",
+    "custom": "Personalizado",
+    "promptCount_one": "{{count}} prompt",
+    "promptCount_other": "{{count}} prompts",
+    "overrideCount_one": "{{count}} anulación",
+    "overrideCount_other": "{{count}} anulaciones",
+    "noGraphDescriptor": "Todavía no hay un descriptor de grafo registrado para este agente.",
+    "overridden": "Anulado",
+    "bundled": "Incluido",
+    "addNode": "Añadir nodo",
+    "resetToBundled": "Restablecer al incluido",
+    "cancel": "Cancelar",
+    "edit": "Editar",
+    "saveGraph": "Guardar grafo",
+    "saving": "Guardando...",
+    "savedAt": "Guardado a las {{time}}",
+    "newStep": "Nuevo paso",
+    "failedToSaveGraph": "No se pudo guardar el grafo",
+    "failedToResetGraph": "No se pudo restablecer el grafo",
+    "nodeLabelPlaceholder": "etiqueta",
+    "nodeDescriptionPlaceholder": "descripción",
+    "nodeLabelAria": "Etiqueta del nodo {{id}}",
+    "nodeDescriptionAria": "Descripción del nodo {{id}}",
+    "deleteNodeAria": "Eliminar nodo {{id}}",
+    "graphMustHaveNode": "El grafo debe tener al menos un nodo.",
+    "nodeMustHaveLabel": "El nodo {{id}} debe tener una etiqueta.",
+    "duplicateNodeId": "ID de nodo duplicado: {{id}}",
+    "edgeUnknownSource": "La arista referencia un origen desconocido: {{id}}",
+    "edgeUnknownTarget": "La arista referencia un destino desconocido: {{id}}",
+    "createCustomAgent": "Crear agente personalizado",
+    "createCustomAgentDescription": "Crea un nuevo tipo de agente con sus propios slots de prompt y un grafo editable. Los agentes integrados no cambian.",
+    "stableTypeId": "ID de tipo estable",
+    "stableTypeIdPlaceholder": "p. ej. code-review",
+    "stableTypeIdHelpPrefix": "kebab-case, empieza con una letra, máximo 64 caracteres (coincide con",
+    "stableTypeIdHelpSuffix": ")",
+    "displayName": "Nombre visible",
+    "displayNamePlaceholder": "p. ej. Agente de revisión de código",
+    "description": "Descripción",
+    "descriptionPlaceholder": "¿Qué hace este agente?",
+    "seedFirstPrompt": "Sembrar primer prompt (opcional)",
+    "promptSlotId": "ID del slot de prompt",
+    "promptSlotIdPlaceholder": "p. ej. system, plan.system",
+    "promptBody": "Cuerpo del prompt",
+    "promptBodyPlaceholder": "Prompt de sistema con el que se ejecutará el agente...",
+    "failedToCreateAgent": "No se pudo crear el agente",
+    "newAgent": "Nuevo agente",
+    "creating": "Creando...",
+    "createAgent": "Crear agente",
+    "promptCount_few": "{{count}} prompts",
+    "promptCount_many": "{{count}} prompts",
+    "overrideCount_few": "{{count}} anulaciones",
+    "overrideCount_many": "{{count}} anulaciones"
+  },
+  "cluster": {
+    "status": {
+      "provisioning": "Aprovisionando",
+      "ready": "Listo",
+      "stopping": "Deteniendo",
+      "stopped": "Detenido",
+      "error": "Error",
+      "destroying": "Destruyendo"
+    },
+    "createTitle": "Create cluster",
+    "createDescription": "Spin up a local k3s Kubernetes cluster in Docker.",
+    "createAndProvision": "Create & provision",
+    "creating": "Creating…",
+    "nameLabel": "Name",
+    "namePlaceholder": "my-cluster",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "What is this cluster for?",
+    "argoCdLabel": "Install ArgoCD",
+    "argoCdDescription": "Bootstrap GitOps with ArgoCD after the cluster is ready.",
+    "provision": "Provision",
+    "destroy": "Destroy",
+    "remove": "Remove",
+    "cancel": "Cancel",
+    "removeCluster": "Remove cluster",
+    "removeConfirmTitle": "Remove this cluster?",
+    "removeConfirmDescription": "Cluster \"{{name}}\" will be removed from Shep. If it is running it will be destroyed first.",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "fieldStatus": "Status",
+    "fieldKubeconfig": "Kubeconfig",
+    "fieldArgoCd": "ArgoCD",
+    "fieldArgoCdNamespace": "ArgoCD namespace",
+    "fieldLastProvisioned": "Last provisioned",
+    "fieldLastHealthCheck": "Last health check",
+    "fieldError": "Error",
+    "tabOverview": "Overview",
+    "tabRepositories": "Repositories",
+    "tabApplications": "Applications",
+    "tabStatus": "Live status",
+    "noLinkedRepos": "No repositories linked yet.",
+    "noLinkedApps": "No applications linked yet.",
+    "statusLive": "Live cluster status updates here once the cluster is ready.",
+    "statusNotAvailable": "Live status is only available when the cluster is Ready.",
+    "linkedRepos_one": "{{count}} repo",
+    "linkedRepos_other": "{{count}} repos",
+    "linkedApps_one": "{{count}} app",
+    "linkedApps_other": "{{count}} apps"
+  },
+  "memory": {
+    "title": "Project Memory",
+    "subtitle": "Durable knowledge agents read at the start of every feature. Updated automatically after each merged PR.",
+    "empty": {
+      "title": "No project memory yet",
+      "description": "As features merge, agents distil conventions, library choices, and fixes here."
+    },
+    "categories": {
+      "convention": "Conventions",
+      "architectureDecision": "Architecture Decisions",
+      "library": "Preferred Libraries & Tools",
+      "namingPattern": "Naming Patterns",
+      "ciFixResolution": "Past CI/Build Fixes"
+    },
+    "actions": {
+      "edit": "Edit",
+      "delete": "Delete",
+      "save": "Save",
+      "cancel": "Cancel",
+      "scope": "Cambiar quién lo ve"
+    },
+    "deleteDialog": {
+      "title": "Delete this memory entry?",
+      "description": "Agents will no longer see this guidance when starting a feature. This cannot be undone."
+    },
+    "errors": {
+      "emptyContent": "Memory content cannot be empty.",
+      "updateFailed": "Failed to update the memory entry.",
+      "scopeFailed": "No se pudo cambiar quién ve esta entrada."
+    },
+    "scope": {
+      "project": "Solo este repositorio",
+      "productLine": "Su línea de producto",
+      "space": "Todo su espacio",
+      "menuLabel": "Compartido con"
+    },
+    "filter": {
+      "label": "Filtrar por espacio",
+      "allSpaces": "Todos los espacios"
+    }
+  },
+  "sessionTree": {
+    "title": "Sesiones",
+    "loading": "Cargando sesiones…",
+    "empty": "Aún no hay repositorios rastreados",
+    "noSessions": "Sin sesiones",
+    "notConverted": "Sin convertir",
+    "showArchived": "Mostrar archivadas",
+    "hideArchived": "Ocultar archivadas",
+    "refresh": "Actualizar",
+    "collapseAll": "Contraer todo",
+    "expandAll": "Expandir todo",
+    "collapsePanel": "Contraer panel",
+    "expandPanel": "Expandir panel",
+    "sessionActions": "Acciones de sesión",
+    "repositoryActions": "Acciones del repositorio",
+    "archive": "Archivar",
+    "unarchive": "Restaurar",
+    "delete": "Eliminar transcripción…",
+    "deleteConfirmTitle": "¿Eliminar esta transcripción?",
+    "deleteConfirmDescription": "Esto elimina permanentemente el archivo de conversación del disco. No se puede deshacer, y shep no es propietario de este archivo.",
+    "deleteConfirm": "Eliminar permanentemente",
+    "deleteAdoptedNote": "La funcionalidad adoptada de esta sesión no se eliminará.",
+    "cancel": "Cancelar",
+    "archivedHidden": "{{count}} archivadas ocultas"
+  },
+  "runPlan": {
+    "title": "Plan de ejecución",
+    "description": "Qué se ejecuta cuando inicias el servidor de desarrollo",
+    "show": "Mostrar plan de ejecución",
+    "hide": "Ocultar plan de ejecución",
+    "loading": "Cargando plan de ejecución…",
+    "empty": "Todavía no hay plan de ejecución — inicia el servidor de desarrollo una vez y el plan resuelto aparecerá aquí.",
+    "fields": {
+      "command": "Comando",
+      "cwd": "Directorio de trabajo",
+      "language": "Lenguaje",
+      "framework": "Framework",
+      "expectedPort": "Puerto esperado",
+      "packageManager": "Gestor de paquetes",
+      "setupCommands": "Comandos de preparación"
+    },
+    "source": {
+      "label": "Origen",
+      "deterministic": "Detectado",
+      "agent": "Analizado por IA",
+      "manual": "Fijado"
+    },
+    "staleHint": "Los archivos de configuración del repositorio han cambiado desde que se creó este plan. Vuelve a analizar para incorporar el cambio, o mantenlo tal cual.",
+    "repoConfigControlled": "Un archivo .shep/dev.json versionado controla este repositorio. Se relee en cada inicio y tiene prioridad sobre cualquier plan guardado — edita ese archivo para cambiar lo que se ejecuta.",
+    "actions": {
+      "edit": "Editar",
+      "reanalyze": "Volver a analizar",
+      "reanalyzing": "Analizando…",
+      "save": "Guardar",
+      "saving": "Guardando…",
+      "cancel": "Cancelar"
+    },
+    "editor": {
+      "title": "Editar plan de ejecución",
+      "executionNotice": "Este comando se ejecutará en tu máquina.",
+      "commandPlaceholder": "pnpm dev",
+      "cwdPlaceholder": "Raíz del repositorio",
+      "cwdHelp": "Absoluto, o relativo a la raíz del repositorio.",
+      "expectedPortPlaceholder": "Detectado automáticamente",
+      "setupCommandsLabel": "Comandos de preparación",
+      "setupCommandsHelp": "Un comando por línea, se ejecutan antes de iniciar el servidor de desarrollo."
+    },
+    "errors": {
+      "loadFailed": "No se pudo cargar el plan de ejecución.",
+      "saveFailed": "No se pudo guardar el plan de ejecución.",
+      "reanalyzeFailed": "No se pudo restablecer el plan de ejecución."
+    }
+  },
+  "features": {
+    "queued": "En cola",
+    "queuedWithPosition": "En cola · {{position}} por delante",
+    "queuedTooltip": "Esperando un espacio libre ({{position}} en la cola)",
+    "startAnyway": "Iniciar de todos modos"
+  },
+  "harness": {
+    "title": "Harness del agente",
+    "subtitle": "Tareas independientes, lo que vio el modelo en cada turno y acciones pendientes de tu aprobación",
+    "loading": "Cargando…",
+    "noTasks": "Aún no hay tareas.",
+    "taskN": "Tarea {{n}}",
+    "turn": "Turno {{n}}",
+    "tabs": {
+      "sessions": "Sesiones",
+      "newTask": "Nueva tarea",
+      "approvals": "Aprobaciones",
+      "catalog": "Herramientas y políticas",
+      "setup": "Configurar un repositorio",
+      "evals": "Evaluaciones"
+    },
+    "mode": {
+      "query_aware": "Sensible a la consulta",
+      "baseline": "Base"
+    },
+    "budget": {
+      "economy": "Económico",
+      "balanced": "Equilibrado",
+      "quality": "Calidad"
+    },
+    "effect": {
+      "allow": "Permitir",
+      "ask": "Preguntar",
+      "deny": "Denegar"
+    },
+    "origin": {
+      "feature": "Funcionalidad",
+      "standalone": "Independiente",
+      "eval": "Evaluación"
+    },
+    "sessionStatus": {
+      "active": "En ejecución",
+      "idle": "Inactiva",
+      "completed": "Completada",
+      "failed": "Fallida",
+      "discarded": "Descartada"
+    },
+    "visibility": {
+      "hidden": "Oculto",
+      "short": "Corto",
+      "long": "Largo",
+      "full": "Completo"
+    },
+    "source": {
+      "deterministic": "determinista",
+      "ai": "AI",
+      "policy": "política",
+      "degraded": "degradado",
+      "escalation": "solicitado por el agente",
+      "user": "tú",
+      "budget": "presupuesto"
+    },
+    "providerKind": {
+      "deterministic": "Determinista",
+      "openai_compatible": "Servidor compatible con OpenAI",
+      "reranker": "Reranker",
+      "structured_llm": "Modelo del harness",
+      "jev": "Jev"
+    },
+    "sessions": {
+      "empty": "Aún no hay sesiones del harness. Inicia una desde Nueva tarea.",
+      "title": "Sesión",
+      "origin": "Origen",
+      "mode": "Modo",
+      "status": "Estado",
+      "tasks": "Tareas",
+      "pending": "{{count}} en espera"
+    },
+    "newTask": {
+      "repository": "Repositorio",
+      "task": "Tarea",
+      "taskPlaceholder": "Corregir la comprobación de caducidad del token de actualización",
+      "worktreeNote": "Se ejecuta en su propio worktree: tu checkout nunca se toca. Después puedes aplicarlo a una rama, convertirlo en funcionalidad o descartarlo.",
+      "run": "Ejecutar tarea"
+    },
+    "approvals": {
+      "empty": "No hay nada pendiente de aprobación."
+    },
+    "permission": {
+      "reason": "Motivo del agente:",
+      "willDo": "Esta acción hará:",
+      "noEffects": "(sin efectos previstos)",
+      "rules": "Reglas:",
+      "notePlaceholder": "Nota para el agente (opcional), p. ej. usa jose en su lugar",
+      "allowOnce": "Permitir una vez",
+      "allowPhase": "Permitir en esta fase",
+      "allowFeature": "Permitir en esta funcionalidad",
+      "allowSession": "Permitir en esta sesión",
+      "deny": "Denegar",
+      "hardDeny": "Denegado por una regla estricta; no se puede aprobar."
+    },
+    "banner": {
+      "waiting": "{{count}} acción(es) del harness esperan tu aprobación",
+      "review": "Revisar"
+    },
+    "context": {
+      "empty": "Esta funcionalidad aún no se ha ejecutado en Shep Harness."
+    },
+    "usage": {
+      "turns": "Turnos",
+      "input": "Tokens de entrada",
+      "output": "Tokens de salida",
+      "cost": "Coste",
+      "toolOutputSeen": "Salida de herramientas vista",
+      "denied": "Acciones denegadas"
+    },
+    "plan": {
+      "summary": "{{tokens}} de {{budget}} tokens · {{count}} candidatos",
+      "shadow": "sombra",
+      "degraded": "degradado",
+      "overBudget": "por encima del presupuesto",
+      "none": "Selecciona un turno para ver lo que vio el modelo.",
+      "chunk": "Fragmento",
+      "visibility": "Visibilidad",
+      "tokens": "Tokens mostrados/brutos",
+      "relevance": "Relevancia",
+      "reason": "Motivo",
+      "view": "Ver",
+      "why": "¿Por qué?"
+    },
+    "chunk": {
+      "redacted": "Este fragmento está marcado como secreto y nunca se muestra.",
+      "truncated": "truncado",
+      "storedNote": "mostrado a partir de la salida almacenada; no se volvió a ejecutar nada"
+    },
+    "why": {
+      "title": "¿Por qué esta visibilidad?",
+      "tokens": "{{visible}} de {{raw}} tokens mostrados",
+      "relevance": "Relevancia {{score}}",
+      "bands": "oculto < {{hide}} ≤ corto < {{long}} ≤ largo < {{full}} ≤ completo",
+      "noProbabilities": "Sin probabilidades de clase: este proveedor no las devuelve.",
+      "provider": "Decidido por {{provider}} en {{latency}} ms · {{cost}}",
+      "shadow": "sombra",
+      "degraded": "degradado",
+      "include": "Incluir desde el siguiente turno",
+      "included": "Incluido desde el siguiente turno"
+    },
+    "actions": {
+      "stop": "Detener",
+      "stopRequested": "Detención solicitada; la tarea se detiene antes de su siguiente turno",
+      "stoppedOrphan": "Detenida: el proceso que ejecutaba la tarea había terminado, así que se canceló",
+      "branchPlaceholder": "Rama (opcional)",
+      "apply": "Aplicar a la rama",
+      "applied": "Se confirmaron {{count}} archivo(s) en {{branch}}",
+      "promote": "Convertir en funcionalidad",
+      "discard": "Descartar",
+      "discarded": "Worktree eliminado; la sesión se conserva"
+    },
+    "capabilities": {
+      "title": "Herramientas que el agente puede cargar",
+      "description": "Los fragmentos de nivel 1 se muestran siempre; los esquemas de nivel 2 solo se cargan cuando el agente solicita una capacidad.",
+      "cost": "{{snippet}} / {{schema}} tokens"
+    },
+    "policies": {
+      "title": "Reglas de permisos",
+      "description": "Valores predeterminados de Shep más .shep/harness/policies/*.yaml. Precedencia: deny > ask > allow.",
+      "hard": "estricta"
+    },
+    "setup": {
+      "description": "Detecta archivos de instrucciones, comandos de test y lint y archivos sensibles, muestra una vista previa de .shep/harness/ y solo escribe cuando lo confirmas. Los archivos fuente nunca se modifican.",
+      "preview": "Vista previa",
+      "instructions": "Instrucciones",
+      "manifests": "Manifiestos",
+      "commands": "Test / lint",
+      "sensitive": "Archivos sensibles",
+      "exists": "existe, se conserva",
+      "confirm": "Escribir archivos",
+      "written": "Se escribieron {{count}} archivo(s)"
+    },
+    "evals": {
+      "description": "Ejecuta las mismas tareas en baseline y query-aware, cada una en un repositorio desechable, y compara éxito, tokens, coste, turnos y cobertura de evidencias.",
+      "repeats": "Repeticiones",
+      "run": "Ejecutar eval",
+      "empty": "Aún no hay ejecuciones de eval.",
+      "score": "Métrica",
+      "change": "Cambio",
+      "status": {
+        "pending": "Pendiente",
+        "running": "En curso",
+        "completed": "Completada",
+        "failed": "Fallida"
+      },
+      "scores": {
+        "success": "Éxito",
+        "inputTokens": "Tokens de entrada",
+        "outputTokens": "Tokens de salida",
+        "costUsd": "Coste",
+        "turns": "Turnos",
+        "wallMs": "Tiempo total",
+        "repeatedReads": "Lecturas repetidas",
+        "toolOutputRatio": "Salida de herramientas vista",
+        "evidenceRecall": "Cobertura de evidencias"
+      }
+    }
+  },
+  "spaces": {
+    "title": "Espacios",
+    "subtitle": "Mantén separados tus ámbitos de trabajo. La memoria compartida en un espacio nunca llega a otro.",
+    "create": {
+      "title": "Nuevo espacio",
+      "name": "Nombre",
+      "namePlaceholder": "Acme",
+      "description": "Descripción",
+      "descriptionPlaceholder": "Trabajo para el cliente Acme Corp",
+      "color": "Color",
+      "submit": "Crear espacio"
+    },
+    "card": {
+      "default": "Predeterminado",
+      "makeDefault": "Hacer predeterminado",
+      "delete": "Eliminar espacio",
+      "counts": "Repositorios: {{repositories}} · Entradas de memoria: {{memory}}",
+      "edit": "Editar espacio",
+      "save": "Guardar"
+    },
+    "lines": {
+      "title": "Líneas de producto",
+      "empty": "Aún no hay líneas de producto.",
+      "placeholder": "Nueva línea de producto",
+      "add": "Añadir",
+      "remove": "Eliminar {{name}}"
+    },
+    "rules": {
+      "title": "Reglas",
+      "empty": "Sin reglas. Los repositorios llegan aquí solo si se fijan.",
+      "placeholder": "/work/acme o github.com/acme/*",
+      "line": "Línea de producto de los repositorios coincidentes",
+      "noLine": "Sin línea de producto",
+      "add": "Añadir regla",
+      "remove": "Eliminar regla"
+    },
+    "repositories": {
+      "title": "Repositorios",
+      "empty": "Aún no hay repositorios. Añade uno desde el centro de control.",
+      "repository": "Repositorio",
+      "space": "Espacio",
+      "line": "Línea de producto",
+      "because": "Motivo",
+      "sourceAssignment": "Fijado",
+      "sourceRule": "Regla",
+      "sourceDefault": "Espacio predeterminado",
+      "pin": "Fijar a un espacio…",
+      "unpin": "Desfijar para aplicar las reglas"
+    },
+    "deleteDialog": {
+      "title": "¿Eliminar {{name}}?",
+      "description": "Se eliminan sus reglas, fijaciones y líneas de producto. Sus repositorios pasan a otras reglas o al espacio predeterminado.",
+      "confirm": "Eliminar espacio",
+      "cancel": "Cancelar"
+    },
+    "errors": {
+      "actionFailed": "No se pudo guardar el cambio. Inténtalo de nuevo."
+    },
+    "agent": {
+      "title": "Ajustes de agentes",
+      "customised": "Personalizado",
+      "inherits": "Hereda del host",
+      "claudeConfigDir": "Directorio de configuración de Claude",
+      "ghConfigDir": "Directorio de configuración de gh",
+      "gitName": "Nombre de autor git",
+      "gitEmail": "Correo de autor git",
+      "awsProfile": "Perfil de AWS",
+      "bedrock": "Amazon Bedrock",
+      "bedrockInherit": "Heredar del host",
+      "bedrockOn": "Usar Bedrock para Claude",
+      "bedrockOff": "No usar nunca Bedrock",
+      "loginHint": "Inicia sesión una vez con el directorio definido, por ejemplo CLAUDE_CONFIG_DIR=~/.claude-acme claude o GH_CONFIG_DIR=~/.config/gh-acme gh auth login. Shep nunca guarda las credenciales.",
+      "allowedAgents": "Agentes permitidos",
+      "allowedAgentsHint": "Sin selección se permite cualquier agente.",
+      "save": "Guardar ajustes de agentes",
+      "prComments": "Comentarios de pull requests",
+      "prCommentsHint": "Qué comentarios de revisión en los pull requests de shep se responden sin preguntar. Los demás se pueden atender desde la funcionalidad.",
+      "prTrigger": {
+        "Off": "Solo cuando se pida",
+        "Mention": "Comentarios que mencionan #shep",
+        "All": "Todos los comentarios"
+      },
+      "resolveThreads": "Resolver los hilos en los que cambió código",
+      "autoActions": "Se ejecutan sin preguntar en incidentes",
+      "autoActionsHint": "Shep ejecuta estas en la carga de trabajo de un incidente sin esperar aprobación. Las demás esperan a que alguien las apruebe.",
+      "docsFirst": "Docs first",
+      "docsFirstHint": "Los agentes escriben la documentación para usuarios al planificar y construyen según ella. Un cambio que no toca la documentación espera a una persona antes de fusionarse.",
+      "docsFirstOn": "Exigir docs first",
+      "docsPaths": "Rutas de documentación"
+    }
+  },
+  "trackers": {
+    "title": "Conexiones",
+    "subtitle": "Issues de Linear y Jira en proyectos de shep, y páginas de Notion como conocimiento del equipo.",
+    "syncAll": "Sincronizar ahora",
+    "empty": "Aún no hay conexiones. Añade arriba tu clave API de Linear, token de Jira o token de integración de Notion.",
+    "add": {
+      "title": "Añadir una conexión",
+      "provider": "Herramienta",
+      "name": "Nombre",
+      "space": "Espacio",
+      "site": "Sitio de Jira",
+      "email": "Correo de la cuenta",
+      "linearSecret": "Clave de API de Linear",
+      "jiraSecret": "Token de API de Jira",
+      "submit": "Conectar",
+      "notionSecret": "Token de integración de Notion"
+    },
+    "connection": {
+      "connected": "Conectado",
+      "error": "Error",
+      "account": "como {{account}}",
+      "space": "espacio {{space}}",
+      "test": "Probar",
+      "remove": "Eliminar conexión",
+      "removeTitle": "¿Eliminar {{name}}?",
+      "removeDescription": "Sus reglas de sincronización y fuentes de conocimiento se detienen y se eliminan. Los elementos ya sincronizados se quedan en sus proyectos.",
+      "cancel": "Cancelar"
+    },
+    "rules": {
+      "title": "Reglas de sincronización",
+      "empty": "Aún no hay reglas. Añade una para importar incidencias.",
+      "noProjects": "Crea antes un proyecto; las reglas escriben incidencias en un proyecto.",
+      "scope": "Clave de equipo de Linear o JQL de Jira",
+      "project": "Proyecto",
+      "twoWay": "Bidireccional",
+      "import": "Importar",
+      "every": "cada",
+      "minutes": "min",
+      "everyShort": "cada {{minutes}} min",
+      "paused": "En pausa",
+      "summary": "{{created}} creados, {{updated}} actualizados, {{pushed}} enviados, {{conflicts}} conflictos, {{failed}} fallidos",
+      "never": "Aún no se ejecutó",
+      "add": "Añadir regla",
+      "pause": "Pausar",
+      "resume": "Reanudar",
+      "runNow": "Ejecutar ahora",
+      "remove": "Eliminar regla"
+    },
+    "errors": {
+      "actionFailed": "No se pudo guardar el cambio. Inténtalo de nuevo."
+    },
+    "badge": {
+      "open": "Abrir {{key}} en el gestor"
+    }
+  },
+  "bugLoop": {
+    "title": "Investigación",
+    "intro": "Un agente lee el repositorio en una copia desechable de solo lectura y ordena las causas probables. Tu copia de trabajo nunca se toca.",
+    "repository": "Repositorio",
+    "noRepositories": "Añade un repositorio a shep para investigar este elemento.",
+    "investigate": "Investigar",
+    "investigateAgain": "Investigar de nuevo",
+    "running": "El agente está leyendo una copia de solo lectura de {{repository}}…",
+    "approved": "Se está corrigiendo la hipótesis {{number}}.",
+    "openFeature": "Abrir la funcionalidad de corrección",
+    "fullSpec": "Corregir con el flujo completo de especificación en lugar del modo rápido",
+    "status": {
+      "Pending": "Iniciando",
+      "Running": "Investigando",
+      "Completed": "Hipótesis listas",
+      "Failed": "Fallida"
+    },
+    "confidence": {
+      "High": "Confianza alta",
+      "Medium": "Confianza media",
+      "Low": "Confianza baja"
+    },
+    "hypothesis": {
+      "evidence": "Evidencia",
+      "test": "Prueba que falla",
+      "fix": "Corrección",
+      "fixThis": "Corregir esto",
+      "fixing": "Iniciando corrección…",
+      "approved": "En corrección"
+    }
+  },
+  "prComments": {
+    "title": "Comentarios de revisión",
+    "refresh": "Leer comentarios de GitHub",
+    "address": "Atender {{count}} pendientes",
+    "running": "Un agente está atendiendo {{count}} comentarios en el worktree de la funcionalidad…",
+    "roundPushed": "La última ronda subió {{sha}} y respondió.",
+    "roundAnswered": "La última ronda respondió sin cambiar código.",
+    "roundFailed": "La última ronda falló: {{error}}",
+    "empty": "Todavía no hay comentarios de revisión en el pull request.",
+    "openOnGitHub": "Abrir en GitHub",
+    "status": {
+      "Pending": "Pendiente",
+      "Addressing": "En curso",
+      "Addressed": "Atendido",
+      "Declined": "Rechazado",
+      "Failed": "Fallido"
+    },
+    "kind": {
+      "Inline": "En una línea",
+      "Conversation": "Conversación",
+      "Review": "Revisión"
+    },
+    "addressNone": "Nada que atender"
+  },
+  "knowledge": {
+    "sources": {
+      "title": "Fuentes de conocimiento",
+      "empty": "Aún no hay fuentes. Comparte una página o base de datos de Notion con la integración y añade su enlace.",
+      "kind": {
+        "Page": "Árbol de páginas",
+        "Database": "Base de datos"
+      },
+      "productLine": "solo {{name}}",
+      "wholeSpace": "Todo el espacio",
+      "productLineLabel": "Línea de producto",
+      "scope": "Enlace a página o base de datos de Notion",
+      "documents_one": "{{count}} documento",
+      "documents_few": "{{count}} documentos",
+      "documents_many": "{{count}} documentos",
+      "documents_other": "{{count}} documentos",
+      "summary": "{{added}} añadidos, {{updated}} actualizados, {{removed}} eliminados, {{failed}} fallidos",
+      "never": "Aún sin sincronizar",
+      "add": "Añadir fuente",
+      "syncNow": "Sincronizar ahora",
+      "remove": "Eliminar fuente"
+    },
+    "documents": {
+      "title": "Conocimiento del equipo",
+      "subtitle": "Páginas de Notion que leen los agentes de cada espacio cuando encajan con la tarea.",
+      "empty": "Aún no hay conocimiento del equipo. Añade una conexión de Notion y sus páginas en",
+      "connections": "Conexiones"
+    }
+  },
+  "opportunities": {
+    "title": "Oportunidades",
+    "subtitle": "Apuestas respaldadas por evidencia, ordenadas por valor por hora de revisión.",
+    "space": "Espacio",
+    "empty": "No hay oportunidades abiertas en este espacio. Crea una arriba.",
+    "errors": {
+      "actionFailed": "No se pudo guardar el cambio. Inténtalo de nuevo."
+    },
+    "capacity": {
+      "title": "Capacidad de revisión de esta semana",
+      "used": "{{used}} de {{capacity}} horas de revisión",
+      "waiting_one": "{{count}} apuesta aceptada espera capacidad",
+      "waiting_few": "{{count}} apuestas aceptadas esperan capacidad",
+      "waiting_many": "{{count}} apuestas aceptadas esperan capacidad",
+      "waiting_other": "{{count}} apuestas aceptadas esperan capacidad"
+    },
+    "row": {
+      "inLine": "En la línea de esta semana",
+      "outOfLine": "Fuera de la línea",
+      "strategic": "Estratégica",
+      "cost": "{{hours}} h · {{confidence}} % de confianza",
+      "evidenceParts": {
+        "signals_one": "{{count}} señal",
+        "signals_few": "{{count}} señales",
+        "signals_many": "{{count}} señales",
+        "signals_other": "{{count}} señales",
+        "customers_one": "{{count}} cliente",
+        "customers_few": "{{count}} clientes",
+        "customers_many": "{{count}} clientes",
+        "customers_other": "{{count}} clientes",
+        "urgent_one": "{{count}} urgente",
+        "urgent_few": "{{count}} urgentes",
+        "urgent_many": "{{count}} urgentes",
+        "urgent_other": "{{count}} urgentes",
+        "revenue": "{{revenue}}/mes"
+      }
+    },
+    "status": {
+      "Proposed": "Propuesta",
+      "Accepted": "Aceptada",
+      "Building": "En construcción",
+      "Shipped": "Entregada",
+      "Dropped": "Descartada"
+    },
+    "kind": {
+      "Feedback": "Feedback",
+      "Incident": "Incidente",
+      "Tracker": "Tracker",
+      "Discovery": "Hallazgo",
+      "Manual": "Nota"
+    },
+    "actions": {
+      "accept": "Aceptar",
+      "build": "Construir",
+      "drop": "Descartar",
+      "cancel": "Cancelar",
+      "reason": "¿Por qué descartarla?",
+      "project": "Proyecto",
+      "noProjects": "Crea primero un proyecto; construir crea un elemento de trabajo en él.",
+      "ship": "Marcar entregada"
+    },
+    "inbox": {
+      "title": "Señales por vincular ({{count}})",
+      "empty": "Cada señal respalda una oportunidad.",
+      "urgent": "Urgente",
+      "customerRevenue": "{{customer}} · {{revenue}}/mes",
+      "link": "Vincular a…",
+      "remove": "Eliminar señal"
+    },
+    "signalForm": {
+      "title": "Registrar una señal",
+      "signal": "Señal",
+      "placeholder": "¿Qué pidió un usuario o qué se rompió?",
+      "kind": "Tipo",
+      "customer": "Cliente",
+      "revenue": "Ingresos/mes",
+      "urgent": "Urgente",
+      "submit": "Registrar"
+    },
+    "opportunityForm": {
+      "title": "Dar forma a una oportunidad",
+      "name": "Oportunidad",
+      "placeholder": "Una apuesta que vale la pena construir",
+      "hours": "h de revisión",
+      "confidence": "% de confianza",
+      "productLine": "Línea de producto",
+      "anyLine": "Todo el espacio",
+      "strategic": "Estratégica",
+      "submit": "Añadir"
+    },
+    "weights": {
+      "title": "Pesos y capacidad",
+      "formula": "Valor = alcance × clientes + ingresos × (ingresos en juego ÷ 1.000) + urgencia × señales urgentes + estratégico. Puntuación = valor × confianza ÷ horas de revisión.",
+      "reach": "Alcance",
+      "revenue": "Ingresos",
+      "urgency": "Urgencia",
+      "strategic": "Estratégico",
+      "weeklyReviewHours": "h de revisión/semana",
+      "save": "Guardar"
+    },
+    "themes": {
+      "title": "Temas en señales sin vincular",
+      "empty": "Aún no hay temas: ningún par de señales sin vincular comparte suficientes palabras.",
+      "promote": "Promover",
+      "hours": "Horas de revisión"
+    },
+    "feedbackKeys": {
+      "title": "Claves de feedback",
+      "subtitle": "Las herramientas envían feedback con una clave: {{endpoint}} con \"Authorization: Bearer <clave>\".",
+      "empty": "Aún no hay claves.",
+      "name": "Herramienta",
+      "namePlaceholder": "Zendesk, widget, script…",
+      "create": "Crear clave",
+      "secretOnce": "Copia esta clave ahora; no se vuelve a mostrar.",
+      "revoke": "Revocar",
+      "revoked": "Revocada",
+      "lastUsed": "Último uso {{when}}",
+      "neverUsed": "Nunca usada"
+    },
+    "source": {
+      "Manual": "Manual",
+      "Theme": "De un tema",
+      "Discovery": "Descubierta"
+    },
+    "discovery": {
+      "title": "Discovery",
+      "run": "Descubrir ahora",
+      "discovering": "Descubriendo…",
+      "schedule": "Programación",
+      "off": "Desactivado",
+      "everyHours": "Cada {{hours}} h",
+      "never": "Discovery no se ha ejecutado en este espacio.",
+      "running": "Discovery en curso…",
+      "failed": "La última ejecución falló: {{error}}",
+      "succeeded": "Última ejecución: {{proposed}} propuestas de {{read}} señales, {{when}}"
+    },
+    "outcomes": {
+      "title": "Resultados",
+      "check": "Comprobar ahora",
+      "empty": "Aún no se ha entregado nada en este espacio.",
+      "judgedOn": "Se juzga el {{date}}",
+      "counts": "{{before}} reportes similares antes, {{after}} después",
+      "hours": "Horas de revisión",
+      "saveHours": "Guardar",
+      "hoursTaken": "Llevó {{actual}} h de {{estimated}} h estimadas",
+      "note": "Diles que «{{title}}» ya está disponible:",
+      "markTold": "Marcar avisados",
+      "hoursRatio": "Las horas reales de revisión son {{ratio}}× las estimadas ({{timed}} registradas)",
+      "noHours": "Aún no hay horas reales de revisión",
+      "solvedShare": "{{solved}} de {{judged}} resultados juzgados resueltos",
+      "noVerdicts": "Aún no se ha juzgado ningún resultado",
+      "verdict": {
+        "Pending": "Pendiente",
+        "Solved": "Resuelto",
+        "Persisting": "Persiste"
+      }
+    }
+  },
+  "incidents": {
+    "title": "Incidentes",
+    "subtitle": "Problemas en producción, su triaje, los reinicios, reversiones y escalados que los arreglan, y el postmortem.",
+    "space": "Espacio",
+    "list": "Incidentes",
+    "empty": "No hay incidentes en este espacio.",
+    "timeline": "Cronología",
+    "actions": "Acciones en ejecución",
+    "approve": "Aprobar",
+    "reject": "Rechazar",
+    "recovered": "Recuperado",
+    "notRecovered": "No recuperado",
+    "scaleTo": "Escalar a {{replicas}} réplicas",
+    "showEvidence": "Mostrar evidencias",
+    "triage": "Triaje",
+    "triaging": "Haciendo triaje…",
+    "workload": "deployment/{{workload}} en {{namespace}} ({{context}})",
+    "currentContext": "contexto actual",
+    "noWorkload": "Sin carga de trabajo: las acciones están desactivadas.",
+    "openLink": "Abrir la alerta",
+    "errors": {
+      "actionFailed": "La acción falló."
+    },
+    "form": {
+      "title": "Abrir un incidente",
+      "incident": "Incidente",
+      "placeholder": "¿Qué falla?",
+      "severity": "Gravedad",
+      "workload": "Carga de trabajo",
+      "namespace": "Namespace",
+      "context": "Contexto",
+      "submit": "Abrir"
+    },
+    "act": {
+      "title": "Ejecutar una acción",
+      "kind": "Acción",
+      "replicas": "Réplicas",
+      "reason": "¿Por qué?",
+      "submit": "Ejecutar",
+      "running": "Ejecutando…"
+    },
+    "note": {
+      "title": "Nota",
+      "placeholder": "Añadir una nota a la cronología",
+      "submit": "Añadir"
+    },
+    "resolve": {
+      "title": "Resolver",
+      "postmortem": "Postmortem",
+      "placeholder": "Escribe el postmortem o déjalo vacío para un borrador desde la cronología",
+      "submit": "Resolver"
+    },
+    "severity": {
+      "Critical": "Crítico",
+      "Major": "Grave",
+      "Minor": "Leve"
+    },
+    "status": {
+      "Open": "Abierto",
+      "Mitigated": "Mitigado",
+      "Resolved": "Resuelto"
+    },
+    "actionKind": {
+      "Restart": "Reiniciar",
+      "Rollback": "Revertir",
+      "Scale": "Escalar"
+    },
+    "actionStatus": {
+      "Proposed": "Esperando aprobación",
+      "Approved": "Aprobada",
+      "Rejected": "Rechazada",
+      "Succeeded": "Hecha",
+      "Failed": "Fallida"
+    },
+    "proposedBy": {
+      "Agent": "propuesta por el agente",
+      "Person": "pedida por una persona"
+    },
+    "eventKind": {
+      "Opened": "Abierto",
+      "Note": "Nota",
+      "Evidence": "Evidencias",
+      "Hypothesis": "Hipótesis",
+      "ActionProposed": "Acción propuesta",
+      "ActionApproved": "Acción aprobada",
+      "ActionRejected": "Acción rechazada",
+      "ActionSucceeded": "Acción hecha",
+      "ActionFailed": "Acción fallida",
+      "Recovered": "Recuperado",
+      "NotRecovered": "No recuperado",
+      "Resolved": "Resuelto"
+    }
+  },
+  "factory": {
+    "title": "Fábrica",
+    "subtitle": "Qué hace la fábrica de software del espacio y qué espera a las personas.",
+    "space": "Espacio",
+    "errors": {
+      "actionFailed": "La acción falló."
+    },
+    "cards": {
+      "line": "Horas de revisión esta semana",
+      "building": "En construcción",
+      "incidents": "Incidentes abiertos",
+      "actions": "Acciones por aprobar",
+      "outcomes": "Resultados pendientes",
+      "customers": "Clientes a avisar",
+      "features": "Funcionalidades en curso",
+      "approval": "Esperando aprobación"
+    },
+    "runs": {
+      "title": "Pasadas de autopilot",
+      "none": "Autopilot no se ha ejecutado en este espacio.",
+      "pass": "investigados {{investigated}} · arreglados {{fixed}} · construidos {{built}}"
+    },
+    "autopilot": {
+      "title": "Autopilot",
+      "hint": "Lo que shep inicia aquí por sí solo cada hora. Todo está desactivado hasta que lo actives.",
+      "investigate": "Investigar elementos urgentes abiertos",
+      "fix": "Arreglar cuando la hipótesis principal es High",
+      "mergeFixes": "Dejar que esos arreglos se fusionen sin una persona",
+      "fillLine": "Construir las oportunidades aceptadas de la línea",
+      "budget": "Arreglos por día",
+      "project": "Construir en",
+      "noProject": "Sin proyecto",
+      "save": "Guardar",
+      "run": "Ejecutar ahora",
+      "running": "Ejecutando…"
+    }
+  },
+  "decision": {
+    "answeredQuestions": "Preguntas respondidas",
+    "recommended": "Recomendada",
+    "selectMany": "Selecciona una o más opciones.",
+    "otherPlaceholder": "Escribe tu propia respuesta o déjalo en blanco para usar la opción seleccionada",
+    "composerHint": "Escribe en el cuadro de mensaje para responder con tus palabras.",
+    "restoreText": "Restaurar el texto escrito",
+    "notResumable": "Esta pregunta ya no se puede responder: el agente que la hizo ya no está esperando.",
+    "defaultsAt": "Si nadie responde antes de las {{time}}, el agente continúa con la opción recomendada.",
+    "preview": "Vista previa",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "submit": "Enviar",
+    "submitting": "Enviando…",
+    "new": "Nueva"
+  },
+  "telemetry": {
+    "fieldsHeading": "Qué se envía",
+    "fields": {
+      "installId": "Un ID de instalación aleatorio",
+      "usage": "Qué comandos, páginas y funciones usas, y cómo terminan las ejecuciones",
+      "platform": "La versión de Shep, el sistema operativo y la versión de Node.js",
+      "agentAccountHash": "Un hash SHA-256 del ID de tu cuenta de Claude o Codex",
+      "githubUsername": "Tu usuario de GitHub (obtenido con gh)",
+      "githubOwners": "Los propietarios de GitHub (usuarios u organizaciones) de los repositorios que usas con Shep",
+      "contactConsent": "Si el equipo de Shep puede contactarte en GitHub"
+    },
+    "identityHeading": "Solo se envía si activas «Incluir mi identidad» (desactivado por defecto)",
+    "neverSent": "Nunca se envían: prompts, código, rutas de archivos, nombres de repositorios o ramas, títulos de funcionalidades ni mensajes de error.",
+    "reasons": {
+      "ci": "la variable de entorno CI está definida",
+      "do-not-track": "DO_NOT_TRACK está definida",
+      "env-disabled": "SHEP_TELEMETRY_DISABLED está definida",
+      "test": "se está ejecutando en un ejecutor de pruebas",
+      "user-opt-out": "las desactivaste"
+    },
+    "notice": {
+      "title": "Shep recopila métricas de uso",
+      "intro": "Para saber qué funciones se usan, Shep envía eventos de uso al equipo de Shep (PostHog, región de la UE). Puedes desactivarlo en cualquier momento.",
+      "turnOff": "Desactivar",
+      "turnedOff": "Las métricas de uso están desactivadas. Se eliminaron los eventos en cola.",
+      "dismiss": "Entendido",
+      "failed": "No se pudieron actualizar las métricas de uso. Inténtalo de nuevo desde Configuración."
+    },
+    "controls": {
+      "enabled": "Enviar métricas de uso",
+      "enabledDescription": "Al desactivarlo también se eliminan los eventos que aún no se han enviado.",
+      "identity": "Incluir mi identidad (usuario de GitHub, organización, hash de la cuenta)",
+      "identityDescription": "Desactivado hasta que lo actives. Mientras esté desactivado, las métricas de uso son anónimas.",
+      "contact": "El equipo de Shep puede contactarme en GitHub",
+      "contactDescription": "Desactivado a menos que lo actives."
+    },
+    "settings": {
+      "title": "Métricas de uso",
+      "description": "Ayuda a decidir qué construir a continuación enviando eventos de uso al equipo de Shep.",
+      "forcedOff": "Desactivado en este entorno: {{reason}}.",
+      "queued": "{{count}} eventos pendientes de envío",
+      "destination": "Enviado a {{destination}}",
+      "notConfigured": "No hay ninguna clave de proyecto configurada en esta compilación, así que no se envía nada.",
+      "hint": "Ejecuta `shep telemetry show` para ver exactamente qué se enviaría.",
+      "loading": "Cargando la configuración de las métricas de uso…",
+      "loadFailed": "No se pudo cargar la configuración de las métricas de uso."
+    }
+  },
+  "checkpoints": {
+    "loading": "Cargando checkpoints…",
+    "empty": "Aún no hay checkpoints. Shep guarda el worktree tras cada paso cuando se ejecuta el agente.",
+    "modeStep": "Por paso",
+    "modeCompare": "Comparar",
+    "kindBaseline": "inicio",
+    "kindPreRestore": "antes de restaurar",
+    "files_one": "{{count}} archivo",
+    "files_few": "{{count}} archivos",
+    "files_many": "{{count}} archivos",
+    "files_other": "{{count}} archivos",
+    "from": "Desde",
+    "to": "Hasta",
+    "selectStep": "Selecciona un paso para ver qué cambió.",
+    "baselineSelected": "Es el punto de partida: no hay nada antes.",
+    "diffLoading": "Cargando diff…",
+    "noChanges": "No hay cambios entre estos pasos.",
+    "restore": "Restaurar",
+    "restoreAria": "Restaurar el worktree a {{step}}",
+    "restoreTitle": "¿Restaurar el worktree a {{step}}?",
+    "restoreDescription": "Los archivos del worktree se sustituyen por este checkpoint. Antes se guarda el estado actual como un nuevo checkpoint; la rama y sus commits no cambian.",
+    "restoreConfirm": "Restaurar",
+    "cancel": "Cancelar",
+    "restored": "Worktree restaurado a {{step}}",
+    "restoreFailed": "Error al restaurar",
+    "blocked": {
+      "NoOwnWorktree": "Solo se puede restaurar una funcionalidad que tiene su propio worktree.",
+      "NotLinkedWorktree": "No se puede restaurar: la carpeta no es un worktree de git vinculado.",
+      "WorktreeUnavailable": "No se puede restaurar: no se puede leer el worktree.",
+      "AgentRunning": "No se puede restaurar mientras el agente se ejecuta."
+    }
+  },
+  "chatBlocks": {
+    "kinds": {
+      "spec_review": "Revisión de especificación",
+      "html_preview": "Vista previa",
+      "plan_card": "Plan"
+    },
+    "actions": {
+      "approve": "Aprobar",
+      "request_changes": "Pedir cambios",
+      "implement": "Implementar",
+      "refine": "Refinar"
+    },
+    "resolved": {
+      "approve": "Aprobado",
+      "request_changes": "Cambios pedidos",
+      "implement": "Implementando",
+      "refine": "Refinamiento pedido"
+    },
+    "notePlaceholder": "¿Qué debería cambiar?",
+    "send": "Enviar",
+    "cancel": "Cancelar",
+    "preview": "Vista previa",
+    "source": "Código",
+    "openFullScreen": "Abrir a pantalla completa",
+    "sandboxNote": "Se ejecuta en un sandbox sin acceso a la red.",
+    "answerFailed": "Tu respuesta no se entregó",
+    "answerFailedDescription": "El bloque sigue abierto. Inténtalo de nuevo.",
+    "retry": "Reintentar"
+  },
+  "chats": {
+    "title": "Chat",
+    "conversations": "Conversaciones",
+    "conversation": "Conversación",
+    "groups": {
+      "global": "Shep",
+      "repository": "Repositorios",
+      "feature": "Funcionalidades",
+      "application": "Aplicaciones"
+    },
+    "openOnCanvas": "Abrir en el lienzo",
+    "openApplication": "Abrir aplicación",
+    "lifecycle": {
+      "Started": "Iniciada",
+      "Analyze": "Analizando",
+      "Requirements": "Requisitos",
+      "Research": "Investigación",
+      "Planning": "Planificación",
+      "Implementation": "Implementación",
+      "Review": "Revisión",
+      "Maintain": "Fusionada",
+      "Blocked": "Bloqueada",
+      "Pending": "Pendiente",
+      "Exploring": "Explorando",
+      "Deleting": "Eliminando",
+      "AwaitingUpstream": "Esperando upstream",
+      "Archived": "Archivada"
+    }
+  },
+  "agentActivity": {
+    "states": {
+      "working": "Trabajando",
+      "blocked": "Te necesita",
+      "waiting": "Esperando",
+      "done": "Terminado",
+      "failed": "Fallido"
+    },
+    "reasons": {
+      "deleting": "Se está eliminando",
+      "archived": "Archivada",
+      "queued-for-capacity": "En cola hasta que se libere un hueco bajo el límite de funcionalidades en paralelo",
+      "deferred": "Aplazada: todavía no ha empezado ningún agente",
+      "waiting-on-parent": "Esperando a que termine su funcionalidad padre",
+      "approval-gate": "Esperando tu aprobación",
+      "agent-question": "El agente hizo una pregunta",
+      "run-failed": "La ejecución falló",
+      "run-interrupted": "La ejecución se interrumpió",
+      "run-cancelled": "La ejecución se canceló",
+      "run-completed": "Terminada",
+      "agent-running": "El agente está trabajando",
+      "process-died": "El proceso del agente se detuvo inesperadamente",
+      "maintained": "Terminada; en mantenimiento",
+      "awaiting-review": "Su pull request espera tu revisión",
+      "plan-task-in-review": "Una tarea del plan espera tu revisión",
+      "plan-tasks-done": "Todas las tareas del plan están hechas",
+      "in-progress": "En curso"
+    },
+    "labels": {
+      "why": "Por qué",
+      "asks": "Pregunta",
+      "phase": "Fase",
+      "run": "Ejecución",
+      "error": "Error",
+      "pr": "Pull request",
+      "next": "Siguiente"
+    },
+    "next": {
+      "answer": "Responder la pregunta",
+      "review": "Revisar y aprobar",
+      "openPr": "Revisar el pull request",
+      "resume": "Abrir para reanudar",
+      "inDrawer": {
+        "review": "Aprueba o rechaza en su pestaña de revisión",
+        "resume": "Usa «Retry» en la parte superior de este panel"
+      }
+    },
+    "card": {
+      "title": "Estado del agente",
+      "loading": "Leyendo el estado del agente…",
+      "error": "No se pudo leer el estado del agente: {{error}}",
+      "notFound": "Esta funcionalidad no tiene estado de agente"
+    },
+    "notify": {
+      "start": "Avísame",
+      "stop": "Detener",
+      "watching": "Vigilando — te avisaremos cuando te necesite, termine o falle",
+      "failed": "Se dejó de vigilar: {{error}}",
+      "title": "{{name}}: {{state}}"
+    },
+    "list": {
+      "empty": "Ninguna funcionalidad está activa ahora",
+      "open": "Abrir"
+    },
+    "page": {
+      "title": "Actividad de agentes",
+      "description": "Qué hace el agente de cada funcionalidad y por qué — la misma respuesta que shep feat status, MCP y A2A",
+      "showFinished": "Mostrar terminadas",
+      "needsYou": "{{count}} te necesitan",
+      "error": "No se pudo leer la actividad de agentes: {{error}}"
+    },
+    "connect": {
+      "title": "Conectar agentes",
+      "badge": "A2A 1.0",
+      "description": "Otros agentes y orquestadores entregan a Shep solicitudes de funcionalidades y las siguen como tareas A2A: trabajando, requiere entrada (un gate o una pregunta te espera), completada o fallida.",
+      "endpoint": "Endpoint JSON-RPC",
+      "agentCard": "Agent card",
+      "token": "Autenticación",
+      "tokenHelp": "Envía Authorization: Bearer con el token de este archivo. El navegador nunca lo ve.",
+      "request": "Pruébalo",
+      "copied": "Copiado",
+      "copyFailed": "No se pudo copiar",
+      "herdr": "Herdr",
+      "herdrHelp": "Ejecuta shep tui dentro de un panel de Herdr: la barra lateral de Herdr muestra a Shep trabajando, o bloqueado cuando una funcionalidad te necesita.",
+      "cli": "Terminal",
+      "cliHelp": "shep feat status <id> explica una funcionalidad; shep feat wait <id> vuelve cuando te necesita, termina o falla.",
+      "guide": "Guía de A2A",
+      "cardVersion": "Shep {{version}}",
+      "cardError": "No se cargó la agent card: {{error}}",
+      "copyLabel": "Copiar {{label}}",
+      "hint": "Otros sistemas de agentes envían a Shep una solicitud de funcionalidad por A2A y la siguen como tarea. La misma actividad alimenta MCP, la CLI, Herdr y esta interfaz."
+    }
+  },
+  "learning": {
+    "title": "Aprendizaje",
+    "subtitle": "Lo que Shep ha aprendido sobre trabajar en este repositorio, cómo le fue a cada versión y qué conservar",
+    "repository": "Repositorio",
+    "chooseRepository": "Elige un repositorio",
+    "loadError": "No se pudo cargar el harness aprendido: {{error}}",
+    "noRepositories": "Añade un repositorio para empezar a aprender.",
+    "current": "Usando la versión {{id}}",
+    "currentNone": "Usando el harness base: aún no se ha adoptado nada",
+    "rollback": "Revertir",
+    "rollbackConfirm": "¿Volver a la versión anterior?",
+    "cancel": "Cancelar",
+    "rolledBack": "Revertido",
+    "versions": "Versiones",
+    "selectVersion": "Selecciona una versión para ver qué cambia.",
+    "lessons": "Lecciones",
+    "adopted": "Versión adoptada",
+    "rejected": "Versión rechazada",
+    "working": "Procesando…",
+    "noVersions": "Aún no hay versiones. Activa un modo de aprendizaje en Ajustes y termina una funcionalidad.",
+    "noLessons": "Aún no hay lecciones.",
+    "trend": {
+      "regressed": "Empeoró",
+      "improved": "Mejoró",
+      "unchanged": "Sin cambios",
+      "insufficient-data": "Aún no hay suficientes ejecuciones",
+      "no-baseline": "No hay una versión anterior con la que comparar"
+    },
+    "status": {
+      "candidate": "Candidata",
+      "adopted": "Adoptada",
+      "rejected": "Rechazada",
+      "rolled-back": "Revertida",
+      "superseded": "Reemplazada"
+    },
+    "origin": {
+      "base": "Base",
+      "reflect": "Reflexionar",
+      "explore": "Explorar",
+      "manual": "Manual"
+    },
+    "metrics": {
+      "runs": "Ejecuciones: {{count}}",
+      "mergeRate": "Fusionadas: {{percent}} %"
+    },
+    "detail": {
+      "title": "Versión {{id}}",
+      "against": "Comparada con la versión {{id}}",
+      "againstBase": "Comparada con el harness base",
+      "reason": "Motivo: {{reason}}",
+      "runsCode": "Esta versión ejecuta código (scripts o hooks). Revísalos antes de adoptarla: Shep nunca los adopta por su cuenta.",
+      "added": "Añadido",
+      "modified": "Modificado",
+      "removed": "Eliminado",
+      "noChanges": "Sin cambios de archivos.",
+      "edits": "Por qué se hizo cada cambio",
+      "feedbackPlaceholder": "Opcional: por qué la rechazas (Shep lo leerá la próxima vez)",
+      "adopt": "Adoptar",
+      "reject": "Rechazar"
+    },
+    "verdict": {
+      "helped": "Ayudó",
+      "hurt": "Perjudicó",
+      "no-observed-effect": "Sin efecto observado",
+      "confounded": "No concluyente",
+      "untested": "Sin probar"
+    },
+    "lesson": {
+      "when": "Cuando: {{cue}}"
+    },
+    "confidence": {
+      "high": "Confianza alta",
+      "medium": "Confianza media",
+      "low": "Confianza baja"
+    }
+  }
+}
