@@ -1,0 +1,2228 @@
+{
+  "commands": {
+    "settings": {
+      "description": "נהל הגדרות Shep גלובליות",
+      "wizardFailed": "אשף ההגדרות נכשל",
+      "show": {
+        "description": "הצג הגדרות נוכחיות",
+        "formatOption": "פורמט פלט: table|json|yaml",
+        "failedToLoad": "טעינת הגדרות נכשלה"
+      },
+      "init": {
+        "description": "אתחל הגדרות לברירות מחדל",
+        "forceOption": "דלג על בקשת אישור",
+        "resetWarning": "פעולה זו תאפס את כל ההגדרות לברירות מחדל. שקול לגבות את ~/.shep/data תחילה.",
+        "confirmPrompt": "האם אתה בטוח? (y/N): ",
+        "cancelled": "הפעולה בוטלה.",
+        "success": "ההגדרות אותחלו לברירות מחדל.",
+        "failed": "אתחול ההגדרות נכשל"
+      },
+      "agent": {
+        "description": "הגדר סוכן קידוד AI",
+        "agentOption": "סוג סוכן (לדוגמה, claude-code)",
+        "authOption": "שיטת אימות (session או token)",
+        "tokenOption": "אסימון API לאימות מבוסס אסימון",
+        "authRequired": "--auth נדרש בעת שימוש בדגל --agent",
+        "success": "הסוכן הוגדר: {{type}} ({{authMethod}})",
+        "cancelled": "ההגדרה בוטלה.",
+        "failed": "הגדרת הסוכן נכשלה"
+      },
+      "ide": {
+        "description": "הגדר IDE/עורך מועדף",
+        "editorOption": "שם IDE/עורך ({{editors}})",
+        "unknownEditor": "עורך לא מוכר \"{{editor}}\". חוקיים: {{validEditors}}",
+        "notInPath": "העורך '{{editor}}' לא נמצא ב-PATH. העורך עדיין יישמר.",
+        "success": "עורך ברירת מחדל הוגדר ל: {{editor}}",
+        "cancelled": "ההגדרה בוטלה.",
+        "failed": "הגדרת ה-IDE נכשלה"
+      },
+      "model": {
+        "description": "הגדר מודל LLM ברירת מחדל להרצות סוכן",
+        "selectPrompt": "בחר מודל LLM ברירת מחדל",
+        "noModels": "אין מודלים זמינים עבור הסוכן \"{{agentType}}\". הגדר סוכן אחר עם: shep settings agent",
+        "success": "המודל הוגדר: {{model}}",
+        "cancelled": "ההגדרה בוטלה.",
+        "failed": "הגדרת המודל נכשלה"
+      },
+      "effort": {
+        "description": "הגדרת רמת החשיבה המוגדרת כברירת מחדל להרצות חדשות",
+        "levelArgument": "רמת מאמץ (low, medium, high, xhigh, max)",
+        "clearOption": "שימוש ברמת ברירת המחדל של הסוכן",
+        "selectPrompt": "בחרו רמת חשיבה כברירת מחדל",
+        "agentDefault": "ברירת המחדל של הסוכן",
+        "success": "רמת המאמץ הוגדרה: {{effort}}",
+        "cleared": "רמת המאמץ אופסה לברירת המחדל של הסוכן",
+        "cancelled": "ההגדרה בוטלה.",
+        "failed": "הגדרת רמת המאמץ נכשלה",
+        "invalid": "רמת מאמץ לא מוכרת \"{{level}}\". רמות תקפות: {{levels}}",
+        "clearConflict": "לא ניתן לשלב רמה עם --clear"
+      },
+      "workflow": {
+        "description": "הגדר התנהגות ברירת מחדל של תהליך עבודה עבור פיצ'רים חדשים",
+        "allowPrdOption": "אשר אוטומטית את שלב הדרישות",
+        "allowPlanOption": "אשר אוטומטית את שלב התכנון",
+        "allowMergeOption": "אשר ומזג אוטומטית לאחר מימוש",
+        "allowAllOption": "הפעל את כל שערי האישור",
+        "pushOption": "דחוף ענף לשרת בסיום",
+        "noPushOption": "אל תדחוף ענף לשרת בסיום",
+        "prOption": "פתח PR בסיום",
+        "noPrOption": "אל תפתח PR בסיום",
+        "success": "ברירות מחדל של תהליך עבודה עודכנו: {{summary}}",
+        "summaryNone": "ללא",
+        "allowPrd": "אשר PRD",
+        "allowPlan": "אשר תוכנית",
+        "allowMerge": "אשר מיזוג",
+        "push": "דחיפה",
+        "pr": "PR",
+        "cancelled": "ההגדרה בוטלה.",
+        "failed": "הגדרת ברירות מחדל של תהליך עבודה נכשלה",
+        "maxParallelOption": "מספר הפיצ'רים המקסימלי שמריצים סוכן בו-זמנית (0 = ללא הגבלה)",
+        "maxParallelUnlimited": "אין הגבלה על פיצ'רים מקבילים",
+        "maxParallelSet": "מריץ עד {{limit}} פיצ'רים במקביל"
+      },
+      "language": {
+        "description": "הגדר שפת תצוגה",
+        "selectPrompt": "בחר שפת תצוגה",
+        "success": "השפה הוגדרה ל: {{language}}",
+        "cancelled": "ההגדרה בוטלה.",
+        "failed": "הגדרת השפה נכשלה"
+      }
+    },
+    "version": {
+      "description": "הצג פרטי גרסה",
+      "nodeLabel": "Node:",
+      "platformLabel": "פלטפורמה:"
+    },
+    "start": {
+      "description": "הפעל את ממשק ה-Web של Shep כתהליך רקע",
+      "portOption": "מספר פורט (1024-65535)",
+      "portValidation": "הפורט חייב להיות מספר שלם בין 1024 ל-65535"
+    },
+    "stop": {
+      "description": "עצור את תהליך הרקע של ממשק ה-Web של Shep",
+      "noDaemonRunning": "אין תהליך Shep פעיל."
+    },
+    "restart": {
+      "description": "הפעל מחדש בעדינות את תהליך ממשק ה-Web של Shep (מפעיל אם לא רץ)",
+      "portOption": "מספר פורט (1024-65535)",
+      "portValidation": "הפורט חייב להיות מספר שלם בין 1024 ל-65535",
+      "daemonNotRunning": "התהליך לא היה פעיל — מפעיל..."
+    },
+    "status": {
+      "description": "הצג את סטטוס תהליך ממשק ה-Web של Shep",
+      "logsOption": "הצג N שורות אחרונות מיומן התהליך (ברירת מחדל 50)",
+      "followOption": "עקוב אחר פלט יומן התהליך בזמן אמת",
+      "noLogFile": "לא נמצא קובץ יומן תהליך.",
+      "expectedAt": "צפוי ב: {{path}}",
+      "logEmpty": "קובץ היומן ריק.",
+      "followHint": "--- עוקב אחר daemon.log (Ctrl+C לעצירה) ---",
+      "notRunning": "תהליך Shep אינו פעיל.",
+      "startHint": "הרץ `shep start` להפעלתו.",
+      "title": "סטטוס תהליך Shep",
+      "pidLabel": "PID",
+      "portLabel": "פורט",
+      "urlLabel": "URL",
+      "startedLabel": "הופעל",
+      "uptimeLabel": "זמן פעילות",
+      "cpuLabel": "CPU %",
+      "memoryLabel": "זיכרון (RSS)",
+      "envTitle": "סביבה",
+      "shepHomeLabel": "תיקיית Shep",
+      "cliVersionLabel": "גרסת CLI",
+      "nodeVersionLabel": "גרסת Node",
+      "dbPathLabel": "נתיב מסד נתונים",
+      "logFileLabel": "קובץ יומן",
+      "daemonConfigLabel": "הגדרת תהליך",
+      "buildLabel": "בילד",
+      "gitShaLabel": "Git SHA",
+      "healthLabel": "מוכנות",
+      "osLabel": "מערכת הפעלה"
+    },
+    "ui": {
+      "description": "הפעל את ממשק ה-Web של Shep",
+      "portOption": "מספר פורט (1024-65535)",
+      "noOpenOption": "אל תפתח דפדפן אוטומטית",
+      "portValidation": "הפורט חייב להיות מספר שלם בין 1024 ל-65535",
+      "heading": "ממשק Web של Shep",
+      "startingDev": "מפעיל שרת ווב (מצב פיתוח)...",
+      "starting": "מפעיל שרת ווב...",
+      "serverReady": "השרת מוכן ב-{{url}}",
+      "pressCtrlC": "לחץ Ctrl+C לעצירה",
+      "shuttingDown": "מכבה...",
+      "failedToStart": "הפעלת ממשק ה-Web נכשלה"
+    },
+    "tui": {
+      "description": "פתיחת קונסולת הטרמינל החיה של כל הפיצ'רים",
+      "repoOption": "להציג רק פיצ'רים של הריפו הזה",
+      "allOption": "לכלול פיצ'רים בארכיון",
+      "noNotifyOption": "לא להשמיע צלצול ולא לשלוח התראת טרמינל כשפיצ'ר צריך אותך",
+      "statusOption": "הדפסת סיכום בשורה אחת לשורות סטטוס (plain או tmux) ויציאה",
+      "unknownStatusStyle": "סגנון סטטוס לא מוכר \"{{style}}\". השתמש באחד מ: {{styles}}."
+    },
+    "run": {
+      "description": "הרץ תהליך עבודה של סוכן AI",
+      "agentArgument": "שם הסוכן להרצה (לדוגמה, analyze-repository)",
+      "promptOption": "הנחיה לשליחה לסוכן",
+      "promptDefault": "נתח את המאגר הזה",
+      "repoOption": "נתיב מאגר (ברירת מחדל: תיקייה נוכחית)",
+      "streamOption": "הזרם פלט בזמן אמת",
+      "runningAgent": "מריץ סוכן:",
+      "repositoryLabel": "מאגר: {{path}}",
+      "promptLabel": "הנחיה: {{prompt}}",
+      "agentCompleted": "הסוכן {{name}} סיים",
+      "resultHeading": "תוצאה:",
+      "noOutput": "אין פלט",
+      "agentWorking": "הסוכן {{name}} עובד...",
+      "agentFailed": "הרצת הסוכן נכשלה",
+      "failedToRun": "הרצת הסוכן נכשלה"
+    },
+    "install": {
+      "description": "התקן כלי פיתוח",
+      "toolArgument": "כלי להתקנה ({{tools}})",
+      "howOption": "הצג הוראות התקנה ללא ביצוע",
+      "runWithTool": "הרץ {{command}} עם אחת מהאפשרויות הבאות:",
+      "unrecognizedTool": "הממ, אני לא מכיר את '{{tool}}'. האם התכוונת לאחד מאלה?",
+      "alreadyInstalled": "{{tool}} כבר מותקן",
+      "noAutoInstall": "{{tool}} לא תומך בהתקנה אוטומטית",
+      "installSuccess": "{{tool}} הותקן בהצלחה",
+      "installFailed": "התקנת {{tool}} נכשלה: {{error}}",
+      "failedToInstall": "התקנת {{tool}} נכשלה",
+      "instructionsHeading": "הוראות התקנה עבור {{name}}",
+      "nameLabel": "שם:",
+      "summaryLabel": "תקציר:",
+      "descriptionLabel": "תיאור:",
+      "tagsLabel": "תגיות:",
+      "binaryLabel": "קובץ בינארי:",
+      "packageManagerLabel": "מנהל חבילות:",
+      "installCommandsHeading": "פקודות התקנה",
+      "verifyHeading": "אימות התקנה",
+      "openDirHeading": "פתח תיקייה",
+      "docsHeading": "תיעוד"
+    },
+    "ide": {
+      "description": "פתח עץ עבודה של פיצ'ר ב-IDE",
+      "featArgument": "מזהה פיצ'ר או קידומת",
+      "openInOption": "פתח ב-{{name}}",
+      "openedSuccess": "נפתח {{editor}} ב-{{path}}",
+      "failedToOpen": "פתיחת IDE נכשלה"
+    },
+    "tools": {
+      "description": "נהל כלי פיתוח",
+      "list": {
+        "description": "הצג את כל הכלים הזמינים עם סטטוס התקנתם",
+        "installed": "מותקן",
+        "missing": "חסר",
+        "failedToList": "שגיאה ברשימת הכלים: {{error}}"
+      }
+    },
+    "security": {
+      "description": "Supply-chain security policy management",
+      "enforce": {
+        "description": "Evaluate repository security posture and enforce policy",
+        "repoOption": "Repository path (defaults to current directory)",
+        "outputOption": "Output format (table, json, yaml)",
+        "passed": "Security enforcement passed",
+        "failed": "Security enforcement failed",
+        "advisoryNote": "Mode is Advisory — findings are reported but do not block",
+        "disabledNote": "Security mode is Disabled — no checks performed",
+        "modeLabel": "Mode",
+        "sourceLabel": "Source",
+        "dependencyFindingsLabel": "Dependency Findings",
+        "releaseIntegrityLabel": "Release Integrity",
+        "totalFindingsLabel": "Total Findings",
+        "governanceFindingsLabel": "GitHub Governance (audit-only)",
+        "noFindings": "No findings",
+        "failedToEnforce": "Failed to evaluate security posture",
+        "flagDisabledNote": "Supply-chain security is part of ASPM and the aspm feature flag is off — enforce is a no-op"
+      }
+    },
+    "feat": {
+      "description": "הוסף פיצ׳רים לאפליקציה או למאגר והעבר אותם דרך מחזור הפיתוח",
+      "new": {
+        "description": "הוסף פיצ׳ר לאפליקציה או למאגר בתיקייה הנוכחית",
+        "descriptionArgument": "תיאור הפיצ'ר",
+        "repoOption": "נתיב מאגר (ברירת מחדל: תיקייה נוכחית)",
+        "pushOption": "דחוף ענף לשרת לאחר מימוש",
+        "prOption": "פתח PR בסיום המימוש (כולל --push)",
+        "noPrOption": "אל תפתח PR בסיום המימוש",
+        "allowPrdOption": "אשר אוטומטית עד דרישות, עצור אחרי",
+        "allowPlanOption": "אשר אוטומטית עד תכנון, עצור במימוש",
+        "allowMergeOption": "אשר אוטומטית את שלב המיזוג",
+        "allowAllOption": "הרץ באופן אוטונומי מלא (ללא עצירות אישור)",
+        "parentOption": "מזהה פיצ'ר הורה (מלא או קידומת חלקית)",
+        "pendingOption": "צור פיצ'ר מבלי להפעיל את הסוכן",
+        "fastOption": "דלג על שלבי SDLC ומימש ישירות מההנחיה שלך (ברירת מחדל: מופעל)",
+        "noFastOption": "הרץ את כל שלבי ה-SDLC (ניתוח → דרישות → תוכנית → מימוש)",
+        "exploreOption": "Start an exploration/prototyping session for iterative design",
+        "exploreAndFastConflict": "Cannot use --explore and --fast together. Choose one mode.",
+        "exploreHarnessOption": "למידה עצמית: הרצת שלב המימוש של הפיצ'ר הזה במצב Explore (Propose–Probe–Compose) — עולה בערך פי 4× משלב המימוש כאשר k=1",
+        "exploreKOption": "תקציב Explore k עבור --explore-harness, 1–{{max}} (ברירת מחדל: הגדרת הלמידה העצמית שלכם); מריץ 4k הרצות",
+        "exploreKWithoutHarness": "--explore-k חל רק יחד עם --explore-harness",
+        "invalidExploreK": "--explore-k חייב להיות מספר שלם מ-1 עד {{max}}, התקבל: {{value}}",
+        "modelOption": "מזהה מודל LLM להרצה זו (לדוגמה claude-opus-4-6)",
+        "effortOption": "רמת חשיבה להרצה זו: low, medium, high, xhigh או max (ברירת מחדל: הגדרות)",
+        "invalidEffort": "רמת מאמץ לא מוכרת \"{{level}}\". רמות תקפות: {{levels}}",
+        "noRebaseOption": "Skip syncing main from remote before creating the feature branch",
+        "injectSkillsOption": "Inject curated skills into the worktree",
+        "noInjectSkillsOption": "Skip skill injection for this invocation",
+        "attachOption": "צרף קובץ (ניתן לחזור)",
+        "remoteOption": "GitHub URL or owner/repo — clone (or fork) then create feature",
+        "remoteConflict": "Cannot use --remote with --repo. --remote clones the repo first.",
+        "forkedInfo": "Auto-forked (no push access to original)",
+        "parentNotFound": "פיצ'ר הורה לא נמצא: {{id}}",
+        "attachmentNotFound": "קובץ מצורף לא נמצא: {{path}}",
+        "spinnerText": "חושב",
+        "featureCreated": "פיצ'ר נוצר",
+        "blockedInfo": "הפיצ'ר נוצר במצב חסום — ממתין שהפיצ'ר ההורה יגיע למימוש",
+        "pendingInfo": "הפיצ'ר נוצר במצב ממתין — הרץ {{command}} להתחלה",
+        "idLabel": "מזהה:",
+        "nameLabel": "שם:",
+        "branchLabel": "ענף:",
+        "statusLabel": "סטטוס:",
+        "worktreeLabel": "עץ עבודה:",
+        "specLabel": "מפרט:",
+        "agentLabel": "סוכן:",
+        "pendingStatus": "ממתין",
+        "spawnedStatus": "הופעל",
+        "pushPr": "דחיפה + PR",
+        "pushOnly": "דחיפה בלבד",
+        "pushLabel": "דחיפה:",
+        "reviewLabel": "סקירה:",
+        "fullyAutonomous": "אוטונומי מלא",
+        "pauseAfterEvery": "עצירה אחרי כל שלב",
+        "autoApprove": "אישור אוטומטי: {{approved}}",
+        "failedToCreate": "יצירת הפיצ'ר נכשלה"
+      },
+      "ls": {
+        "description": "הצג רשימת פיצ'רים",
+        "repoOption": "סנן לפי נתיב מאגר",
+        "includeDeletedOption": "כלול פיצ'רים שנמחקו",
+        "showArchivedOption": "כלול פיצ'רים מאורכבים",
+        "noFeatures": "לא נמצאו פיצ'רים",
+        "featuresHeading": "פיצ'רים ({{count}})",
+        "nameHeader": "שם",
+        "statusHeader": "סטטוס",
+        "gatesHeader": "ד ת מ ↑",
+        "elapsedHeader": "זמן",
+        "doneHeader": "הושלם",
+        "failedToList": "הצגת רשימת הפיצ'רים נכשלה"
+      },
+      "show": {
+        "description": "הצג פרטי פיצ'ר",
+        "idArgument": "מזהה פיצ'ר",
+        "title": "פיצ'ר: {{name}}",
+        "idLabel": "מזהה",
+        "slugLabel": "סלאג",
+        "descriptionLabel": "תיאור",
+        "userQueryLabel": "שאילתת משתמש",
+        "repositoryLabel": "מאגר",
+        "branchLabel": "ענף",
+        "statusLabel": "סטטוס",
+        "lifecycleLabel": "מחזור חיים",
+        "agentLabel": "סוכן",
+        "modelLabel": "מודל",
+        "worktreeLabel": "עץ עבודה",
+        "specDirLabel": "תיקיית מפרט",
+        "agentRunLabel": "הרצת סוכן",
+        "timestampsTitle": "חותמות זמן",
+        "createdLabel": "נוצר",
+        "updatedLabel": "עודכן",
+        "workflowTitle": "תהליך עבודה",
+        "pushLabel": "דחיפה",
+        "openPrLabel": "פתח PR",
+        "gatesLabel": "שערים",
+        "gatesNotSet": "לא הוגדר",
+        "pullRequestTitle": "בקשת משיכה",
+        "urlLabel": "URL",
+        "numberLabel": "מספר",
+        "prStatusLabel": "סטטוס",
+        "commitLabel": "קומיט",
+        "ciLabel": "CI",
+        "ciFixesLabel": "תיקוני CI",
+        "ciFixAttempts": "{{count}} ניסיון/ות",
+        "yesValue": "כן",
+        "noValue": "לא",
+        "planTitle": "תוכנית",
+        "planState": "מצב   {{state}}",
+        "planTasks": "משימות   {{count}}",
+        "messagesTitle": "הודעות ({{count}})",
+        "phaseTimingTitle": "תזמון שלבים",
+        "ciFixHistoryTitle": "היסטוריית תיקוני CI",
+        "coordinationTitle": "תיאום סוכנים",
+        "coordinationWaitsFor": "ממתין ל-{{peer}}",
+        "coordinationRunsAlongside": "רץ במקביל ל-{{peer}}",
+        "coordinationSharedFiles": "קבצים משותפים ({{count}})",
+        "awaitingApprovalTitle": "ממתין לאישור",
+        "awaitingApprovalMessage": "{{phase}} ממתין לסקירתך.",
+        "awaitingApprovalApprove": "המשך את הסוכן",
+        "awaitingApprovalReject": "בטל עם משוב",
+        "currentPhase": "שלב נוכחי",
+        "failedToShow": "הצגת הפיצ'ר נכשלה"
+      },
+      "start": {
+        "description": "הפעל פיצ'ר ממתין (הפעל את הסוכן)",
+        "idArgument": "מזהה פיצ'ר (או קידומת)",
+        "spinnerText": "מפעיל פיצ'ר",
+        "blockedWarning": "הפיצ'ר עבר למצב חסום — ההורה לא הגיע למימוש",
+        "featureStarted": "הפיצ'ר הופעל",
+        "featureLabel": "פיצ'ר:",
+        "branchLabel": "ענף:",
+        "statusLabel": "סטטוס:",
+        "agentLabel": "סוכן:",
+        "spawnedStatus": "הופעל",
+        "failedToStart": "הפעלת הפיצ'ר נכשלה",
+        "forceOption": "התחל גם כשמגבלת הפיצ'רים המקבילים מלאה"
+      },
+      "approve": {
+        "description": "אשר פיצ'ר הממתין לסקירה",
+        "idArgument": "מזהה פיצ'ר (מזוהה אוטומטית אם לא צוין)",
+        "approvedSuccess": "אושר: {{name}}",
+        "phaseLabel": "שלב:",
+        "approved": "אושר",
+        "agentLabel": "סוכן:",
+        "agentResumed": "חודש",
+        "failedToApprove": "אישור הפיצ'ר נכשל"
+      },
+      "reject": {
+        "description": "דחה פיצ'ר הממתין לסקירה",
+        "idArgument": "מזהה פיצ'ר (מזוהה אוטומטית אם לא צוין)",
+        "reasonOption": "משוב דחייה (נדרש)",
+        "rejectedWarning": "נדחה: {{name}}",
+        "reasonLabel": "סיבה:",
+        "iterationLabel": "חזרה:",
+        "iterationWarning": "אזהרה: 5+ חזרות. שקול לחדד את ההנחיה במקום.",
+        "agentLabel": "סוכן:",
+        "agentRerunning": "מריץ מחדש דרישות",
+        "failedToReject": "דחיית הפיצ'ר נכשלה"
+      },
+      "del": {
+        "description": "מחק פיצ'ר",
+        "idArgument": "מזהה פיצ'ר או קידומת",
+        "forceOption": "דלג על בקשת אישור",
+        "noCleanupOption": "דלג על ניקוי עץ עבודה וענפים",
+        "noClosePrOption": "השאר את בקשת המשיכה פתוחה",
+        "confirmDelete": "למחוק את הפיצ'ר \"{{name}}\"?",
+        "cancelled": "בוטל",
+        "confirmCleanup": "לנקות גם עץ עבודה וענפים?",
+        "confirmClosePr": "לסגור גם את בקשת המשיכה? (PR #{{number}})",
+        "featureDeleted": "הפיצ'ר נמחק",
+        "nameLabel": "שם:",
+        "branchLabel": "ענף:",
+        "cleanupLabel": "ניקוי:",
+        "cleanupDetail": "עץ עבודה, ענף מקומי, ענף מרוחק",
+        "prLabel": "PR:",
+        "prClosed": "#{{number}} נסגר",
+        "failedToDelete": "מחיקת הפיצ'ר נכשלה"
+      },
+      "resume": {
+        "description": "חדש סוכן פיצ'ר שנעצר או נכשל",
+        "idArgument": "מזהה פיצ'ר (או קידומת)",
+        "agentResumed": "סוכן הפיצ'ר חודש",
+        "featureLabel": "פיצ'ר:",
+        "runIdLabel": "מזהה הרצה:",
+        "failedToResume": "חידוש הפיצ'ר נכשל",
+        "forceOption": "המשך גם כאשר הושגה מגבלת הפיצ'רים המקבילים"
+      },
+      "review": {
+        "description": "סקירה אינטראקטיבית של פיצ'ר הממתין לאישור",
+        "idArgument": "מזהה פיצ'ר (מזוהה אוטומטית אם לא צוין)",
+        "reviewing": "סוקר: {{name}}",
+        "phaseLabel": "שלב:",
+        "branchLabel": "ענף:",
+        "approvedSuccess": "אושר: {{name}}",
+        "changesLabel": "שינויים:",
+        "changesUpdated": "{{count}} בחירה/ות עודכנו",
+        "commentLabel": "הערה:",
+        "agentLabel": "סוכן:",
+        "proceedingTo": "ממשיך ל-{{phase}}",
+        "rejectedWarning": "נדחה: {{name}}",
+        "feedbackLabel": "משוב:",
+        "iterationLabel": "חזרה:",
+        "iterationWarning": "אזהרה: 5+ חזרות. שקול לחדד את ההנחיה במקום.",
+        "agentRerunning": "מריץ מחדש {{phase}}",
+        "failedToReview": "סקירת הפיצ'ר נכשלה"
+      },
+      "logs": {
+        "description": "צפה ביומני סוכן הפיצ'ר",
+        "idArgument": "מזהה פיצ'ר (או קידומת)",
+        "followOption": "עקוב אחר פלט היומן (כמו tail -f)",
+        "linesOption": "מספר שורות להציג מהסוף",
+        "noAgentRun": "לפיצ'ר \"{{name}}\" אין הרצת סוכן",
+        "failedToRead": "קריאת יומני הפיצ'ר נכשלה"
+      },
+      "adopt": {
+        "description": "אמץ ענף קיים כפיצ'ר מנוטר",
+        "branchArgument": "שם ענף לאימוץ",
+        "repoOption": "נתיב מאגר (ברירת מחדל: תיקייה נוכחית)",
+        "spinnerText": "מאמץ ענף",
+        "branchAdopted": "הענף אומץ",
+        "idLabel": "מזהה:",
+        "nameLabel": "שם:",
+        "branchLabel": "ענף:",
+        "statusLabel": "סטטוס:",
+        "prLabel": "PR:",
+        "worktreeLabel": "עץ עבודה:",
+        "failedToAdopt": "אימוץ הענף נכשל"
+      },
+      "archive": {
+        "description": "ארכב פיצ'ר כדי להסתיר אותו מלוח הבקרה",
+        "idArgument": "מזהה פיצ'ר או קידומת",
+        "forceOption": "דלג על בקשת אישור",
+        "confirmArchive": "לארכב את הפיצ'ר \"{{name}}\"?",
+        "cancelled": "בוטל",
+        "featureArchived": "הפיצ'ר אורכב",
+        "nameLabel": "שם:",
+        "failedToArchive": "ארכוב הפיצ'ר נכשל"
+      },
+      "unarchive": {
+        "description": "שחזר פיצ'ר מאורכב למצבו הקודם",
+        "idArgument": "מזהה פיצ'ר או קידומת",
+        "featureUnarchived": "הפיצ'ר שוחזר מארכיון",
+        "nameLabel": "שם:",
+        "restoredLabel": "שוחזר:",
+        "failedToUnarchive": "שחזור הפיצ'ר מארכיון נכשל"
+      },
+      "feedback": {
+        "description": "Send feedback on an exploration prototype to iterate",
+        "idArgument": "Feature ID or prefix",
+        "feedbackArgument": "Feedback text for the next iteration",
+        "feedbackSubmitted": "Feedback submitted for: {{name}}",
+        "iterationLabel": "Iteration:",
+        "agentLabel": "Agent:",
+        "agentIterating": "iterating on feedback",
+        "notExploration": "Feature \"{{name}}\" is not in exploration mode (mode: {{mode}}, lifecycle: {{lifecycle}})",
+        "failedToSubmit": "Failed to submit feedback"
+      },
+      "promote": {
+        "description": "Promote an exploration feature to Regular or Fast mode",
+        "idArgument": "Feature ID or prefix",
+        "fastOption": "Promote to Fast mode (skip SDLC phases)",
+        "promoted": "Exploration promoted: {{name}}",
+        "modeLabel": "Mode:",
+        "statusLabel": "Status:",
+        "agentLabel": "Agent:",
+        "agentSpawned": "spawned for {{mode}} mode",
+        "failedToPromote": "Failed to promote exploration"
+      },
+      "resolveWaiting": {
+        "featureNotFound": "פיצ'ר לא נמצא: \"{{id}}\"",
+        "noAgentRun": "לפיצ'ר \"{{name}}\" אין הרצת סוכן",
+        "notWaitingForApproval": "הפיצ'ר \"{{name}}\" לא ממתין לאישור (סטטוס: {{status}})",
+        "noFeaturesWaiting": "אין פיצ'רים הממתינים לאישור במאגר זה",
+        "multipleFeaturesWaiting": "מספר פיצ'רים ממתינים לאישור. ציין אחד:"
+      },
+      "comments": {
+        "description": "הצגת הערות הסקירה על ה-pull request של פיצ׳ר ומה shep עשה איתן",
+        "featureArg": "מזהה הפיצ׳ר או תחילתו",
+        "noRefreshOption": "שימוש בהערות השמורות במקום קריאה מ-GitHub",
+        "failed": "פקודת הערות ה-PR נכשלה",
+        "title": "הערות סקירה על {{name}}",
+        "none": "אין עדיין הערות סקירה.",
+        "next": "טפלו בממתינות עם: shep feat address-comments {{feature}}",
+        "round": "סבב אחרון: {{status}}, {{count}} הערות{{commit}}{{error}}",
+        "commit": ", נדחף {{sha}}"
+      },
+      "addressComments": {
+        "description": "סוכן מטפל בהערות הסקירה הממתינות ב-worktree של הפיצ׳ר, דוחף ומשיב על כל אחת",
+        "commentsArg": "מזהי הערות או תחילתם (ברירת מחדל: כל הממתינות)",
+        "spinner": "מטפלים ב-{{count}} הערות"
+      },
+      "checkpoints": {
+        "description": "הצגת נקודות השמירה של git שנלקחו אחרי כל שלב של פיצ'ר",
+        "idArgument": "מזהה פיצ'ר או תחילית",
+        "title": "נקודות שמירה — {{name}}",
+        "stepColumn": "שלב",
+        "timeColumn": "נלקחה",
+        "changesColumn": "שינויים",
+        "commitColumn": "קומיט",
+        "files_one": "{{count}} קובץ",
+        "files_few": "{{count}} קבצים",
+        "files_many": "{{count}} קבצים",
+        "files_other": "{{count}} קבצים",
+        "empty": "אין עדיין נקודות שמירה. הן נרשמות אחרי כל שלב כשהסוכן של הפיצ'ר רץ.",
+        "failed": "הצגת נקודות השמירה נכשלה"
+      },
+      "diff": {
+        "description": "הצגת מה ששלב שינה, או השוואה בין שני שלבים",
+        "idArgument": "מזהה פיצ'ר או תחילית",
+        "toOption": "השלב להצגה: מספר, שם או תווית (למשל 3, implement, 0003-implement)",
+        "fromOption": "השלב להשוואה (ברירת מחדל: השלב שלפני --to)",
+        "statOption": "הצגת הקבצים שהשתנו בלבד",
+        "noChanges": "אין שינויים בין השלבים האלה.",
+        "failed": "השוואת נקודות השמירה נכשלה"
+      },
+      "restore": {
+        "description": "החזרת ה-worktree של פיצ'ר לנקודת שמירה",
+        "idArgument": "מזהה פיצ'ר או תחילית",
+        "stepArgument": "נקודת השמירה לשחזור: מספר, שם שלב או תווית",
+        "forceOption": "דילוג על אישור",
+        "confirm": "לשחזר את ה-worktree ל-\"{{step}}\"? שינויים מאוחרים יותר נשמרים כנקודת שמירה, והענף לא זז.",
+        "cancelled": "בוטל",
+        "restored": "ה-worktree שוחזר ל-{{step}}",
+        "undoHint": "לביטול:",
+        "failed": "שחזור נקודת השמירה נכשל"
+      },
+      "status": {
+        "description": "מסביר מה הסוכן של פיצ'ר עושה (עובד, חסום, ממתין, הסתיים או נכשל) ולמה",
+        "idArgument": "מזהה הפיצ'ר או תחילית של המזהה",
+        "jsonOption": "הדפסת הפעילות כ-JSON",
+        "notFound": "הפיצ'ר לא נמצא: {{id}}",
+        "ambiguous": "\"{{id}}\" מתאים ל-{{count}} פיצ'רים; יש להשתמש בחלק ארוך יותר מהמזהה",
+        "failed": "קריאת הפעילות של הפיצ'ר נכשלה",
+        "labels": {
+          "why": "למה",
+          "asks": "שאלה",
+          "phase": "שלב",
+          "run": "ריצה",
+          "error": "שגיאה",
+          "pr": "PR",
+          "id": "מזהה",
+          "next": "הצעד הבא"
+        },
+        "states": {
+          "working": "עובד",
+          "blocked": "חסום",
+          "waiting": "ממתין",
+          "done": "הסתיים",
+          "failed": "נכשל"
+        },
+        "reasons": {
+          "deleting": "בתהליך מחיקה",
+          "archived": "בארכיון",
+          "queued-for-capacity": "בתור עד שיתפנה מקום במגבלת הפיצ'רים המקבילים",
+          "deferred": "נדחה: אף סוכן עוד לא התחיל",
+          "waiting-on-parent": "ממתין שפיצ'ר האב יסתיים",
+          "approval-gate": "ממתין לאישור שלך",
+          "agent-question": "הסוכן שאל שאלה",
+          "run-failed": "הריצה נכשלה",
+          "run-interrupted": "הריצה נקטעה",
+          "run-cancelled": "הריצה בוטלה",
+          "run-completed": "הסתיים",
+          "agent-running": "הסוכן עובד",
+          "process-died": "תהליך הסוכן נעצר באופן לא צפוי",
+          "maintained": "הסתיים; בתחזוקה",
+          "awaiting-review": "ה-pull request ממתין לסקירה שלך",
+          "plan-task-in-review": "משימה בתוכנית ממתינה לסקירה שלך",
+          "plan-tasks-done": "כל משימות התוכנית הושלמו",
+          "in-progress": "בתהליך"
+        }
+      },
+      "wait": {
+        "description": "ממתין עד שהסוכן של פיצ'ר צריך מישהו או נעצר, או מגיע למצבים שצוינו",
+        "idArgument": "מזהה הפיצ'ר או תחילית של המזהה",
+        "untilOption": "מצבים להמתנה, מופרדים בפסיקים: working, blocked, waiting, done, failed (ברירת מחדל: blocked,done,failed)",
+        "timeoutOption": "לוותר אחרי מספר שניות זה",
+        "jsonOption": "הדפסת התוצאה כ-JSON",
+        "invalidState": "מצב לא מוכר ב-\"{{state}}\". אפשר: {{states}}",
+        "failed": "ההמתנה לפיצ'ר נכשלה",
+        "outcomes": {
+          "matched": "הושג",
+          "timed-out": "הזמן עבר; עדיין {{state}}",
+          "not-found": "הפיצ'ר לא נמצא: {{id}}",
+          "ambiguous": "\"{{id}}\" מתאים ליותר מפיצ'ר אחד; יש להשתמש בחלק ארוך יותר מהמזהה",
+          "aborted": "ההמתנה הופסקה"
+        }
+      }
+    },
+    "repo": {
+      "description": "נהל מאגרים מנוטרים",
+      "add": {
+        "description": "ייבא מאגר GitHub (שיבוט ורישום)",
+        "urlOption": "כתובת URL של מאגר GitHub או קיצור owner/repo",
+        "destOption": "עקוף תיקיית יעד לשיבוט",
+        "importSuccess": "המאגר יובא: {{name}}",
+        "pathInfo": "נתיב: {{path}}",
+        "authError": "GitHub CLI לא מאומת. הרץ `gh auth login` להתחברות.",
+        "invalidUrl": "כתובת URL לא חוקית של GitHub: {{error}}",
+        "supportedFormats": "פורמטים נתמכים: https://github.com/owner/repo, git@github.com:owner/repo.git, או owner/repo",
+        "cloneFailed": "השיבוט נכשל: {{error}}",
+        "failedToImport": "ייבוא המאגר נכשל"
+      },
+      "initRemote": {
+        "description": "Create a GitHub repository from the current local repo",
+        "nameArgument": "Repository name (defaults to directory name)",
+        "publicOption": "Create a public repository (default: private)",
+        "orgOption": "GitHub organization to create the repo under",
+        "created": "GitHub repository created: {{name}}",
+        "urlLabel": "URL:",
+        "failed": "Failed to create GitHub repository"
+      },
+      "ls": {
+        "description": "הצג רשימת מאגרים מנוטרים",
+        "title": "מאגרים",
+        "idColumn": "מזהה",
+        "nameColumn": "שם",
+        "featuresColumn": "פיצ'רים",
+        "pathColumn": "נתיב",
+        "createdColumn": "נוצר",
+        "noRepos": "לא נמצאו מאגרים",
+        "failedToList": "הצגת רשימת המאגרים נכשלה"
+      },
+      "show": {
+        "description": "הצג פרטי מאגר מנוטר",
+        "idArgument": "מזהה מאגר (או קידומת)",
+        "title": "מאגר",
+        "timestampsTitle": "חותמות זמן",
+        "createdLabel": "נוצר",
+        "updatedLabel": "עודכן",
+        "deletedLabel": "נמחק",
+        "featuresTitle": "פיצ'רים ({{count}})",
+        "noFeatures": "לא נמצאו פיצ'רים",
+        "failedToShow": "הצגת המאגר נכשלה"
+      },
+      "resolve": {
+        "multipleMatch": "מספר מאגרים תואמים לקידומת \"{{id}}\": {{matches}}",
+        "notFound": "מאגר לא נמצא: {{id}}"
+      },
+      "import": {
+        "description": "ייבוא תיקיות מקומיות כמאגרים במעקב (בכמות)",
+        "dirArgument": "תיקיית האב שתיקיות המשנה שלה הופכות למועמדות לייבוא",
+        "allOption": "ייבוא כל המועמדים בלי לשאול",
+        "gitOnlyOption": "ייבוא רק מועמדים שהם מאגרי git",
+        "title": "מועמדים לייבוא",
+        "nameColumn": "שם",
+        "gitColumn": "Git",
+        "statusColumn": "מצב",
+        "pathColumn": "נתיב",
+        "noCandidates": "לא נמצאו תיקיות משנה ב-{{path}}",
+        "statusTracked": "כבר במעקב",
+        "statusRestorable": "הוסר בעבר",
+        "statusNew": "חדש",
+        "selectPrompt": "בחר תיקיות לייבוא",
+        "nothingSelected": "לא נבחר דבר — לא יובאו מאגרים",
+        "imported": "יובאו {{count}} מאגרים",
+        "importedOne": "יובא: {{name}}",
+        "failedEntry": "נכשל: {{path}} — {{error}}",
+        "summary": "{{imported}} יובאו, {{failed}} נכשלו",
+        "failedToImport": "ייבוא המאגרים נכשל"
+      }
+    },
+    "app": {
+      "description": "התחל ונהל אפליקציות — קודם אפליקציה, אחר כך פיצ׳רים",
+      "ls": {
+        "description": "List applications",
+        "title": "Applications",
+        "idColumn": "ID",
+        "nameColumn": "Name",
+        "statusColumn": "Status",
+        "pathColumn": "Path",
+        "createdColumn": "Created",
+        "noApps": "No applications found",
+        "failedToList": "Failed to list applications"
+      },
+      "show": {
+        "description": "Display details of an application",
+        "idArgument": "Application ID, slug, or prefix",
+        "title": "Application: {{name}}",
+        "nameLabel": "Name",
+        "slugLabel": "Slug",
+        "statusLabel": "Status",
+        "descriptionLabel": "Description",
+        "pathLabel": "Path",
+        "configTitle": "Configuration",
+        "agentLabel": "Agent",
+        "modelLabel": "Model",
+        "timestampsTitle": "Timestamps",
+        "createdLabel": "Created",
+        "updatedLabel": "Updated",
+        "deletedLabel": "Deleted",
+        "failedToShow": "Failed to show application"
+      },
+      "new": {
+        "description": "התחל אפליקציה חדשה בכל סטאק (הפיצ׳ר הראשון שלה מונחה מפרט כברירת מחדל)",
+        "descriptionArgument": "מה האפליקציה צריכה לעשות",
+        "agentOption": "Agent type override",
+        "modelOption": "LLM model override (e.g. claude-opus-4-6)",
+        "spinnerText": "מתחיל אפליקציה",
+        "appCreated": "האפליקציה התחילה",
+        "idLabel": "ID:",
+        "nameLabel": "Name:",
+        "slugLabel": "Slug:",
+        "pathLabel": "Path:",
+        "statusLabel": "Status:",
+        "agentLabel": "Agent:",
+        "modelLabel": "Model:",
+        "failedToCreate": "Failed to create application",
+        "starterOption": "איך האפליקציה מקבלת את הקוד הראשון שלה: blank (כל סטאק, שנבחר על ידי הפיצ׳ר הראשון) או vite-shadcn (תבנית Vite + React + Tailwind + shadcn, ללא שלב מפרט)",
+        "fastOption": "בנה את הפיצ׳ר הראשון ישירות מהתיאור, ללא שלב מפרט",
+        "invalidStarter": "נקודת התחלה לא מוכרת \"{{starter}}\". השתמש באחת מ: {{starters}}",
+        "nextStepsTitle": "הצעדים הבאים",
+        "firstFeatureStep": "עקוב אחרי הפיצ׳ר הראשון: shep feat show {{id}}",
+        "previewStep": "צפה בבנייה בממשק הווב: shep ui",
+        "addFeatureStep": "הוסף פיצ׳ר: cd {{path}} && shep feat new \"<מה להוסיף>\""
+      },
+      "del": {
+        "description": "Delete an application",
+        "idArgument": "Application ID, slug, or prefix",
+        "forceOption": "Skip confirmation prompt",
+        "confirmDelete": "Delete application \"{{name}}\"?",
+        "cancelled": "Cancelled",
+        "appDeleted": "Application deleted",
+        "nameLabel": "Name:",
+        "slugLabel": "Slug:",
+        "failedToDelete": "Failed to delete application"
+      },
+      "resolve": {
+        "multipleMatch": "Multiple applications match prefix \"{{id}}\": {{matches}}",
+        "notFound": "Application not found: {{id}}"
+      }
+    },
+    "cluster": {
+      "description": "ניהול אשכולות",
+      "new": {
+        "description": "יצירת אשכול חדש",
+        "nameArgument": "שם האשכול",
+        "argocdOption": "הפעלת ArgoCD לאספקה מתמשכת עם GitOps",
+        "provisionOption": "התחלת הקצאה מיד לאחר היצירה",
+        "spinnerText": "יוצר אשכול",
+        "clusterCreated": "האשכול נוצר",
+        "idLabel": "מזהה:",
+        "nameLabel": "שם:",
+        "slugLabel": "כינוי:",
+        "statusLabel": "סטטוס:",
+        "argocdLabel": "ArgoCD:",
+        "provisioningStarted": "ההקצאה החלה",
+        "failedToCreate": "יצירת האשכול נכשלה"
+      },
+      "ls": {
+        "description": "הצגת אשכולות",
+        "title": "אשכולות",
+        "idColumn": "מזהה",
+        "nameColumn": "שם",
+        "statusColumn": "סטטוס",
+        "argocdColumn": "ArgoCD",
+        "reposColumn": "מאגרים",
+        "appsColumn": "אפליקציות",
+        "noClusters": "לא נמצאו אשכולות",
+        "failedToList": "הצגת האשכולות נכשלה"
+      },
+      "show": {
+        "description": "הצגת פרטי אשכול",
+        "idArgument": "מזהה האשכול, כינוי או קידומת",
+        "title": "אשכול: {{name}}",
+        "nameLabel": "שם",
+        "slugLabel": "כינוי",
+        "statusLabel": "סטטוס",
+        "descriptionLabel": "תיאור",
+        "argocdLabel": "ArgoCD",
+        "argocdNamespaceLabel": "מרחב שמות ArgoCD",
+        "kubeconfigLabel": "Kubeconfig",
+        "k3dNameLabel": "שם k3d",
+        "nodeCountLabel": "מספר צמתים",
+        "errorLabel": "שגיאה",
+        "configTitle": "הגדרות",
+        "timestampsTitle": "חותמות זמן",
+        "createdLabel": "נוצר",
+        "updatedLabel": "עודכן",
+        "provisionedLabel": "הקצאה אחרונה",
+        "healthCheckLabel": "בדיקת תקינות אחרונה",
+        "linkedTitle": "ישויות מקושרות",
+        "reposLabel": "מאגרים",
+        "appsLabel": "אפליקציות",
+        "failedToShow": "הצגת האשכול נכשלה"
+      },
+      "del": {
+        "description": "מחיקת אשכול",
+        "idArgument": "מזהה האשכול, כינוי או קידומת",
+        "forceOption": "דלג על אישור",
+        "confirmDelete": "למחוק את האשכול \"{{name}}\"? יושמד אם פעיל.",
+        "cancelled": "בוטל",
+        "clusterDeleted": "האשכול נמחק",
+        "nameLabel": "שם:",
+        "slugLabel": "כינוי:",
+        "failedToDelete": "מחיקת האשכול נכשלה"
+      },
+      "link": {
+        "description": "קישור מאגר או אפליקציה לאשכול",
+        "clusterArgument": "מזהה האשכול, כינוי או קידומת",
+        "entityArgument": "מזהה המאגר או האפליקציה",
+        "linked": "קושר לאשכול",
+        "clusterLabel": "אשכול:",
+        "entityLabel": "ישות:",
+        "failedToLink": "קישור הישות לאשכול נכשל"
+      },
+      "unlink": {
+        "description": "ניתוק מאגר או אפליקציה מאשכול",
+        "clusterArgument": "מזהה האשכול, כינוי או קידומת",
+        "entityArgument": "מזהה המאגר או האפליקציה",
+        "unlinked": "נותק מהאשכול",
+        "clusterLabel": "אשכול:",
+        "entityLabel": "ישות:",
+        "failedToUnlink": "ניתוק הישות מהאשכול נכשל"
+      },
+      "status": {
+        "description": "הצגת סטטוס אשכול בזמן אמת",
+        "idArgument": "מזהה האשכול, כינוי או קידומת",
+        "title": "סטטוס אשכול: {{name}}",
+        "statusLabel": "סטטוס",
+        "podCountLabel": "פודים",
+        "serviceCountLabel": "שירותים",
+        "argocdLabel": "ArgoCD",
+        "notReady": "האשכול אינו במצב מוכן",
+        "podsTitle": "פודים",
+        "servicesTitle": "שירותים",
+        "failedToGetStatus": "קבלת סטטוס האשכול נכשלה"
+      },
+      "resolve": {
+        "multipleMatch": "מספר אשכולות תואמים לקידומת \"{{id}}\": {{matches}}",
+        "notFound": "האשכול לא נמצא: {{id}}"
+      }
+    },
+    "dev": {
+      "description": "הפעלה ובדיקה של שרת פיתוח מקומי",
+      "noUrl": "לא זוהתה כתובת",
+      "options": {
+        "app": "היעד הוא היישום עם המזהה הזה",
+        "feature": "היעד הוא הפיצ'ר עם המזהה הזה",
+        "repo": "היעד הוא המאגר בנתיב או במזהה הזה",
+        "json": "פלט בפורמט JSON"
+      },
+      "target": {
+        "conflict": "יש להעביר רק אחת מהאפשרויות --app, --feature או --repo",
+        "unmatchedHint": "הרץ את הפקודה מתוך מאגר במעקב, או העבר --app, --feature או --repo."
+      },
+      "state": {
+        "analyzing": "מנתח",
+        "installing": "מתקין",
+        "booting": "עולה",
+        "ready": "מוכן",
+        "stopped": "נעצר"
+      },
+      "start": {
+        "description": "הפעלת שרת הפיתוח ומעקב אחר הפלט עד שהוא מוכן",
+        "streaming": "מפעיל את שרת הפיתוח עבור {{targetType}} בנתיב {{path}}",
+        "ready": "שרת הפיתוח מוכן: {{url}}",
+        "detached": "המעקב נותק — שרת הפיתוח ממשיך לרוץ. עצור אותו עם `shep dev stop`.",
+        "notReady": "שרת הפיתוח לא הגיע למצב מוכן: {{reason}}",
+        "noReason": "לא דווחה סיבה",
+        "failedToStart": "הפעלת שרת הפיתוח נכשלה"
+      },
+      "stop": {
+        "description": "עצירת שרת הפיתוח",
+        "notRunning": "לא רץ שרת פיתוח עבור {{path}}",
+        "stopped": "שרת הפיתוח עבור {{path}} נעצר",
+        "failed": "עצירת שרת הפיתוח נכשלה"
+      },
+      "status": {
+        "description": "הצגת מצב שרת הפיתוח והפקודה שהוא מריץ",
+        "title": "שרת פיתוח",
+        "targetLabel": "יעד",
+        "pathLabel": "נתיב",
+        "stateLabel": "מצב",
+        "notRunning": "לא רץ",
+        "urlLabel": "כתובת",
+        "commandLabel": "פקודה",
+        "portLabel": "פורט",
+        "planSourceLabel": "תוכנית",
+        "failed": "קריאת מצב שרת הפיתוח נכשלה"
+      },
+      "logs": {
+        "description": "הצגת הפלט של שרת הפיתוח",
+        "followOption": "להמשיך להציג פלט חדש כשהוא מגיע",
+        "linesOption": "להציג רק את <count> השורות האחרונות",
+        "noLogs": "לא נרשם פלט של שרת פיתוח עבור {{path}}",
+        "detached": "המעקב נותק — שרת הפיתוח ממשיך לרוץ.",
+        "ended": "שרת הפיתוח אינו רץ יותר."
+      },
+      "plan": {
+        "description": "בדיקה, קיבוע או ניקוי של תוכנית ההרצה שחושבה",
+        "staleHint": "קובצי התצורה של המאגר השתנו מאז שהתוכנית הזו נוצרה. נקה אותה כדי לנתח מחדש, או השאר אותה כפי שהיא.",
+        "repoConfigControlled": "קובץ .shep/dev.json שנשמר במאגר שולט כאן — הוא נקרא מחדש בכל הפעלה וגובר על כל תוכנית שמורה. ערוך את הקובץ הזה כדי לשנות את מה שמורץ.",
+        "source": {
+          "deterministic": "זוהתה",
+          "agent": "נותחה על ידי AI",
+          "manual": "מקובעת"
+        },
+        "fields": {
+          "command": "פקודה",
+          "cwd": "תיקיית עבודה",
+          "source": "מקור",
+          "language": "שפה",
+          "framework": "מסגרת",
+          "expectedPort": "פורט צפוי",
+          "packageManager": "מנהל חבילות",
+          "setupCommands": "פקודות הכנה"
+        },
+        "show": {
+          "description": "הצגת תוכנית ההרצה שחושבה",
+          "title": "תוכנית הרצה",
+          "empty": "לא שמורה תוכנית הרצה עבור {{path}} — הפעל את שרת הפיתוח פעם אחת והיא תופיע כאן.",
+          "failed": "קריאת תוכנית ההרצה נכשלה"
+        },
+        "set": {
+          "description": "קיבוע תוכנית הרצה משלך",
+          "commandOption": "הפקודה שמריצה את שרת הפיתוח",
+          "cwdOption": "תיקיית עבודה, מלאה או ביחס לשורש המאגר",
+          "portOption": "פורט צפוי, או `none` כדי לנקות",
+          "languageOption": "שם השפה, או `none` כדי לנקות",
+          "frameworkOption": "שם המסגרת, או `none` כדי לנקות",
+          "packageManagerOption": "מנהל חבילות, או `none` כדי לנקות",
+          "setupOption": "פקודות הכנה שירוצו לפני הפעלת השרת",
+          "clearSetupOption": "הסרת כל פקודות ההכנה",
+          "saved": "תוכנית ההרצה קובעה",
+          "invalid": "תוכנית ההרצה לא נשמרה",
+          "executionNotice": "נשמרה כ{{source}} — הפקודה הזו תורץ על המכונה שלך בהפעלה הבאה.",
+          "failed": "שמירת תוכנית ההרצה נכשלה"
+        },
+        "clear": {
+          "description": "ניקוי תוכנית ההרצה השמורה כדי שההפעלה הבאה תנתח מחדש",
+          "cleared": "תוכנית ההרצה ({{source}}) נוקתה — ההפעלה הבאה תנתח את המאגר מחדש.",
+          "empty": "לא הייתה תוכנית הרצה שמורה עבור {{path}}",
+          "failed": "ניקוי תוכנית ההרצה נכשל"
+        }
+      },
+      "approve": {
+        "description": "סקירה ואישור של פקודות הפיתוח במאגר",
+        "fingerprintOption": "אישור רק של טביעת האצבע שנבדקה",
+        "invalid": "אין קובץ .shep/dev.json תקין ב־{{path}}",
+        "review": "יש לבדוק את הפקודות ואז להריץ שוב עם --fingerprint {{fingerprint}}. האישור אינו מפעיל אותן.",
+        "changed": "טביעת האצבע אינה תואמת לתצורה הנוכחית. יש לבדוק אותה שוב לפני האישור.",
+        "approved": "פקודות הפיתוח אושרו. אפשר להפעיל את שרת הפיתוח כשמוכנים.",
+        "failed": "לא ניתן לאשר את פקודות הפיתוח"
+      }
+    },
+    "agent": {
+      "description": "נהל וצפה בהרצות סוכן",
+      "show": {
+        "description": "הצג פרטי הרצת סוכן",
+        "idArgument": "מזהה הרצת סוכן (או קידומת)",
+        "title": "הרצת סוכן",
+        "pathsTitle": "נתיבים",
+        "timingTitle": "תזמון",
+        "failedToShow": "הצגת הרצת הסוכן נכשלה"
+      },
+      "ls": {
+        "description": "הצג רשימת כל הרצות הסוכן",
+        "title": "הרצות סוכן",
+        "idColumn": "מזהה",
+        "agentColumn": "סוכן",
+        "statusColumn": "סטטוס",
+        "durationColumn": "משך",
+        "pidColumn": "PID",
+        "warningColumn": "אזהרה",
+        "noRuns": "לא נמצאו הרצות סוכן",
+        "failedToList": "הצגת רשימת הרצות הסוכן נכשלה"
+      },
+      "stop": {
+        "description": "עצור סוכן פעיל",
+        "idArgument": "מזהה הרצת סוכן (או קידומת)",
+        "stoppedSuccess": "נעצר {{id}}: {{reason}}",
+        "failedToStop": "עצירת הרצת הסוכן נכשלה"
+      },
+      "logs": {
+        "description": "צפה ביומני הרצת סוכן",
+        "idArgument": "מזהה הרצת סוכן (או קידומת)",
+        "followOption": "עקוב אחר פלט היומן (כמו tail -f)",
+        "linesOption": "מספר שורות להציג מהסוף",
+        "failedToRead": "קריאת יומני הסוכן נכשלה"
+      },
+      "delete": {
+        "description": "מחק רשומת הרצת סוכן",
+        "idArgument": "מזהה הרצת סוכן (או קידומת)",
+        "forceOption": "כפה מחיקה גם אם רץ",
+        "deletedSuccess": "נמחק {{id}}",
+        "failedToDelete": "מחיקת הרצת הסוכן נכשלה"
+      },
+      "approve": {
+        "description": "אשר הרצת סוכן מושהית וחדש ביצוע",
+        "idArgument": "מזהה הרצת סוכן (או קידומת)",
+        "approvedSuccess": "אושר {{id}}: {{reason}}",
+        "failedToApprove": "אישור הרצת הסוכן נכשל"
+      },
+      "reject": {
+        "description": "דחה הרצת סוכן מושהית ובטל אותה",
+        "idArgument": "מזהה הרצת סוכן (או קידומת)",
+        "reasonOption": "סיבת הדחייה",
+        "rejectedSuccess": "נדחה {{id}}: {{reason}}",
+        "failedToReject": "דחיית הרצת הסוכן נכשלה"
+      },
+      "resolve": {
+        "multipleMatch": "מספר הרצות תואמות לקידומת \"{{id}}\": {{matches}}",
+        "notFound": "הרצת סוכן לא נמצאה: {{id}}"
+      }
+    },
+    "session": {
+      "description": "נהל וצפה בסשנים של ספק הסוכן",
+      "ls": {
+        "description": "הצג רשימת סשנים של ספק הסוכן",
+        "claudeCodeOption": "הצג סשנים של Claude Code",
+        "cursorCliOption": "הצג סשנים של Cursor CLI",
+        "geminiCliOption": "הצג סשנים של Gemini CLI",
+        "limitOption": "מספר מרבי של סשנים להצגה (0 = הכל)",
+        "flatOption": "הצג רשימה שטוחה ללא קיבוץ",
+        "oneProviderOnly": "ניתן לציין רק דגל ספק אחד בכל פעם",
+        "noSessions": "לא נמצאו סשנים",
+        "failedToList": "הצגת רשימת הסשנים נכשלה"
+      },
+      "show": {
+        "description": "הצג פרטי סשן של ספק סוכן",
+        "idArgument": "מזהה סשן",
+        "claudeCodeOption": "שאילתה של סשנים של Claude Code",
+        "cursorCliOption": "שאילתה של סשנים של Cursor CLI",
+        "geminiCliOption": "שאילתה של סשנים של Gemini CLI",
+        "messagesOption": "מספר הודעות להצגה (0 = הכל)",
+        "oneProviderOnly": "ניתן לציין רק דגל ספק אחד בכל פעם",
+        "sessionNotFound": "סשן לא נמצא: {{error}}",
+        "failedToShow": "הצגת הסשן נכשלה",
+        "title": "סשן",
+        "noMessages": "אין הודעות בסשן זה",
+        "noDisplayableMessages": "אין הודעות ניתנות להצגה בסשן זה",
+        "messageCount": "{{count}} הודעות",
+        "showingMessages": "מציג {{first}} ראשונות ו-{{last}} אחרונות מתוך {{total}} הודעות",
+        "messagesSkipped": "··· {{count}} הודעות דולגו ···",
+        "userLabel": "אתה",
+        "assistantLabel": "עוזר",
+        "toolUsage": "שימוש בכלים"
+      }
+    },
+    "upgrade": {
+      "description": "שדרג את Shep CLI לגרסה האחרונה",
+      "versionCheckTimeout": "לא ניתן להשלים את בדיקת הגרסה (תם הזמן)",
+      "versionCheckFailed": "לא ניתן להשלים את בדיקת הגרסה",
+      "alreadyUpToDate": "כבר מעודכן (v{{version}})",
+      "upgradingFromTo": "משדרג מ-v{{current}} ל-v{{latest}}",
+      "upgradingToLatest": "משדרג מ-v{{current}} לגרסה האחרונה",
+      "downloadingPackage": "מוריד גרסה חדשה...",
+      "downloadFailed": "ההורדה המוקדמת לא הושלמה — ממשיך בהתקנה",
+      "stoppingDaemon": "עוצר תהליך לפני שדרוג...",
+      "restartingDaemon": "מפעיל מחדש תהליך...",
+      "daemonRestarted": "התהליך הופעל מחדש בהצלחה.",
+      "startingDaemon": "מפעיל את התהליך של Shep...",
+      "upgradeSuccess": "Shep CLI שודרג בהצלחה",
+      "upgradeFailed": "השדרוג נכשל",
+      "upgradeFailedDaemonRestored": "השדרוג נכשל — התהליך שוחזר על הגרסה הקודמת."
+    },
+    "_serve": {
+      "description": "הפעל את שרת ה-Web (שימוש פנימי בלבד)",
+      "portOption": "פורט להאזנה",
+      "portValidation": "הפורט חייב להיות מספר שלם בין 1024 ל-65535"
+    },
+    "codeReview": {
+      "description": "AI-powered code review for pull requests",
+      "targetArgument": "PR number or GitHub PR URL",
+      "ownerOption": "Repository owner (e.g. octocat)",
+      "repoOption": "Repository name (e.g. my-project)",
+      "postOption": "Post review to GitHub after completion",
+      "reviewingPr": "Reviewing PR {{target}}",
+      "spinnerText": "Running code review",
+      "reviewFailed": "Code review failed",
+      "reviewCompleted": "Review completed — {{comments}} finding(s)",
+      "postingReview": "Posting review to GitHub",
+      "postedSuccess": "Review posted to GitHub: {{url}}",
+      "postFailed": "Failed to post review to GitHub",
+      "postHint": "Run `shep review post {{id}}` to post to GitHub",
+      "failedToReview": "Failed to run code review",
+      "show": {
+        "description": "Display a completed code review",
+        "idArgument": "Review ID (or prefix)",
+        "title": "Code Review — PR #{{pr}}",
+        "idLabel": "ID",
+        "prLabel": "Pull Request",
+        "statusLabel": "Status",
+        "commentsLabel": "Findings",
+        "modelLabel": "Model",
+        "reviewUrlLabel": "Review URL",
+        "createdLabel": "Created",
+        "summaryTitle": "Summary",
+        "errorTitle": "Error",
+        "findingsTitle": "Findings",
+        "failedToShow": "Failed to show code review"
+      },
+      "list": {
+        "description": "List recent code reviews",
+        "limitOption": "Maximum number of reviews to show",
+        "title": "Code Reviews",
+        "idColumn": "ID",
+        "prColumn": "PR",
+        "statusColumn": "STATUS",
+        "commentsColumn": "FINDINGS",
+        "dateColumn": "DATE",
+        "noReviews": "No code reviews found",
+        "failedToList": "Failed to list code reviews"
+      },
+      "post": {
+        "description": "Post a completed review to GitHub",
+        "idArgument": "Review ID (or prefix)",
+        "failedToPost": "Failed to post review to GitHub"
+      }
+    },
+    "plugin": {
+      "description": "Manage AI tool plugins",
+      "add": {
+        "description": "Install a plugin from catalog or custom configuration",
+        "nameArg": "Plugin name from the curated catalog",
+        "typeOption": "Plugin type for custom install (mcp, hook, cli)",
+        "commandOption": "MCP server command for custom install",
+        "transportOption": "MCP transport protocol (stdio, http)",
+        "nameOption": "Plugin name for custom install",
+        "success": "Plugin \"{{name}}\" installed successfully",
+        "failed": "Failed to install plugin",
+        "customRequiresName": "Custom plugin install requires --name",
+        "customRequiresType": "Custom plugin install requires --type (mcp, hook, cli)",
+        "invalidType": "Invalid plugin type \"{{type}}\". Must be one of: mcp, hook, cli"
+      },
+      "remove": {
+        "description": "Remove an installed plugin",
+        "nameArg": "Name of the plugin to remove",
+        "success": "Plugin \"{{name}}\" removed",
+        "failed": "Failed to remove plugin"
+      },
+      "list": {
+        "description": "List all installed plugins",
+        "title": "Installed Plugins",
+        "nameColumn": "Name",
+        "typeColumn": "Type",
+        "statusColumn": "Status",
+        "healthColumn": "Health",
+        "sourceColumn": "Source",
+        "noPlugins": "No plugins installed. Run 'shep plugin catalog' to browse available plugins.",
+        "failed": "Failed to list plugins"
+      },
+      "enable": {
+        "description": "Enable a plugin globally",
+        "nameArg": "Name of the plugin to enable",
+        "success": "Plugin \"{{name}}\" enabled",
+        "failed": "Failed to enable plugin"
+      },
+      "disable": {
+        "description": "Disable a plugin globally",
+        "nameArg": "Name of the plugin to disable",
+        "success": "Plugin \"{{name}}\" disabled",
+        "failed": "Failed to disable plugin"
+      },
+      "configure": {
+        "description": "Configure plugin settings",
+        "nameArg": "Name of the plugin to configure",
+        "toolGroupsOption": "Comma-separated list of tool groups to enable",
+        "success": "Plugin \"{{name}}\" configured",
+        "noOptions": "No configuration options provided. Use --tool-groups to set active tool groups.",
+        "failed": "Failed to configure plugin"
+      },
+      "status": {
+        "description": "Show detailed health status of a plugin",
+        "nameArg": "Name of the plugin to check (omit for all)",
+        "title": "Plugin Health Status",
+        "allTitle": "Plugin Health Check",
+        "nameLabel": "Name",
+        "typeLabel": "Type",
+        "healthLabel": "Health",
+        "messageLabel": "Details",
+        "enabledLabel": "Enabled",
+        "runtimeLabel": "Runtime",
+        "transportLabel": "Transport",
+        "envVarsLabel": "Required Env Vars",
+        "toolGroupsLabel": "Tool Groups",
+        "activeGroupsLabel": "Active Groups",
+        "noPlugins": "No plugins installed.",
+        "failed": "Failed to check plugin health"
+      },
+      "catalog": {
+        "description": "Browse available plugins from the curated catalog",
+        "title": "Plugin Catalog",
+        "nameColumn": "Name",
+        "typeColumn": "Type",
+        "descriptionColumn": "Description",
+        "statusColumn": "Status",
+        "installed": "Installed",
+        "available": "Available",
+        "failed": "Failed to load plugin catalog"
+      }
+    },
+    "space": {
+      "description": "הפרדה בין תחומי עבודה: מרחבים, קווי מוצר והכללים שממקמים מאגרים",
+      "failed": "פקודת המרחב נכשלה",
+      "spaceArg": "שם, slug או מזהה של המרחב",
+      "pathArg": "נתיב המאגר (ברירת מחדל: התיקייה הנוכחית)",
+      "nameArg": "שם תצוגה",
+      "lineArg": "שם, slug או מזהה של קו המוצר",
+      "lineOption": "קו מוצר בתוך המרחב",
+      "descriptionOption": "תיאור קצר",
+      "colorOption": "צבע הקסדצימלי, למשל ‎#3456c4",
+      "ls": {
+        "description": "הצגת מרחבים עם קווי המוצר, המאגרים והזיכרון שלהם",
+        "title": "מרחבים",
+        "nameColumn": "שם",
+        "slugColumn": "Slug",
+        "linesColumn": "קווי מוצר",
+        "reposColumn": "מאגרים",
+        "memoryColumn": "זיכרון",
+        "defaultMarker": "(ברירת מחדל)"
+      },
+      "show": {
+        "description": "הצגת המרחב וקו המוצר של מאגר, ומדוע",
+        "space": "מרחב",
+        "productLine": "קו מוצר",
+        "source": "סיבה",
+        "sourceAssignment": "הוצמד עם shep space assign",
+        "sourceRule": "תאם לכלל {{kind}} {{pattern}}",
+        "sourceDefault": "אף כלל לא תאם, ולכן חל מרחב ברירת המחדל"
+      },
+      "new": {
+        "description": "יצירת מרחב",
+        "defaultOption": "הגדרה כמרחב ברירת המחדל",
+        "success": "המרחב \"{{name}}\" נוצר ({{slug}})"
+      },
+      "edit": {
+        "description": "שינוי שם, תיאור או צבע של מרחב",
+        "success": "המרחב \"{{name}}\" עודכן"
+      },
+      "rm": {
+        "description": "מחיקת מרחב יחד עם הכללים, ההקצאות וקווי המוצר שלו",
+        "success": "המרחב \"{{space}}\" נמחק"
+      },
+      "default": {
+        "description": "בחירת המרחב שאליו נכנסים מאגרים ללא כלל תואם",
+        "success": "\"{{name}}\" הוא כעת מרחב ברירת המחדל"
+      },
+      "line": {
+        "description": "ניהול קווי מוצר בתוך מרחב",
+        "new": {
+          "description": "הוספת קו מוצר למרחב",
+          "success": "קו המוצר \"{{name}}\" נוצר ({{slug}})"
+        },
+        "rm": {
+          "description": "הסרת קו מוצר; המאגרים שלו נשארים במרחב",
+          "success": "קו המוצר \"{{line}}\" הוסר"
+        }
+      },
+      "rule": {
+        "description": "ניהול כללי נתיב ו-git remote שממקמים מאגרים",
+        "patternArg": "קידומת נתיב מוחלט, או תבנית remote כמו github.com/acme/*",
+        "idArg": "מזהה כלל (ראו shep space rule ls)",
+        "add": {
+          "description": "הוספת כלל שממקם מאגרים תואמים במרחב",
+          "remoteOption": "להתייחס לתבנית כ-git remote גם אם היא נראית כנתיב",
+          "priorityOption": "הכרעה בין כללים ספציפיים באותה מידה; הנמוך גובר (ברירת מחדל 100)",
+          "badPriority": "\"{{value}}\" אינו מספר שלם",
+          "success": "כלל {{kind}} נוסף עבור {{pattern}}"
+        },
+        "ls": {
+          "description": "הצגת כללים, למרחב אחד או לכולם",
+          "title": "כללי מרחב",
+          "idColumn": "מזהה",
+          "kindColumn": "סוג",
+          "patternColumn": "תבנית",
+          "priorityColumn": "עדיפות",
+          "empty": "אין עדיין כללים. הוסיפו עם shep space rule add."
+        },
+        "rm": {
+          "description": "הסרת כלל",
+          "success": "הכלל הוסר"
+        }
+      },
+      "assign": {
+        "description": "הצמדת מאגר למרחב, מעל כל כלל",
+        "success": "{{path}} הוצמד ל-{{space}}"
+      },
+      "unassign": {
+        "description": "הסרת ההצמדה של מאגר כך שהכללים יחולו שוב",
+        "success": "{{path}} פועל שוב לפי כללי המרחב"
+      },
+      "config": {
+        "description": "הצגה או שינוי של התחברויות הסוכנים, זהות git והסוכנים המותרים במרחב",
+        "claudeOption": "תיקיית התצורה של Claude ‏(CLAUDE_CONFIG_DIR) עם ההתחברות של המרחב",
+        "ghOption": "תיקיית התצורה של gh ‏(GH_CONFIG_DIR) עם ההתחברות ל-GitHub של המרחב",
+        "gitNameOption": "שם מחבר git לקומיטים של סוכנים",
+        "gitEmailOption": "דוא\"ל מחבר git לקומיטים של סוכנים",
+        "awsProfileOption": "פרופיל AWS ‏(AWS_PROFILE), למשל עבור Bedrock",
+        "bedrockOption": "ניתוב Claude דרך Amazon Bedrock",
+        "noBedrockOption": "לעולם לא לנתב את Claude דרך Bedrock, ללא קשר למארח",
+        "agentsOption": "סוגי הסוכנים המותרים, מופרדים בפסיקים",
+        "clearOption": "שדות לניקוי כדי שיירשו שוב מהמארח",
+        "badClear": "\"{{field}}\" אינו שדה שניתן לנקות",
+        "title": "הגדרות הסוכנים של {{name}}",
+        "claudeConfigDir": "תצורת Claude",
+        "ghConfigDir": "תצורת gh",
+        "gitAuthorName": "שם git",
+        "gitAuthorEmail": "דוא\"ל git",
+        "useBedrock": "Bedrock",
+        "awsProfile": "פרופיל AWS",
+        "allowedAgents": "סוכנים מותרים",
+        "inherit": "ירושה מהמארח",
+        "on": "מופעל",
+        "off": "כבוי",
+        "any": "כל סוכן",
+        "environment": "סביבה לתהליכי הסוכנים",
+        "sets": "מגדיר",
+        "removes": "מסיר",
+        "success": "הגדרות הסוכנים של {{name}} נשמרו",
+        "prCommentsOption": "על אילו הערות סקירה shep משיב בעצמו: off, mention (#shep) או all",
+        "resolveThreadsOption": "סגירת שרשור סקירה אחרי שינוי קוד עבורו",
+        "noResolveThreadsOption": "השארת סגירת השרשורים לסוקר",
+        "prComments": "הערות PR שנענו",
+        "resolveThreads": "סגירת שרשורים",
+        "defaultValue": "{{value}} (ברירת מחדל)",
+        "badTrigger": "\"{{value}}\" אינו מצב הערות PR. השתמשו באחד מאלה: {{triggers}}",
+        "autoActions": "רץ בתקלות בלי לשאול",
+        "autoActionsOption": "פעולות ש-shep מריץ בתקלה בלי לשאול: restart, rollback, scale (מופרדות בפסיקים)",
+        "none": "אין",
+        "docsFirstOption": "הסוכנים כותבים תיעוד למשתמשים בזמן התכנון; שינוי בלי תיעוד ממתין לאדם לפני המיזוג",
+        "noDocsFirstOption": "כיבוי docs first",
+        "docsPathsOption": "קידומות נתיבי תיעוד, מופרדות בפסיקים (ברירת מחדל docs/,README.md)",
+        "docsFirst": "Docs first",
+        "docsFirstOn": "פעיל ({{paths}})"
+      }
+    },
+    "connection": {
+      "description": "חיבור חשבונות Linear ו-Jira ש-shep שומר מסונכרנים, וסביבות Notion שהוא קורא",
+      "failed": "פקודת החיבור נכשלה",
+      "connectionArg": "slug או מזהה של החיבור",
+      "add": {
+        "description": "חיבור חשבון Linear, Jira או Notion; המפתח נבדק לפני השמירה",
+        "providerArg": "linear, jira או notion",
+        "nameOption": "שם תצוגה",
+        "spaceOption": "המרחב שאליו שייך החיבור (ברירת המחדל אם לא צוין)",
+        "siteOption": "כתובת אתר Jira, למשל https://acme.atlassian.net",
+        "emailOption": "דוא\"ל חשבון ה-Jira שאליו שייך האסימון",
+        "secretEnvOption": "קריאת המפתח או האסימון ממשתנה סביבה זה במקום לשאול",
+        "linearPrompt": "מפתח API של Linear",
+        "jiraPrompt": "אסימון API של Jira",
+        "badProvider": "\"{{provider}}\" אינו נתמך; השתמשו ב-linear, jira או notion",
+        "emptyEnv": "משתנה הסביבה {{variable}} ריק או לא מוגדר",
+        "success": "{{name}} ‏({{slug}}) חובר בתור {{account}}",
+        "notionPrompt": "אסימון אינטגרציה של Notion"
+      },
+      "ls": {
+        "description": "הצגת החיבורים",
+        "title": "חיבורים",
+        "nameColumn": "שם",
+        "slugColumn": "Slug",
+        "providerColumn": "כלי",
+        "accountColumn": "חשבון",
+        "statusColumn": "סטטוס",
+        "empty": "אין עדיין חיבורים. הוסיפו עם shep connection add."
+      },
+      "test": {
+        "description": "בדיקה חוזרת של פרטי ההתחברות",
+        "success": "{{name}} פועל ({{account}})"
+      },
+      "rm": {
+        "description": "הסרת חיבור וכללי הסנכרון שלו; פריטי העבודה המסונכרנים נשארים",
+        "success": "החיבור {{ref}} הוסר"
+      }
+    },
+    "sync": {
+      "description": "שמירת צוותי Linear ושאילתות Jira בפרויקטים של shep",
+      "failed": "פקודת הסנכרון נכשלה",
+      "connectionArg": "slug או מזהה של החיבור",
+      "ruleArg": "מזהה כלל (ראו shep sync rule ls)",
+      "summary": "{{created}} נוצרו, {{updated}} עודכנו, {{pushed}} נשלחו, {{conflicts}} התנגשויות, {{failed}} נכשלו",
+      "rule": {
+        "description": "ניהול כללי סנכרון",
+        "add": {
+          "description": "שמירת צוות Linear או שאילתת JQL של Jira בפרויקט shep",
+          "projectOption": "slug או מזהה של פרויקט shep",
+          "scopeOption": "מפתח צוות Linear ‏(ENG) או שאילתת JQL של Jira",
+          "twoWayOption": "שליחת שינויים מ-shep גם חזרה למערכת המעקב",
+          "everyOption": "דקות בין הרצות אוטומטיות (ברירת מחדל 15)",
+          "success": "כלל {{id}} נוסף עבור {{scope}}"
+        },
+        "ls": {
+          "description": "הצגת כללי סנכרון עם ההרצה האחרונה",
+          "title": "כללי סנכרון",
+          "idColumn": "מזהה",
+          "fromColumn": "מקור",
+          "intoColumn": "יעד",
+          "modeColumn": "מצב",
+          "lastRunColumn": "הרצה אחרונה",
+          "never": "לא הורץ",
+          "off": "(כבוי)",
+          "empty": "אין עדיין כללים. הוסיפו עם shep sync rule add."
+        },
+        "enable": {
+          "description": "לאפשר לשירות להריץ כלל",
+          "success": "כלל {{id}} הופעל"
+        },
+        "disable": {
+          "description": "מניעת הרצת כלל על ידי השירות",
+          "success": "כלל {{id}} הושבת"
+        },
+        "rm": {
+          "description": "הסרת כלל; פריטי העבודה המסונכרנים נשארים",
+          "success": "כלל {{id}} הוסר"
+        }
+      },
+      "run": {
+        "description": "הרצה עכשיו של כלל אחד או של כל הכללים הפעילים",
+        "nothing": "אין כללים פעילים",
+        "conflictsNote": "שדות ששונו בשני הצדדים: {{count}}; ערך הטרקר נשמר"
+      }
+    },
+    "item": {
+      "itemArg": "מפתח פריט העבודה (PAY-42) או מזהה",
+      "agentOption": "הסוכן לשימוש (ברירת מחדל: הסוכן המוגדר)",
+      "failed": "פקודת פריט העבודה נכשלה",
+      "investigate": {
+        "description": "סוכן קורא את הקוד ומדרג השערות לגבי שורש הבאג",
+        "repoOption": "המאגר לקריאה (ברירת מחדל: האחרון של הפריט, ואז היישום של הפרויקט)",
+        "spinner": "חוקרים את {{key}} (עותק לקריאה בלבד של {{repository}})",
+        "starting": "חוקרים את {{key}} ב-{{repository}} עם {{agent}}. עותק העבודה שלכם לא משתנה."
+      },
+      "hypotheses": {
+        "description": "הצגת החקירה האחרונה של פריט עבודה"
+      },
+      "fix": {
+        "description": "התחלת פיצ׳ר תיקון מהשערה: קודם בדיקה שנכשלת, ואז התיקון",
+        "numberArg": "מספר ההשערה (1 היא הסבירה ביותר)",
+        "specOption": "הרצת צינור המפרט המלא במקום המצב המהיר",
+        "agentOption": "הסוכן לתיקון (ברירת מחדל: הסוכן שחקר)",
+        "spinner": "מתחילים את פיצ׳ר התיקון",
+        "created": "הפיצ׳ר {{name}} ({{id}}) מתקן את {{key}} לפי השערה {{number}}.",
+        "startFailed": "הפיצ׳ר נוצר אך לא התחיל: {{error}}"
+      },
+      "render": {
+        "none": "{{key}} עדיין לא נחקר. הריצו: shep item investigate {{key}} --repo <נתיב>",
+        "header": "נחקר {{repository}}{{commit}} עם {{agent}} — {{status}}",
+        "running": "עדיין רץ; בדקו שוב עם: shep item hypotheses {{key}}",
+        "evidence": "ראיות",
+        "test": "בדיקה שנכשלת",
+        "fix": "תיקון",
+        "next": "התחילו תיקון עם: shep item fix {{key}} <מספר>",
+        "approved": "השערה {{number}} מתוקנת על ידי הפיצ׳ר {{feature}}."
+      }
+    },
+    "agentOption": {
+      "unknown": "\"{{value}}\" אינו סוכן נתמך. השתמשו באחד מאלה: {{supported}}"
+    },
+    "everyOption": {
+      "invalid": "\"{{value}}\" אינו מספר שלם של דקות"
+    },
+    "knowledge": {
+      "description": "ידע צוות מ-Notion שסוכנים במרחב יכולים לקרוא",
+      "failed": "פקודת הידע נכשלה",
+      "connectionArg": "Slug או מזהה של חיבור Notion",
+      "sourceArg": "מזהה מקור ידע (ראו shep knowledge source ls)",
+      "summary": "{{added}} נוספו, {{updated}} עודכנו, {{removed}} הוסרו, {{failed}} נכשלו",
+      "source": {
+        "description": "ניהול דפי Notion ומסדי נתונים ש-shep שומר מסונכרנים",
+        "add": {
+          "description": "שמירת עץ דפים או מסד נתונים של Notion מסונכרן כידע של המרחב של החיבור",
+          "scopeOption": "קישור או מזהה של דף או מסד נתונים ב-Notion ששותף עם האינטגרציה",
+          "productLineOption": "רק עבור מאגרים של קו המוצרים הזה (slug או מזהה)",
+          "everyOption": "דקות בין סנכרונים אוטומטיים (ברירת מחדל 60)",
+          "success": "מקור הידע {{id}} נוסף עבור {{title}}; הריצו shep knowledge sync כדי לקרוא אותו עכשיו"
+        },
+        "ls": {
+          "description": "הצגת מקורות הידע עם הסנכרון האחרון שלהם",
+          "title": "מקורות ידע",
+          "idColumn": "מזהה",
+          "fromColumn": "מקור",
+          "documentsColumn": "מסמכים",
+          "everyColumn": "כל",
+          "lastRunColumn": "סנכרון אחרון",
+          "never": "לא סונכרן מעולם",
+          "off": "(כבוי)",
+          "empty": "אין עדיין מקורות ידע. הוסיפו אחד עם shep knowledge source add."
+        },
+        "enable": {
+          "description": "לאפשר לשירות הרקע לסנכרן מקור",
+          "success": "מקור הידע {{id}} הופעל"
+        },
+        "disable": {
+          "description": "לעצור את סנכרון המקור בשירות הרקע",
+          "success": "מקור הידע {{id}} הושבת"
+        },
+        "rm": {
+          "description": "הסרת מקור והמסמכים שסונכרנו ממנו",
+          "success": "מקור הידע {{id}} הוסר"
+        }
+      },
+      "sync": {
+        "description": "סנכרון מקור ידע אחד, או כל המקורות הפעילים, עכשיו",
+        "nothing": "אין מקורות ידע פעילים"
+      },
+      "ls": {
+        "description": "הצגת מסמכי הידע של מרחב",
+        "spaceOption": "Slug או מזהה של המרחב (ברירת המחדל אם לא צוין)",
+        "title": "הידע של {{space}}",
+        "titleColumn": "מסמך",
+        "linkColumn": "קישור",
+        "empty": "אין עדיין מסמכי ידע במרחב הזה."
+      },
+      "search": {
+        "description": "הצגת הקטעים שסוכן שעובד במאגר יקרא עבור משימה",
+        "queryArg": "טקסט המשימה להתאמה",
+        "repoOption": "נתיב המאגר (התיקייה הנוכחית אם לא צוין)",
+        "none": "שום ידע צוות במרחב של המאגר הזה לא מתאים למשימה הזו."
+      }
+    },
+    "numberOption": {
+      "invalid": "{{option}} מצפה למספר, לא \"{{value}}\""
+    },
+    "signal": {
+      "description": "תיעוד ראיות למה שמשתמשים צריכים",
+      "failed": "פקודת האות נכשלה",
+      "spaceOption": "Slug או מזהה של המרחב (ברירת המחדל אם לא צוין)",
+      "signalArg": "מזהה אות (ראו shep signal ls)",
+      "add": {
+        "description": "תיעוד אות: בקשה, תקלה, משימה או ממצא",
+        "titleArg": "תקציר בשורה אחת",
+        "productLineOption": "קו המוצרים הנוגע בדבר (slug או מזהה)",
+        "kindOption": "feedback, incident, tracker, discovery או manual (ברירת מחדל manual)",
+        "customerOption": "הלקוח או החשבון שמאחוריו",
+        "revenueOption": "הכנסה חודשית בסיכון עבור הלקוח",
+        "urgentOption": "דורש תשומת לב בקרוב",
+        "urlOption": "קישור למקור",
+        "detailOption": "טקסט ארוך יותר",
+        "opportunityOption": "מזהה ההזדמנות לקשר אליה",
+        "badKind": "\"{{kind}}\" אינו סוג אות; השתמשו ב-feedback, incident, tracker, discovery או manual",
+        "success": "האות {{id}} תועד"
+      },
+      "ls": {
+        "description": "הצגת אותות, החדשים קודם",
+        "unlinkedOption": "רק אותות ללא הזדמנות",
+        "title": "אותות",
+        "idColumn": "מזהה",
+        "titleColumn": "אות",
+        "kindColumn": "סוג",
+        "customerColumn": "לקוח",
+        "opportunityColumn": "הזדמנות",
+        "unlinked": "לא מקושר",
+        "empty": "אין עדיין אותות. תעדו אחד עם shep signal add."
+      },
+      "rm": {
+        "description": "הסרת אות",
+        "success": "האות {{id}} הוסר"
+      }
+    },
+    "opportunity": {
+      "description": "הימורים שנתמכים באותות, מדורגים לפי ערך לשעת סקירה",
+      "failed": "פקודת ההזדמנות נכשלה",
+      "opportunityArg": "מזהה הזדמנות (ראו shep opportunity ls)",
+      "signalArg": "מזהה אות (ראו shep signal ls)",
+      "spaceOption": "Slug או מזהה של המרחב (ברירת המחדל אם לא צוין)",
+      "hoursOption": "שעות סקירה אנושית משוערות עד המיזוג",
+      "confidenceOption": "ביטחון שתספק את הערך, מ-0 עד 1 (ברירת מחדל 0.5)",
+      "strategicOption": "מקדמת מטרה אסטרטגית של המרחב",
+      "problemOption": "הבעיה שהיא פותרת, במילים של המשתמשים",
+      "add": {
+        "description": "עיצוב הזדמנות חדשה",
+        "titleArg": "שם ההימור בשורה אחת",
+        "productLineOption": "קו המוצרים הנוגע בדבר (slug או מזהה)",
+        "success": "ההזדמנות {{id}} הוצעה"
+      },
+      "estimate": {
+        "description": "שינוי ההערכה, הביטחון או הבעיה של הזדמנות",
+        "success": "ההזדמנות {{id}} עודכנה"
+      },
+      "link": {
+        "description": "קישור אות להזדמנות במרחב שלו",
+        "success": "האות {{signal}} תומך ב-{{opportunity}}"
+      },
+      "unlink": {
+        "description": "ניתוק אות מההזדמנות שלו",
+        "success": "האות {{signal}} נותק"
+      },
+      "accept": {
+        "description": "קבלת הזדמנות: היא מתחרה על זמן סקירה",
+        "success": "{{title}} התקבלה"
+      },
+      "drop": {
+        "description": "דחיית הזדמנות, עם סיבה",
+        "reasonOption": "למה היא נדחית",
+        "success": "{{title}} נדחתה"
+      },
+      "build": {
+        "description": "הפיכת הזדמנות לפריט עבודה בפרויקט",
+        "projectOption": "Slug או מזהה של הפרויקט",
+        "success": "{{title}} נבנית כפריט עבודה {{workItem}}"
+      },
+      "ls": {
+        "description": "דירוג ההזדמנויות הפתוחות וסימון הקו (▶) שנכנס השבוע",
+        "title": "הזדמנויות ב-{{space}} — {{used}} מתוך {{capacity}} שעות סקירה בקו",
+        "idColumn": "מזהה",
+        "titleColumn": "הזדמנות",
+        "statusColumn": "מצב",
+        "scoreColumn": "ערך/שעה",
+        "hoursColumn": "שעות",
+        "evidenceColumn": "ראיות",
+        "empty": "אין הזדמנויות פתוחות. עצבו אחת עם shep opportunity add.",
+        "unlinked": "אותות שעוד לא מקושרים להזדמנות: {{count}} (shep signal ls --unlinked)"
+      },
+      "show": {
+        "description": "הצגת הזדמנות עם הראיות והציון שלה",
+        "score": "{{score}} ערך לשעת סקירה (ערך {{value}}, {{hours}} שעות, ביטחון {{confidence}})",
+        "dropped": "נדחתה: {{reason}}"
+      },
+      "weights": {
+        "description": "הצגה או הגדרה של המשקלים וקיבולת הסקירה השבועית של מרחב",
+        "reachOption": "ערך כל לקוח",
+        "revenueOption": "ערך כל 1,000 לחודש בסיכון",
+        "urgencyOption": "ערך כל אות דחוף",
+        "strategicOption": "תוספת להימור אסטרטגי",
+        "capacityOption": "שעות סקירה אנושית בשבוע",
+        "current": "תפוצה {{reach}} · הכנסה {{revenue}} · דחיפות {{urgency}} · אסטרטגי {{strategic}} · קיבולת {{capacity}} שעות בשבוע"
+      },
+      "evidenceParts": {
+        "signals_one": "{{count}} אות",
+        "signals_few": "{{count}} אותות",
+        "signals_many": "{{count}} אותות",
+        "signals_other": "{{count}} אותות",
+        "customers_one": "{{count}} לקוח",
+        "customers_few": "{{count}} לקוחות",
+        "customers_many": "{{count}} לקוחות",
+        "customers_other": "{{count}} לקוחות",
+        "urgent_one": "{{count}} דחוף",
+        "urgent_few": "{{count}} דחופים",
+        "urgent_many": "{{count}} דחופים",
+        "urgent_other": "{{count}} דחופים",
+        "revenue": "{{revenue}}/חודש"
+      }
+    },
+    "feedback": {
+      "description": "מפתחות שכלים שולחים איתם משוב, והנושאים שהמשוב יוצר",
+      "failed": "פקודת המשוב נכשלה",
+      "spaceOption": "Slug או מזהה של המרחב (ברירת המחדל אם לא צוין)",
+      "key": {
+        "description": "ניהול מפתחות משוב",
+        "keyArg": "מזהה מפתח משוב (ראו shep feedback key ls)",
+        "create": {
+          "description": "יצירת מפתח שכלי שולח כדי לפרסם משוב במרחב",
+          "nameOption": "איזה כלי או סקריפט משתמש בו",
+          "success": "נוצר מפתח משוב עבור {{name}}. העתיקו אותו עכשיו; הוא לא יוצג שוב:",
+          "once": "שלחו אותו כ-\"Authorization: Bearer <מפתח>\" בכל POST אל {{path}} בשרת ה-shep שלכם."
+        },
+        "ls": {
+          "description": "הצגת מפתחות משוב",
+          "title": "מפתחות משוב",
+          "idColumn": "מזהה",
+          "nameColumn": "כלי",
+          "prefixColumn": "מפתח",
+          "usedColumn": "שימוש אחרון",
+          "revoked": "בוטל",
+          "never": "לא היה בשימוש",
+          "empty": "אין עדיין מפתחות משוב. צרו אחד עם shep feedback key create."
+        },
+        "revoke": {
+          "description": "ביטול מפתח: שליחות איתו נדחות",
+          "success": "מפתח המשוב {{id}} בוטל"
+        }
+      },
+      "themes": {
+        "description": "קיבוץ אותות לא מקושרים של מרחב לנושאים",
+        "title": "נושאים ב-{{space}}",
+        "keyColumn": "נושא",
+        "themeColumn": "מילים",
+        "evidenceColumn": "ראיות",
+        "empty": "אין נושאים: אין שני אותות לא מקושרים שחולקים מספיק מילים."
+      },
+      "promote": {
+        "description": "הפיכת נושא להזדמנות עם האותות שלו מקושרים",
+        "themeArg": "מפתח הנושא (ראו shep feedback themes)",
+        "titleOption": "כותרת ההזדמנות (מילות הנושא אם לא צוין)",
+        "success": "{{title}} ({{id}}) הוצעה; אותות מקושרים: {{count}}"
+      }
+    },
+    "discovery": {
+      "description": "סוכן קורא אותות לא מקושרים של מרחב ומציע הזדמנויות",
+      "failed": "פקודת הגילוי נכשלה",
+      "spaceOption": "Slug או מזהה של המרחב (ברירת המחדל אם לא צוין)",
+      "run": {
+        "description": "הרצת גילוי במרחב עכשיו",
+        "agentOption": "הסוכן לשימוש (כללי המרחב חלים)",
+        "started": "קורא את הראיות של המרחב; זה עשוי לקחת כמה דקות…",
+        "success": "אותות שנקראו: {{read}} · הזדמנויות שהוצעו: {{proposed}} · הצעות שנדחו: {{dropped}}"
+      },
+      "ls": {
+        "description": "הצגת הרצות הגילוי של מרחב",
+        "title": "הרצות גילוי",
+        "whenColumn": "התחלה",
+        "statusColumn": "מצב",
+        "resultColumn": "תוצאה",
+        "result": "{{proposed}} הוצעו מתוך {{read}} אותות ({{dropped}} נדחו)",
+        "empty": "הגילוי עדיין לא רץ במרחב הזה."
+      },
+      "schedule": {
+        "description": "הרצת גילוי במרחב כל N שעות, או כיבוי",
+        "everyOption": "שעות בין הרצות (1 עד 720)",
+        "offOption": "כיבוי הגילוי המתוזמן",
+        "needEvery": "ציינו --every <שעות> או --off",
+        "on": "הגילוי רץ כל {{hours}} שעות",
+        "off": "הגילוי המתוזמן כבוי"
+      }
+    },
+    "incident": {
+      "description": "תקלות בייצור: פתיחה, ניתוח, פעולה על העומס וסגירה",
+      "failed": "פקודת התקלה נכשלה",
+      "spaceOption": "Slug או מזהה של המרחב (ברירת המחדל אם לא צוין)",
+      "incidentArg": "מזהה תקלה (ראו shep incident ls)",
+      "actionIdArg": "מזהה פעולה (ראו shep incident show)",
+      "badSeverity": "\"{{value}}\" אינה רמת חומרה; השתמשו ב-{{severities}}",
+      "badAction": "\"{{value}}\" אינה פעולה; השתמשו ב-{{actions}}",
+      "recovered": "התאושש",
+      "notRecovered": "לא התאושש",
+      "awaiting": "ממתין לאישור: {{action}} — הריצו shep incident approve {{id}}",
+      "open": {
+        "description": "פתיחת תקלה",
+        "titleArg": "תקציר בשורה אחת",
+        "severityOption": "critical, major (ברירת מחדל) או minor",
+        "detailOption": "מה קורה",
+        "urlOption": "קישור להתראה או ללוח",
+        "workloadOption": "ה-deployment ב-Kubernetes שנפגע",
+        "namespaceOption": "ה-namespace שלו (ברירת מחדל: default)",
+        "contextOption": "הקונטקסט שלו ב-kubeconfig (ברירת מחדל: הנוכחי)",
+        "success": "התקלה {{id}} נפתחה: {{title}}"
+      },
+      "ls": {
+        "description": "הצגת תקלות, החדשות קודם",
+        "openOption": "רק תקלות פתוחות",
+        "title": "תקלות",
+        "idColumn": "מזהה",
+        "titleColumn": "תקלה",
+        "severityColumn": "חומרה",
+        "statusColumn": "מצב",
+        "workloadColumn": "עומס",
+        "empty": "אין תקלות."
+      },
+      "show": {
+        "description": "הצגת תקלה עם ציר הזמן והפעולות"
+      },
+      "note": {
+        "description": "הוספת הערה לציר הזמן",
+        "textArg": "ההערה",
+        "success": "ההערה נוספה"
+      },
+      "triage": {
+        "description": "קריאת העומס ושאלת סוכן על סיבות ועל פעולה אחת",
+        "agentOption": "הסוכן לשימוש (כללי המרחב חלים)",
+        "started": "קורא את העומס ושואל את הסוכן; זה עשוי לקחת כמה דקות…"
+      },
+      "act": {
+        "description": "הפעלה מחדש, החזרה לגרסה קודמת או שינוי קנה מידה של העומס עכשיו",
+        "actionArg": "restart, rollback או scale",
+        "replicasOption": "מספר העותקים, עבור scale",
+        "reasonOption": "למה"
+      },
+      "approve": {
+        "description": "אישור פעולה מוצעת; היא רצה מיד"
+      },
+      "reject": {
+        "description": "דחיית פעולה מוצעת",
+        "reasonOption": "למה",
+        "success": "הפעולה {{id}} נדחתה"
+      },
+      "resolve": {
+        "description": "סגירת תקלה; תחקיר נכתב מציר הזמן אם לא סופק",
+        "postmortemOption": "התחקיר שלכם (Markdown)",
+        "success": "{{title}} נסגרה"
+      }
+    },
+    "outcome": {
+      "description": "מה קרה אחרי ששוחררו הזדמנויות: דיווחים לפני ואחרי, לקוחות לעדכן, כיול",
+      "failed": "פקודת outcome נכשלה",
+      "spaceOption": "Slug או מזהה של המרחב (מרחב ברירת המחדל אם לא צוין)",
+      "opportunityArg": "מזהה ההזדמנות",
+      "ls": {
+        "description": "הצגת ההזדמנויות ששוחררו במרחב והתוצאות שלהן",
+        "title": "תוצאות — {{space}}",
+        "opportunityColumn": "הזדמנות",
+        "shippedColumn": "שוחררה",
+        "verdictColumn": "פסיקה",
+        "reportsColumn": "דיווחים",
+        "tellColumn": "לעדכן",
+        "empty": "עוד לא שוחרר דבר במרחב הזה."
+      },
+      "check": {
+        "description": "לשחרר עכשיו הזדמנויות שפריט העבודה שלהן הושלם ולשפוט תוצאות שהגיע זמנן",
+        "summary": "שוחררו {{shipped}}, נפתחו מחדש {{reopened}}, נשפטו {{judged}}",
+        "shipped": "שוחררה:",
+        "reopened": "חזרה למאושרת:"
+      },
+      "ship": {
+        "description": "סימון הזדמנות כמשוחררת ידנית",
+        "success": "{{title}} שוחררה; התוצאה תישפט ב-{{date}}"
+      },
+      "tell": {
+        "description": "הצגת הלקוחות שיש לעדכן על השחרור, או סימונם כמעודכנים",
+        "doneOption": "סימון הלקוחות כמעודכנים",
+        "told": "לקוחות שסומנו כמעודכנים: {{told}}",
+        "nobody": "כל הלקוחות כבר עודכנו.",
+        "note": "ספרו להם: „{{title}}” שוחרר — תודה שסיפרתם לנו מה אתם צריכים.",
+        "markHint": "כשהם יודעים: shep outcome tell {{id}} --done"
+      },
+      "hours": {
+        "description": "רישום שעות הסקירה האנושית שהזדמנות ששוחררה דרשה בפועל",
+        "hoursArg": "שעות, יותר מ-0",
+        "success": "נרשמו {{hours}} שעות סקירה"
+      },
+      "calibration": {
+        "hours": "שעות הסקירה בפועל הן פי {{ratio}} מההערכות ({{timed}} נרשמו)",
+        "noHours": "עוד לא נרשמו שעות סקירה בפועל",
+        "solved": "{{solved}} מתוך {{judged}} תוצאות שנשפטו נפתרו",
+        "noVerdicts": "עוד לא נשפטו תוצאות"
+      }
+    },
+    "autopilot": {
+      "description": "מה shep מתחיל לבד במרחב: חקירות, תיקונים והקו של השבוע",
+      "failed": "פקודת autopilot נכשלה",
+      "spaceOption": "Slug או מזהה של המרחב (מרחב ברירת המחדל אם לא צוין)",
+      "on": "פעיל",
+      "off": "כבוי",
+      "investigate": "לחקור פריטים דחופים",
+      "fix": "לתקן השערות בטוחות",
+      "mergeFixes": "תיקונים ממוזגים בלי אדם",
+      "budget": "תיקונים ביום",
+      "fillLine": "לבנות את הקו של השבוע",
+      "project": "פרויקט לקו",
+      "pass": "נחקרו {{investigated}} · תוקנו {{fixed}} · נבנו {{built}}",
+      "show": {
+        "description": "הצגת מדיניות autopilot של מרחב והמעברים האחרונים",
+        "title": "Autopilot — {{space}}",
+        "noRuns": "עוד אין מעברים."
+      },
+      "set": {
+        "description": "שינוי מדיניות autopilot של מרחב",
+        "investigateOption": "לחקור פריטים דחופים פתוחים בלי חקירה",
+        "fixOption": "להתחיל תיקון כשההשערה המובילה היא High",
+        "mergeFixesOption": "לאפשר לתיקונים האלה להתמזג בלי אדם",
+        "fillLineOption": "לבנות הזדמנויות מאושרות בתוך הקו של השבוע",
+        "offOption": "כיבוי החלק הזה",
+        "projectOption": "הפרויקט שאליו נבנה הקו (מזהה או slug)",
+        "clearProjectOption": "להפסיק לבנות את הקו לפרויקט",
+        "budgetOption": "לכל היותר תיקונים ב-24 שעות (0 עד 20)",
+        "success": "מדיניות autopilot נשמרה"
+      },
+      "run": {
+        "description": "הרצת מעבר autopilot במרחב עכשיו",
+        "started": "מריץ מעבר autopilot; חקירות יכולות לקחת דקות רבות…"
+      }
+    },
+    "factory": {
+      "description": "מפעל התוכנה במבט אחד",
+      "failed": "פקודת factory נכשלה",
+      "spaceOption": "Slug או מזהה של המרחב (מרחב ברירת המחדל אם לא צוין)",
+      "status": {
+        "description": "מה המפעל של מרחב עושה ומה ממתין לאנשים",
+        "title": "מפעל — {{space}}",
+        "line": "קו",
+        "lineValue": "{{used}}/{{capacity}} שעות סקירה, {{inLine}} בקו, {{waiting}} ממתינות",
+        "building": "בבנייה",
+        "incidents": "תקלות פתוחות",
+        "actions": "פעולות שממתינות לאישור",
+        "outcomes": "תוצאות ממתינות",
+        "customers": "לקוחות לעדכן",
+        "autopilot": "Autopilot",
+        "features": "פיצ'רים",
+        "featuresValue": "בתהליך: {{inFlight}}, ממתינים לאישור: {{waiting}}"
+      }
+    },
+    "telemetry": {
+      "description": "נהל מדדי שימוש (טלמטריה עם אפשרות ביטול)",
+      "stateArgument": "on או off",
+      "invalidState": "צפוי \"on\" או \"off\", התקבל \"{{value}}\"",
+      "failed": "עדכון הגדרות מדדי השימוש נכשל",
+      "forcedOff": "מדדי השימוש נשארים כבויים בסביבה זו: {{reason}}.",
+      "on": {
+        "description": "הפעל מדדי שימוש",
+        "done": "מדדי השימוש מופעלים."
+      },
+      "off": {
+        "description": "כבה מדדי שימוש ומחק אירועים בתור",
+        "done": "מדדי השימוש כבויים. האירועים בתור נמחקו."
+      },
+      "identity": {
+        "description": "כלול או השמט את הזהות שלך (שם משתמש ובעלים ב-GitHub, גיבוב חשבון הסוכן)",
+        "on": "הזהות שלך תיכלל במדדי השימוש.",
+        "off": "הזהות שלך תושמט. מדדי השימוש נשארים אנונימיים."
+      },
+      "contact": {
+        "description": "אפשר או סרב ליצירת קשר מצוות Shep ב-GitHub",
+        "on": "צוות Shep רשאי ליצור איתך קשר ב-GitHub.",
+        "off": "צוות Shep לא ייצור איתך קשר."
+      },
+      "status": {
+        "description": "הצג אם מדדי השימוש מופעלים ומה ממתין בתור",
+        "metrics": "מדדי שימוש",
+        "on": "מופעלים",
+        "off": "כבויים ({{reason}})",
+        "identity": "זהות",
+        "included": "נכללת",
+        "excluded": "מושמטת",
+        "contact": "יצירת קשר ב-GitHub",
+        "yes": "מותרת",
+        "no": "לא מותרת",
+        "installId": "מזהה התקנה",
+        "queued": "אירועים בתור",
+        "destination": "נשלח אל",
+        "notConfigured": "לשום מקום — לא הוגדר מפתח פרויקט"
+      },
+      "show": {
+        "description": "הצג בדיוק מה יישלח",
+        "header": "האצווה הבאה עבור {{destination}} ({{queued}} אירועים בתור):",
+        "empty": "אין דבר בתור.",
+        "notConfigured": "לא הוגדר מפתח פרויקט, לכן עדיין לא נשלח דבר.",
+        "disabled": "מדדי השימוש כבויים; האירועים בתור יימחקו בשליחה הבאה."
+      },
+      "reasons": {
+        "ci": "משתנה הסביבה CI מוגדר",
+        "do-not-track": "DO_NOT_TRACK מוגדר",
+        "env-disabled": "SHEP_TELEMETRY_DISABLED מוגדר",
+        "test": "רץ תחת מריץ בדיקות",
+        "user-opt-out": "כיבית אותם"
+      }
+    },
+    "chat": {
+      "description": "כלים לשיחות צ׳אט",
+      "block": {
+        "description": "הצגת בלוק עשיר בצ׳אט: מפרט לסקירה, תצוגה מקדימה של HTML או תוכנית",
+        "kindArgument": "סוג הבלוק: {{kinds}}",
+        "titleOption": "הכותרת שמוצגת בראש הבלוק",
+        "fileOption": "קריאת התוכן (Markdown, או HTML לתצוגה מקדימה) מהקובץ הזה",
+        "contentOption": "התוכן (Markdown, או HTML לתצוגה מקדימה)",
+        "scopeOption": "השיחה שאליה מפרסמים (ברירת מחדל: ${{variable}})",
+        "posted": "\"{{title}}\" פורסם בצ׳אט (בלוק {{id}}).",
+        "unknownKind": "סוג בלוק לא מוכר \"{{kind}}\". השתמשו באחד מאלה: {{kinds}}.",
+        "noScope": "אין שיחת צ׳אט: העבירו --scope או הריצו בתוך צ׳אט של Shep (הוא מגדיר את {{variable}}).",
+        "oneSource": "העבירו --file או --content (רק אחד).",
+        "unreadable": "לא ניתן לקרוא את {{file}}.",
+        "failed": "פרסום הבלוק נכשל"
+      }
+    },
+    "ps": {
+      "description": "הצגת התהליכים ש-Shep מריץ: דמון הווב ו-workers של סוכנים",
+      "allOption": "לכלול הרצות שהתהליך שלהן הסתיים",
+      "jsonOption": "הדפסת התהליכים כ-JSON",
+      "watchOption": "ציור מחדש כל 2 שניות עד ctrl+c",
+      "title": "תהליכי Shep",
+      "columns": {
+        "kind": "סוג",
+        "pid": "PID",
+        "feature": "פיצ'ר",
+        "agent": "סוכן",
+        "status": "סטטוס",
+        "up": "פעיל",
+        "cpu": "CPU",
+        "mem": "זיכרון"
+      },
+      "kind": {
+        "daemon": "דמון",
+        "featureAgent": "סוכן פיצ'ר",
+        "agentRun": "הרצת סוכן"
+      },
+      "state": {
+        "running": "רץ",
+        "crashed": "קרס",
+        "exited": "הסתיים"
+      },
+      "empty": "אין תהליכי Shep שרצים. הוסף --all כדי לכלול הרצות שהסתיימו.",
+      "summary": "{{running}} רצים · {{crashed}} קרסו · {{exited}} הסתיימו",
+      "statsUnavailable": "CPU וזיכרון אינם זמינים בפלטפורמה זו.",
+      "watchNotTty": "--watch דורש טרמינל אינטראקטיבי. בסקריפטים השתמש ב-shep ps --json.",
+      "watchHint": "מתרענן כל 2 שניות · ctrl+c לעצירה",
+      "failed": "לא ניתן להציג את תהליכי Shep",
+      "crashedHint": "המשך פיצ'ר שקרס עם: shep feat resume <מזהה פיצ'ר>",
+      "stop": {
+        "description": "עצירת הרצת סוכן לפי מזהה הרצה, מזהה פיצ'ר או תחילית של אחד מהם",
+        "idArgument": "מזהה הרצה, מזהה פיצ'ר או תחילית",
+        "stopped": "{{id}} נעצר: {{reason}}"
+      }
+    },
+    "learn": {
+      "description": "harness לומד: סקירה, אימוץ וביטול של מה ש-Shep למד מהרצות של פיצ'רים",
+      "failed": "פקודת ה-harness הנלמד נכשלה",
+      "repoOption": "נתיב המאגר (ברירת מחדל: התיקייה הנוכחית)",
+      "jsonOption": "הדפסת JSON",
+      "versionArg": "מזהה גרסה, או קידומת ייחודית שלו",
+      "notFound": "אין גרסה של ה-harness הנלמד שתואמת ל-{{id}}",
+      "fields": {
+        "version": "גרסה",
+        "status": "סטטוס",
+        "origin": "מקור",
+        "scope": "היקף",
+        "created": "נוצרה",
+        "components": "רכיבים",
+        "parent": "גרסת אב",
+        "sourceFeature": "נלמדה מהפיצ'ר",
+        "notes": "הערות",
+        "reason": "סיבה"
+      },
+      "status": {
+        "description": "הצגת ה-harness הנלמד שהמאגר הזה רץ איתו",
+        "title": "harness נלמד",
+        "none": "שום דבר לא אומץ — המאגר הזה רץ עם ה-harness הבסיסי.",
+        "candidates": "מועמדות שממתינות לסקירה: {{count}} — ראו `shep learn history`",
+        "noCandidates": "אין מועמדות שממתינות לסקירה."
+      },
+      "history": {
+        "description": "הצגת גרסאות ה-harness הנלמד עם מדדי התוצאות שלהן, מהחדשה לישנה",
+        "limitOption": "הצגה של לכל היותר מספר הגרסאות הזה",
+        "invalidLimit": "--limit חייב להיות מספר שלם גדול מ-0, התקבל: {{value}}",
+        "title": "גרסאות ה-harness הנלמד",
+        "empty": "עדיין אין גרסאות של ה-harness הנלמד. ללמוד מפיצ'ר שהסתיים עם `shep learn reflect <feature>`.",
+        "current": "נוכחית",
+        "regressed": "גרסאות שהידרדרו: {{count}} — לבדוק אחת עם `shep learn show <version>`, ולבטל את המאומצת עם `shep learn rollback`",
+        "columns": {
+          "id": "מזהה",
+          "status": "סטטוס",
+          "origin": "מקור",
+          "created": "נוצרה",
+          "runs": "הרצות",
+          "merged": "מוזגו",
+          "ciFixes": "תיקוני CI",
+          "trend": "מגמה"
+        }
+      },
+      "show": {
+        "description": "הצגת גרסה: הרכיבים שלה, פסקי הדין על השינויים וה-diff מול גרסת האב",
+        "title": "harness נלמד {{id}}",
+        "componentsTitle": "רכיבים",
+        "editsTitle": "שינויים ופסקי דין",
+        "diffTitle": "Diff מול {{id}}",
+        "diffTitleBase": "Diff מול ה-harness הבסיסי",
+        "noChanges": "אין שינויים."
+      },
+      "diff": {
+        "description": "הצגת מה השתנה בין שתי גרסאות",
+        "fromArg": "הגרסה שממנה משווים (מזהה או קידומת)",
+        "toArg": "הגרסה שאליה משווים (מזהה או קידומת)",
+        "title": "{{from}} → {{to}}"
+      },
+      "adopt": {
+        "description": "אימוץ גרסה מועמדת, או ייבוא ואימוץ של harness שכתבתם",
+        "fromDirOption": "ייבוא ה-harness שבתיקייה הזו (במבנה הקנוני) ואימוצו",
+        "needsOne": "יש לציין בדיוק אחד: גרסה או --from-dir <dir>",
+        "adopted": "{{id}} אומצה — ההרצות הבאות של פיצ'רים ישתמשו בה",
+        "memoryFacts": "עובדות זיכרון שנרשמו: {{count}}",
+        "refused": "לא ניתן לאמץ את {{id}}: {{reason}}",
+        "imported": "{{id}} יובאה ואומצה",
+        "importedNotAdopted": "{{id}} יובאה, אבל לא אומצה — ראו `shep learn show {{id}}`",
+        "importRefused": "ה-harness שב-{{dir}} לא יובא:"
+      },
+      "reject": {
+        "description": "דחיית גרסה מועמדת; המשוב שלכם מכוון את הרפלקציה הבאה",
+        "feedbackOption": "למה היא נדחית — הרפלקציה הבאה תקרא את זה",
+        "rejected": "{{id}} נדחתה",
+        "refused": "לא ניתן לדחות את {{id}}: {{reason}}"
+      },
+      "rollback": {
+        "description": "ביטול ה-harness המאומץ של המאגר הזה ואימוץ מחדש של גרסת האב שלו",
+        "reasonOption": "למה הוא מבוטל (נשמר בגרסה)",
+        "rolledBack": "ה-harness המאומץ בוטל",
+        "restored": "{{id}} מאומצת שוב",
+        "toBase": "המאגר רץ שוב עם ה-harness הבסיסי",
+        "refused": "שום דבר לא בוטל: {{reason}}"
+      },
+      "reflect": {
+        "description": "ללמוד עכשיו מההרצה האחרונה של פיצ'ר ולהגיש שינוי ב-harness לסקירה",
+        "featureArg": "מזהה הפיצ'ר, או קידומת ייחודית שלו",
+        "spinner": "מבצע רפלקציה על הרצת הפיצ'ר",
+        "skipped": "אין ממה ללמוד: {{reason}}",
+        "finished": "הרפלקציה הסתיימה: {{status}} (עלות {{cost}} USD)",
+        "candidate": "המועמדת {{id}} ממתינה לסקירה — `shep learn show {{id}}`",
+        "autoAdopted": "המועמדת {{id}} אומצה אוטומטית לפי מדיניות האימוץ שלכם"
+      },
+      "labels": {
+        "status": {
+          "candidate": "מועמדת",
+          "adopted": "מאומצת",
+          "rejected": "נדחתה",
+          "rolledBack": "בוטלה",
+          "superseded": "הוחלפה"
+        },
+        "origin": {
+          "base": "בסיס",
+          "reflect": "רפלקציה",
+          "explore": "חקירה",
+          "manual": "ידני"
+        },
+        "scope": {
+          "project": "פרויקט",
+          "organization": "ארגון",
+          "space": "מרחב",
+          "productLine": "קו מוצרים"
+        },
+        "trend": {
+          "insufficientData": "מעט מדי הרצות",
+          "improved": "השתפרה",
+          "unchanged": "ללא שינוי",
+          "regressed": "הידרדרה",
+          "noBaseline": "גרסה ראשונה"
+        },
+        "verdict": {
+          "helped": "עזר",
+          "hurt": "הזיק",
+          "noObservedEffect": "לא נצפתה השפעה",
+          "confounded": "לא חד-משמעי",
+          "untested": "לא נבדק"
+        },
+        "kind": {
+          "instructions": "הוראות",
+          "guardrails": "מעקות בטיחות",
+          "memory": "זיכרון",
+          "toolGuidance": "הנחיות לכלים",
+          "skill": "מיומנות",
+          "script": "סקריפט",
+          "subagent": "תת-סוכן",
+          "hook": "Hook"
+        },
+        "refinement": {
+          "running": "רצה",
+          "proposed": "הוצעה",
+          "keptBase": "נשמר ה-harness הבסיסי",
+          "fellBack": "חזרה ל-harness הבסיסי",
+          "overBudget": "חריגה מהתקציב",
+          "failed": "נכשלה"
+        }
+      }
+    }
+  },
+  "ui": {
+    "installMessages": {
+      "alreadyInstalled": "{{tool}} כבר מותקן",
+      "installSuccess": "{{tool}} הותקן בהצלחה",
+      "installFailed": "התקנת {{tool}} נכשלה: {{error}}",
+      "unknownTool": "כלי לא מוכר: \"{{tool}}\". זמינים: {{available}}",
+      "checkingAvailability": "בודק אם {{tool}} זמין...",
+      "installingHeading": "מתקין {{tool}}"
+    },
+    "daemon": {
+      "alreadyRunning": "Shep כבר פועל ב-{{url}}",
+      "heading": "ממשק Web של Shep",
+      "startingServer": "מפעיל שרת",
+      "daemonSpawned": "התהליך הופעל ב-{{url}}",
+      "serverReady": "השרת מוכן ב-{{url}}",
+      "serverMayBeStarting": "ייתכן שהשרת עדיין מופעל ב-{{url}}",
+      "daemonFailed": "התהליך נכשל בהפעלה (קוד יציאה {{code}}).",
+      "checkLogs": "בדוק יומנים: {{path}}",
+      "stoppingDaemon": "עוצר תהליך Shep (PID {{pid}})...",
+      "sigkillFallback": "התהליך לא נעצר בעדינות, שולח SIGKILL...",
+      "daemonStopped": "תהליך Shep נעצר."
+    },
+    "logViewer": {
+      "noLogFile": "לא נמצא קובץ יומן עבור {{label}}",
+      "expectedAt": "צפוי ב: {{path}}",
+      "logEmpty": "קובץ היומן ריק עבור {{label}}"
+    },
+    "agentGuard": {
+      "forceOption": "הרץ גם מתוך הרצת סוכן של Shep, למרות שהפעולה תעצור את הסוכן שמריץ אותה"
+    }
+  },
+  "bootstrap": {
+    "failedDatabase": "אתחול מסד הנתונים נכשל",
+    "failedSettings": "אתחול ההגדרות נכשל",
+    "unexpectedError": "אירעה שגיאה בלתי צפויה",
+    "unhandledRejection": "דחיית הבטחה שלא טופלה",
+    "telemetryNotice": {
+      "title": "Shep אוסף מדדי שימוש",
+      "intro": "כדי לדעת באילו תכונות משתמשים, Shep שולח אירועי שימוש לצוות Shep (PostHog, אזור האיחוד האירופי). הוא לעולם אינו שולח פרומפטים, קוד, נתיבי קבצים, שמות מאגרים או ענפים, כותרות פיצ'רים או הודעות שגיאה.",
+      "fieldsHeading": "מה נשלח:",
+      "fields": {
+        "installId": "מזהה התקנה אקראי",
+        "usage": "באילו פקודות, דפים ותכונות אתה משתמש, ואיך הרצות מסתיימות",
+        "platform": "גרסת Shep, מערכת ההפעלה וגרסת Node.js",
+        "agentAccountHash": "גיבוב SHA-256 של מזהה חשבון Claude או Codex שלך",
+        "githubUsername": "שם המשתמש שלך ב-GitHub (נקרא באמצעות gh)",
+        "githubOwners": "הבעלים ב-GitHub (משתמשים או ארגונים) של המאגרים שבהם אתה משתמש עם Shep",
+        "contactConsent": "האם צוות Shep רשאי ליצור איתך קשר ב-GitHub (לא, אלא אם תאפשר זאת)"
+      },
+      "identityHeading": "נשלח רק אם תפעיל את הזהות (כבוי כברירת מחדל):",
+      "identityNote": "פרטים אלה מזהים אותך, ולכן הם כבויים עד שתפעיל אותם: shep telemetry identity on",
+      "optOut": "כיבוי המדדים: shep telemetry off (או הגדר DO_NOT_TRACK=1). הצגת מה נשלח: shep telemetry show"
+    }
+  },
+  "features": {
+    "queued": "בתור",
+    "queuedWithPosition": "בתור · {{position}} לפני",
+    "queuedTooltip": "ממתין למקום פנוי ({{position}} בתור)"
+  }
+}
