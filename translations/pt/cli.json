@@ -1,0 +1,2228 @@
+{
+  "commands": {
+    "settings": {
+      "description": "Gerenciar configurações globais do Shep",
+      "wizardFailed": "O assistente de configurações falhou",
+      "show": {
+        "description": "Exibir configurações atuais",
+        "formatOption": "Formato de saída: table|json|yaml",
+        "failedToLoad": "Falha ao carregar configurações"
+      },
+      "init": {
+        "description": "Inicializar configurações para os padrões",
+        "forceOption": "Pular confirmação",
+        "resetWarning": "Isso irá redefinir todas as configurações para os padrões. Considere fazer backup de ~/.shep/data primeiro.",
+        "confirmPrompt": "Tem certeza? (s/N): ",
+        "cancelled": "Operação cancelada.",
+        "success": "Configurações inicializadas para os padrões.",
+        "failed": "Falha ao inicializar configurações"
+      },
+      "agent": {
+        "description": "Configurar agente de codificação AI",
+        "agentOption": "Tipo de agente (ex: claude-code)",
+        "authOption": "Método de autenticação (session ou token)",
+        "tokenOption": "Token de API para autenticação baseada em token",
+        "authRequired": "--auth é obrigatório ao usar a flag --agent",
+        "success": "Agente configurado: {{type}} ({{authMethod}})",
+        "cancelled": "Configuração cancelada.",
+        "failed": "Falha ao configurar agente"
+      },
+      "ide": {
+        "description": "Configurar IDE/editor preferido",
+        "editorOption": "Nome do IDE/editor ({{editors}})",
+        "unknownEditor": "Editor desconhecido \"{{editor}}\". Válidos: {{validEditors}}",
+        "notInPath": "Editor '{{editor}}' não encontrado no PATH. O editor será salvo mesmo assim.",
+        "success": "Editor padrão definido como: {{editor}}",
+        "cancelled": "Configuração cancelada.",
+        "failed": "Falha ao configurar IDE"
+      },
+      "model": {
+        "description": "Configurar o modelo LLM padrão para execuções do agente",
+        "selectPrompt": "Selecione o modelo LLM padrão",
+        "noModels": "Nenhum modelo disponível para o agente \"{{agentType}}\". Configure um agente diferente com: shep settings agent",
+        "success": "Modelo configurado: {{model}}",
+        "cancelled": "Configuração cancelada.",
+        "failed": "Falha ao configurar modelo"
+      },
+      "effort": {
+        "description": "Configurar o esforço de raciocínio padrão para novas execuções",
+        "levelArgument": "Nível de esforço (low, medium, high, xhigh, max)",
+        "clearOption": "Usar o esforço padrão do agente",
+        "selectPrompt": "Selecione o esforço de raciocínio padrão",
+        "agentDefault": "Padrão do agente",
+        "success": "Esforço configurado: {{effort}}",
+        "cleared": "Esforço redefinido para o padrão do agente",
+        "cancelled": "Configuração cancelada.",
+        "failed": "Falha ao configurar o esforço",
+        "invalid": "Esforço desconhecido \"{{level}}\". Níveis válidos: {{levels}}",
+        "clearConflict": "Um nível não pode ser combinado com --clear"
+      },
+      "workflow": {
+        "description": "Configurar comportamento padrão do fluxo de trabalho para novos recursos",
+        "allowPrdOption": "Aprovar automaticamente a fase de requisitos",
+        "allowPlanOption": "Aprovar automaticamente a fase de planejamento",
+        "allowMergeOption": "Aprovar automaticamente e fazer merge após a implementação",
+        "allowAllOption": "Ativar todas as portas de aprovação",
+        "pushOption": "Enviar branch para o remoto ao concluir",
+        "noPushOption": "Não enviar branch para o remoto ao concluir",
+        "prOption": "Abrir PR ao concluir",
+        "noPrOption": "Não abrir PR ao concluir",
+        "success": "Padrões de fluxo de trabalho atualizados: {{summary}}",
+        "summaryNone": "nenhum",
+        "allowPrd": "Permitir PRD",
+        "allowPlan": "Permitir Plano",
+        "allowMerge": "Permitir Merge",
+        "push": "Push",
+        "pr": "PR",
+        "cancelled": "Configuração cancelada.",
+        "failed": "Falha ao configurar padrões de fluxo de trabalho",
+        "maxParallelOption": "Máximo de recursos executando um agente ao mesmo tempo (0 = ilimitado)",
+        "maxParallelUnlimited": "Sem limite de recursos paralelos",
+        "maxParallelSet": "Executando no máximo {{limit}} recursos em paralelo"
+      },
+      "language": {
+        "description": "Configurar idioma de exibição",
+        "selectPrompt": "Selecione o idioma de exibição",
+        "success": "Idioma definido como: {{language}}",
+        "cancelled": "Configuração cancelada.",
+        "failed": "Falha ao configurar idioma"
+      }
+    },
+    "version": {
+      "description": "Exibir informações da versão",
+      "nodeLabel": "Node:",
+      "platformLabel": "Plataforma:"
+    },
+    "start": {
+      "description": "Iniciar a interface web do Shep como daemon em segundo plano",
+      "portOption": "Número da porta (1024-65535)",
+      "portValidation": "A porta deve ser um número inteiro entre 1024 e 65535"
+    },
+    "stop": {
+      "description": "Parar o daemon da interface web do Shep em execução",
+      "noDaemonRunning": "Nenhum daemon do Shep está em execução."
+    },
+    "restart": {
+      "description": "Reiniciar graciosamente o daemon da interface web do Shep (inicia se não estiver em execução)",
+      "portOption": "Número da porta (1024-65535)",
+      "portValidation": "A porta deve ser um número inteiro entre 1024 e 65535",
+      "daemonNotRunning": "O daemon não estava em execução — iniciando..."
+    },
+    "status": {
+      "description": "Mostrar o status do daemon da interface web do Shep",
+      "logsOption": "Mostrar as últimas N linhas do log do daemon (padrão 50)",
+      "followOption": "Acompanhar a saída do log do daemon em tempo real",
+      "noLogFile": "Nenhum arquivo de log do daemon encontrado.",
+      "expectedAt": "Esperado em: {{path}}",
+      "logEmpty": "O arquivo de log está vazio.",
+      "followHint": "--- acompanhando daemon.log (Ctrl+C para parar) ---",
+      "notRunning": "O daemon do Shep não está em execução.",
+      "startHint": "Execute `shep start` para iniciá-lo.",
+      "title": "Status do Daemon Shep",
+      "pidLabel": "PID",
+      "portLabel": "Porta",
+      "urlLabel": "URL",
+      "startedLabel": "Iniciado",
+      "uptimeLabel": "Tempo ativo",
+      "cpuLabel": "CPU %",
+      "memoryLabel": "Memória (RSS)",
+      "envTitle": "Ambiente",
+      "shepHomeLabel": "Diretório Shep",
+      "cliVersionLabel": "Versão do CLI",
+      "nodeVersionLabel": "Versão do Node",
+      "dbPathLabel": "Caminho do BD",
+      "logFileLabel": "Arquivo de Log",
+      "daemonConfigLabel": "Configuração do Daemon",
+      "buildLabel": "Compilação",
+      "gitShaLabel": "SHA do Git",
+      "healthLabel": "Prontidão",
+      "osLabel": "SO"
+    },
+    "ui": {
+      "description": "Iniciar a interface web do Shep",
+      "portOption": "Número da porta (1024-65535)",
+      "noOpenOption": "Não abrir o navegador automaticamente",
+      "portValidation": "A porta deve ser um número inteiro entre 1024 e 65535",
+      "heading": "Interface Web Shep",
+      "startingDev": "Iniciando servidor web (modo desenvolvimento)...",
+      "starting": "Iniciando servidor web...",
+      "serverReady": "Servidor pronto em {{url}}",
+      "pressCtrlC": "Pressione Ctrl+C para parar",
+      "shuttingDown": "Encerrando...",
+      "failedToStart": "Falha ao iniciar a interface web"
+    },
+    "tui": {
+      "description": "Abrir o console de terminal ao vivo de todas as features",
+      "repoOption": "Mostrar só as features deste repositório",
+      "allOption": "Incluir features arquivadas",
+      "noNotifyOption": "Não tocar o sino nem enviar notificação do terminal quando uma funcionalidade precisar de você",
+      "statusOption": "Imprimir um resumo de uma linha para barras de status (plain ou tmux) e sair",
+      "unknownStatusStyle": "Estilo de status desconhecido \"{{style}}\". Use um de: {{styles}}."
+    },
+    "run": {
+      "description": "Executar um fluxo de trabalho de agente AI",
+      "agentArgument": "Nome do agente a executar (ex: analyze-repository)",
+      "promptOption": "Prompt para enviar ao agente",
+      "promptDefault": "Analisar este repositório",
+      "repoOption": "Caminho do repositório (padrão: diretório atual)",
+      "streamOption": "Transmitir saída em tempo real",
+      "runningAgent": "Executando agente:",
+      "repositoryLabel": "Repositório: {{path}}",
+      "promptLabel": "Prompt: {{prompt}}",
+      "agentCompleted": "Agente {{name}} concluído",
+      "resultHeading": "Resultado:",
+      "noOutput": "Sem saída",
+      "agentWorking": "Agente {{name}} está trabalhando...",
+      "agentFailed": "Execução do agente falhou",
+      "failedToRun": "Falha ao executar agente"
+    },
+    "install": {
+      "description": "Instalar uma ferramenta de desenvolvimento",
+      "toolArgument": "Ferramenta para instalar ({{tools}})",
+      "howOption": "Mostrar instruções de instalação sem executar",
+      "runWithTool": "Execute {{command}} com uma destas opções:",
+      "unrecognizedTool": "Hmm, não reconheço '{{tool}}'. Você quis dizer uma destas?",
+      "alreadyInstalled": "{{tool}} já está instalado",
+      "noAutoInstall": "{{tool}} não suporta instalação automatizada",
+      "installSuccess": "{{tool}} instalado com sucesso",
+      "installFailed": "Falha ao instalar {{tool}}: {{error}}",
+      "failedToInstall": "Falha ao instalar {{tool}}",
+      "instructionsHeading": "Instruções de Instalação para {{name}}",
+      "nameLabel": "Nome:",
+      "summaryLabel": "Resumo:",
+      "descriptionLabel": "Descrição:",
+      "tagsLabel": "Tags:",
+      "binaryLabel": "Binário:",
+      "packageManagerLabel": "Gerenciador de Pacotes:",
+      "installCommandsHeading": "Comandos de Instalação",
+      "verifyHeading": "Verificar Instalação",
+      "openDirHeading": "Abrir Diretório",
+      "docsHeading": "Documentação"
+    },
+    "ide": {
+      "description": "Abrir um worktree de recurso no seu IDE",
+      "featArgument": "ID ou prefixo do recurso",
+      "openInOption": "Abrir em {{name}}",
+      "openedSuccess": "Abriu {{editor}} em {{path}}",
+      "failedToOpen": "Falha ao abrir IDE"
+    },
+    "tools": {
+      "description": "Gerenciar ferramentas de desenvolvimento",
+      "list": {
+        "description": "Listar todas as ferramentas disponíveis com seu status de instalação",
+        "installed": "instalado",
+        "missing": "ausente",
+        "failedToList": "Erro ao listar ferramentas: {{error}}"
+      }
+    },
+    "security": {
+      "description": "Supply-chain security policy management",
+      "enforce": {
+        "description": "Evaluate repository security posture and enforce policy",
+        "repoOption": "Repository path (defaults to current directory)",
+        "outputOption": "Output format (table, json, yaml)",
+        "passed": "Security enforcement passed",
+        "failed": "Security enforcement failed",
+        "advisoryNote": "Mode is Advisory — findings are reported but do not block",
+        "disabledNote": "Security mode is Disabled — no checks performed",
+        "modeLabel": "Mode",
+        "sourceLabel": "Source",
+        "dependencyFindingsLabel": "Dependency Findings",
+        "releaseIntegrityLabel": "Release Integrity",
+        "totalFindingsLabel": "Total Findings",
+        "governanceFindingsLabel": "GitHub Governance (audit-only)",
+        "noFindings": "No findings",
+        "failedToEnforce": "Failed to evaluate security posture",
+        "flagDisabledNote": "Supply-chain security is part of ASPM and the aspm feature flag is off — enforce is a no-op"
+      }
+    },
+    "feat": {
+      "description": "Adicione funcionalidades a um app ou repositório e leve-as pelo SDLC",
+      "new": {
+        "description": "Adicione uma funcionalidade ao app ou repositório da pasta atual",
+        "descriptionArgument": "Descrição do recurso",
+        "repoOption": "Caminho do repositório (padrão: diretório atual)",
+        "pushOption": "Enviar branch para o remoto após a implementação",
+        "prOption": "Abrir PR quando a implementação for concluída (implica --push)",
+        "noPrOption": "Não abrir PR quando a implementação for concluída",
+        "allowPrdOption": "Aprovar automaticamente até os requisitos, pausar depois",
+        "allowPlanOption": "Aprovar automaticamente até o planejamento, pausar na implementação",
+        "allowMergeOption": "Aprovar automaticamente a fase de merge",
+        "allowAllOption": "Executar totalmente autônomo (sem pausas de aprovação)",
+        "parentOption": "ID do recurso pai (prefixo completo ou parcial)",
+        "pendingOption": "Criar recurso sem iniciar o agente",
+        "fastOption": "Pular fases do SDLC e implementar diretamente a partir do seu prompt (padrão: ativado)",
+        "noFastOption": "Executar todas as fases do SDLC (analisar → requisitos → plano → implementar)",
+        "exploreOption": "Start an exploration/prototyping session for iterative design",
+        "exploreAndFastConflict": "Cannot use --explore and --fast together. Choose one mode.",
+        "exploreHarnessOption": "Autoaprendizagem: executar a etapa de implementação desta feature no modo Explore (Propose–Probe–Compose) — custa cerca de 4× a etapa de implementação com k=1",
+        "exploreKOption": "Orçamento k do Explore para --explore-harness, 1–{{max}} (padrão: sua configuração de autoaprendizagem); executa 4k rollouts",
+        "exploreKWithoutHarness": "--explore-k só se aplica junto com --explore-harness",
+        "invalidExploreK": "--explore-k deve ser um número inteiro de 1 a {{max}}, recebido: {{value}}",
+        "modelOption": "Identificador do modelo LLM para esta execução (ex: claude-opus-4-6)",
+        "effortOption": "Esforço de raciocínio para esta execução: low, medium, high, xhigh ou max (padrão: configurações)",
+        "invalidEffort": "Esforço desconhecido \"{{level}}\". Níveis válidos: {{levels}}",
+        "noRebaseOption": "Skip syncing main from remote before creating the feature branch",
+        "injectSkillsOption": "Inject curated skills into the worktree",
+        "noInjectSkillsOption": "Skip skill injection for this invocation",
+        "attachOption": "Anexar um arquivo (repetível)",
+        "remoteOption": "GitHub URL or owner/repo — clone (or fork) then create feature",
+        "remoteConflict": "Cannot use --remote with --repo. --remote clones the repo first.",
+        "forkedInfo": "Auto-forked (no push access to original)",
+        "parentNotFound": "Recurso pai não encontrado: {{id}}",
+        "attachmentNotFound": "Anexo não encontrado: {{path}}",
+        "spinnerText": "Pensando",
+        "featureCreated": "Recurso criado",
+        "blockedInfo": "Recurso criado em estado Bloqueado — aguardando o pai atingir a Implementação",
+        "pendingInfo": "Recurso criado em estado Pendente — execute {{command}} para começar",
+        "idLabel": "ID:",
+        "nameLabel": "Nome:",
+        "branchLabel": "Branch:",
+        "statusLabel": "Status:",
+        "worktreeLabel": "Worktree:",
+        "specLabel": "Spec:",
+        "agentLabel": "Agente:",
+        "pendingStatus": "pendente",
+        "spawnedStatus": "iniciado",
+        "pushPr": "push + PR",
+        "pushOnly": "somente push",
+        "pushLabel": "Push:",
+        "reviewLabel": "Revisão:",
+        "fullyAutonomous": "totalmente autônomo",
+        "pauseAfterEvery": "pausar após cada fase",
+        "autoApprove": "aprovação automática: {{approved}}",
+        "failedToCreate": "Falha ao criar recurso"
+      },
+      "ls": {
+        "description": "Listar recursos",
+        "repoOption": "Filtrar por caminho do repositório",
+        "includeDeletedOption": "Incluir recursos excluídos",
+        "showArchivedOption": "Incluir recursos arquivados",
+        "noFeatures": "Nenhum recurso encontrado",
+        "featuresHeading": "Recursos ({{count}})",
+        "nameHeader": "NOME",
+        "statusHeader": "STATUS",
+        "gatesHeader": "R P M ↑",
+        "elapsedHeader": "TEMPO",
+        "doneHeader": "FEITO",
+        "failedToList": "Falha ao listar recursos"
+      },
+      "show": {
+        "description": "Mostrar detalhes do recurso",
+        "idArgument": "ID do recurso",
+        "title": "Recurso: {{name}}",
+        "idLabel": "ID",
+        "slugLabel": "Slug",
+        "descriptionLabel": "Descrição",
+        "userQueryLabel": "Consulta do Usuário",
+        "repositoryLabel": "Repositório",
+        "branchLabel": "Branch",
+        "statusLabel": "Status",
+        "lifecycleLabel": "Ciclo de Vida",
+        "agentLabel": "Agente",
+        "modelLabel": "Modelo",
+        "worktreeLabel": "Worktree",
+        "specDirLabel": "Diretório Spec",
+        "agentRunLabel": "Execução do Agente",
+        "timestampsTitle": "Timestamps",
+        "createdLabel": "Criado",
+        "updatedLabel": "Atualizado",
+        "workflowTitle": "Fluxo de Trabalho",
+        "pushLabel": "Push",
+        "openPrLabel": "Abrir PR",
+        "gatesLabel": "Portas",
+        "gatesNotSet": "não definido",
+        "pullRequestTitle": "Pull Request",
+        "urlLabel": "URL",
+        "numberLabel": "Número",
+        "prStatusLabel": "Status",
+        "commitLabel": "Commit",
+        "ciLabel": "CI",
+        "ciFixesLabel": "Correções CI",
+        "ciFixAttempts": "{{count}} tentativa(s)",
+        "yesValue": "Sim",
+        "noValue": "Não",
+        "planTitle": "Plano",
+        "planState": "Estado   {{state}}",
+        "planTasks": "Tarefas   {{count}}",
+        "messagesTitle": "Mensagens ({{count}})",
+        "phaseTimingTitle": "Tempo por Fase",
+        "ciFixHistoryTitle": "Histórico de Correções CI",
+        "coordinationTitle": "Coordenação de agentes",
+        "coordinationWaitsFor": "Aguarda {{peer}}",
+        "coordinationRunsAlongside": "Avança junto com {{peer}}",
+        "coordinationSharedFiles": "Arquivos compartilhados ({{count}})",
+        "awaitingApprovalTitle": "Aguardando Aprovação",
+        "awaitingApprovalMessage": "{{phase}} está aguardando sua revisão.",
+        "awaitingApprovalApprove": "Retomar o agente",
+        "awaitingApprovalReject": "Cancelar com feedback",
+        "currentPhase": "fase atual",
+        "failedToShow": "Falha ao mostrar recurso"
+      },
+      "start": {
+        "description": "Iniciar um recurso pendente (iniciar o agente)",
+        "idArgument": "ID do recurso (ou prefixo)",
+        "spinnerText": "Iniciando recurso",
+        "blockedWarning": "Recurso passou para Bloqueado — o pai ainda não atingiu a Implementação",
+        "featureStarted": "Recurso iniciado",
+        "featureLabel": "Recurso:",
+        "branchLabel": "Branch:",
+        "statusLabel": "Status:",
+        "agentLabel": "Agente:",
+        "spawnedStatus": "iniciado",
+        "failedToStart": "Falha ao iniciar recurso",
+        "forceOption": "Iniciar mesmo quando o limite de recursos paralelos for atingido"
+      },
+      "approve": {
+        "description": "Aprovar um recurso aguardando revisão",
+        "idArgument": "ID do recurso (auto-resolve se omitido)",
+        "approvedSuccess": "Aprovado: {{name}}",
+        "phaseLabel": "Fase:",
+        "approved": "aprovado",
+        "agentLabel": "Agente:",
+        "agentResumed": "retomado",
+        "failedToApprove": "Falha ao aprovar recurso"
+      },
+      "reject": {
+        "description": "Rejeitar um recurso aguardando revisão",
+        "idArgument": "ID do recurso (auto-resolve se omitido)",
+        "reasonOption": "Feedback de rejeição (obrigatório)",
+        "rejectedWarning": "Rejeitado: {{name}}",
+        "reasonLabel": "Motivo:",
+        "iterationLabel": "Iteração:",
+        "iterationWarning": "Aviso: 5+ iterações. Considere refinar o prompt.",
+        "agentLabel": "Agente:",
+        "agentRerunning": "reexecutando requisitos",
+        "failedToReject": "Falha ao rejeitar recurso"
+      },
+      "del": {
+        "description": "Excluir um recurso",
+        "idArgument": "ID ou prefixo do recurso",
+        "forceOption": "Pular confirmação",
+        "noCleanupOption": "Pular limpeza de worktree e branch",
+        "noClosePrOption": "Manter o pull request aberto",
+        "confirmDelete": "Excluir recurso \"{{name}}\"?",
+        "cancelled": "Cancelado",
+        "confirmCleanup": "Também limpar worktree e branches?",
+        "confirmClosePr": "Também fechar o pull request? (PR #{{number}})",
+        "featureDeleted": "Recurso excluído",
+        "nameLabel": "Nome:",
+        "branchLabel": "Branch:",
+        "cleanupLabel": "Limpeza:",
+        "cleanupDetail": "worktree, branch local, branch remota",
+        "prLabel": "PR:",
+        "prClosed": "#{{number}} fechado",
+        "failedToDelete": "Falha ao excluir recurso"
+      },
+      "resume": {
+        "description": "Retomar um agente de recurso parado ou com falha",
+        "idArgument": "ID do recurso (ou prefixo)",
+        "agentResumed": "Agente do recurso retomado",
+        "featureLabel": "Recurso:",
+        "runIdLabel": "ID da Execução:",
+        "failedToResume": "Falha ao retomar recurso",
+        "forceOption": "Retomar mesmo quando o limite de funcionalidades paralelas for atingido"
+      },
+      "review": {
+        "description": "Revisão interativa de um recurso aguardando aprovação",
+        "idArgument": "ID do recurso (auto-resolve se omitido)",
+        "reviewing": "Revisando: {{name}}",
+        "phaseLabel": "Fase:",
+        "branchLabel": "Branch:",
+        "approvedSuccess": "Aprovado: {{name}}",
+        "changesLabel": "Alterações:",
+        "changesUpdated": "{{count}} seleção(ões) atualizada(s)",
+        "commentLabel": "Comentário:",
+        "agentLabel": "Agente:",
+        "proceedingTo": "prosseguindo para {{phase}}",
+        "rejectedWarning": "Rejeitado: {{name}}",
+        "feedbackLabel": "Feedback:",
+        "iterationLabel": "Iteração:",
+        "iterationWarning": "Aviso: 5+ iterações. Considere refinar o prompt.",
+        "agentRerunning": "reexecutando {{phase}}",
+        "failedToReview": "Falha ao revisar recurso"
+      },
+      "logs": {
+        "description": "Visualizar logs do agente do recurso",
+        "idArgument": "ID do recurso (ou prefixo)",
+        "followOption": "Acompanhar saída do log (como tail -f)",
+        "linesOption": "Número de linhas a exibir do final",
+        "noAgentRun": "Recurso \"{{name}}\" não tem execução de agente",
+        "failedToRead": "Falha ao ler logs do recurso"
+      },
+      "adopt": {
+        "description": "Adotar uma branch existente como recurso rastreado",
+        "branchArgument": "Nome da branch a adotar",
+        "repoOption": "Caminho do repositório (padrão: diretório atual)",
+        "spinnerText": "Adotando branch",
+        "branchAdopted": "Branch adotada",
+        "idLabel": "ID:",
+        "nameLabel": "Nome:",
+        "branchLabel": "Branch:",
+        "statusLabel": "Status:",
+        "prLabel": "PR:",
+        "worktreeLabel": "Worktree:",
+        "failedToAdopt": "Falha ao adotar branch"
+      },
+      "archive": {
+        "description": "Arquivar um recurso para ocultá-lo do canvas",
+        "idArgument": "ID ou prefixo do recurso",
+        "forceOption": "Pular confirmação",
+        "confirmArchive": "Arquivar recurso \"{{name}}\"?",
+        "cancelled": "Cancelado",
+        "featureArchived": "Recurso arquivado",
+        "nameLabel": "Nome:",
+        "failedToArchive": "Falha ao arquivar recurso"
+      },
+      "unarchive": {
+        "description": "Restaurar um recurso arquivado ao seu estado anterior",
+        "idArgument": "ID ou prefixo do recurso",
+        "featureUnarchived": "Recurso desarquivado",
+        "nameLabel": "Nome:",
+        "restoredLabel": "Restaurado:",
+        "failedToUnarchive": "Falha ao desarquivar recurso"
+      },
+      "feedback": {
+        "description": "Send feedback on an exploration prototype to iterate",
+        "idArgument": "Feature ID or prefix",
+        "feedbackArgument": "Feedback text for the next iteration",
+        "feedbackSubmitted": "Feedback submitted for: {{name}}",
+        "iterationLabel": "Iteration:",
+        "agentLabel": "Agent:",
+        "agentIterating": "iterating on feedback",
+        "notExploration": "Feature \"{{name}}\" is not in exploration mode (mode: {{mode}}, lifecycle: {{lifecycle}})",
+        "failedToSubmit": "Failed to submit feedback"
+      },
+      "promote": {
+        "description": "Promote an exploration feature to Regular or Fast mode",
+        "idArgument": "Feature ID or prefix",
+        "fastOption": "Promote to Fast mode (skip SDLC phases)",
+        "promoted": "Exploration promoted: {{name}}",
+        "modeLabel": "Mode:",
+        "statusLabel": "Status:",
+        "agentLabel": "Agent:",
+        "agentSpawned": "spawned for {{mode}} mode",
+        "failedToPromote": "Failed to promote exploration"
+      },
+      "resolveWaiting": {
+        "featureNotFound": "Recurso não encontrado: \"{{id}}\"",
+        "noAgentRun": "Recurso \"{{name}}\" não tem execução de agente",
+        "notWaitingForApproval": "Recurso \"{{name}}\" não está aguardando aprovação (status: {{status}})",
+        "noFeaturesWaiting": "Nenhum recurso aguardando aprovação neste repositório",
+        "multipleFeaturesWaiting": "Múltiplos recursos aguardando aprovação. Especifique um:"
+      },
+      "comments": {
+        "description": "Mostrar os comentários de revisão do pull request de uma funcionalidade e o que o shep fez com eles",
+        "featureArg": "Id da funcionalidade ou prefixo",
+        "noRefreshOption": "Usar os comentários guardados em vez de ler o GitHub",
+        "failed": "O comando de comentários de PR falhou",
+        "title": "Comentários de revisão em {{name}}",
+        "none": "Ainda não há comentários de revisão.",
+        "next": "Trate os pendentes com: shep feat address-comments {{feature}}",
+        "round": "Última rodada: {{status}}, {{count}} comentários{{commit}}{{error}}",
+        "commit": ", {{sha}} enviado"
+      },
+      "addressComments": {
+        "description": "Fazer um agente tratar os comentários pendentes no worktree da funcionalidade, fazer push e responder a cada um",
+        "commentsArg": "Ids de comentários ou prefixos (padrão: todos os pendentes)",
+        "spinner": "Tratando {{count}} comentários"
+      },
+      "checkpoints": {
+        "description": "Listar os checkpoints git criados após cada etapa de uma funcionalidade",
+        "idArgument": "ID da funcionalidade ou prefixo",
+        "title": "Checkpoints — {{name}}",
+        "stepColumn": "Etapa",
+        "timeColumn": "Criado",
+        "changesColumn": "Alterações",
+        "commitColumn": "Commit",
+        "files_one": "{{count}} arquivo",
+        "files_few": "{{count}} arquivos",
+        "files_many": "{{count}} arquivos",
+        "files_other": "{{count}} arquivos",
+        "empty": "Ainda não há checkpoints. Eles são registrados após cada etapa quando o agente da funcionalidade é executado.",
+        "failed": "Falha ao listar os checkpoints"
+      },
+      "diff": {
+        "description": "Mostrar o que uma etapa alterou ou comparar duas etapas",
+        "idArgument": "ID da funcionalidade ou prefixo",
+        "toOption": "Etapa a mostrar: número, nome ou rótulo (ex.: 3, implement, 0003-implement)",
+        "fromOption": "Etapa para comparar (padrão: a etapa antes de --to)",
+        "statOption": "Listar apenas os arquivos alterados",
+        "noChanges": "Nenhuma alteração entre essas etapas.",
+        "failed": "Falha ao comparar os checkpoints"
+      },
+      "restore": {
+        "description": "Voltar o worktree de uma funcionalidade a um checkpoint",
+        "idArgument": "ID da funcionalidade ou prefixo",
+        "stepArgument": "Checkpoint a restaurar: número, nome da etapa ou rótulo",
+        "forceOption": "Pular a confirmação",
+        "confirm": "Restaurar o worktree para \"{{step}}\"? As alterações posteriores ficam guardadas num checkpoint e o branch não é movido.",
+        "cancelled": "Cancelado",
+        "restored": "Worktree restaurado para {{step}}",
+        "undoHint": "Para desfazer:",
+        "failed": "Falha ao restaurar o checkpoint"
+      },
+      "status": {
+        "description": "Explica o que o agente de uma funcionalidade está fazendo (trabalhando, bloqueado, aguardando, concluído ou com falha) e por quê",
+        "idArgument": "ID da funcionalidade ou prefixo do ID",
+        "jsonOption": "Imprimir a atividade como JSON",
+        "notFound": "Funcionalidade não encontrada: {{id}}",
+        "ambiguous": "\"{{id}}\" corresponde a {{count}} funcionalidades; use mais do ID",
+        "failed": "Falha ao ler a atividade da funcionalidade",
+        "labels": {
+          "why": "Por quê",
+          "asks": "Pergunta",
+          "phase": "Fase",
+          "run": "Execução",
+          "error": "Erro",
+          "pr": "PR",
+          "id": "ID",
+          "next": "Próximo"
+        },
+        "states": {
+          "working": "trabalhando",
+          "blocked": "bloqueado",
+          "waiting": "aguardando",
+          "done": "concluído",
+          "failed": "com falha"
+        },
+        "reasons": {
+          "deleting": "Sendo excluída",
+          "archived": "Arquivada",
+          "queued-for-capacity": "Na fila até liberar uma vaga no limite de funcionalidades em paralelo",
+          "deferred": "Adiada: nenhum agente começou ainda",
+          "waiting-on-parent": "Aguardando a funcionalidade pai terminar",
+          "approval-gate": "Aguardando sua aprovação",
+          "agent-question": "O agente fez uma pergunta",
+          "run-failed": "A execução falhou",
+          "run-interrupted": "A execução foi interrompida",
+          "run-cancelled": "A execução foi cancelada",
+          "run-completed": "Concluída",
+          "agent-running": "O agente está trabalhando",
+          "process-died": "O processo do agente parou inesperadamente",
+          "maintained": "Concluída; em manutenção",
+          "awaiting-review": "O pull request aguarda sua revisão",
+          "plan-task-in-review": "Uma tarefa do plano aguarda sua revisão",
+          "plan-tasks-done": "Todas as tarefas do plano estão feitas",
+          "in-progress": "Em andamento"
+        }
+      },
+      "wait": {
+        "description": "Aguarda até o agente de uma funcionalidade precisar de alguém ou parar, ou chegar aos estados informados",
+        "idArgument": "ID da funcionalidade ou prefixo do ID",
+        "untilOption": "Estados a aguardar, separados por vírgula: working, blocked, waiting, done, failed (padrão: blocked,done,failed)",
+        "timeoutOption": "Desistir após estes segundos",
+        "jsonOption": "Imprimir o resultado como JSON",
+        "invalidState": "Estado desconhecido em \"{{state}}\". Use: {{states}}",
+        "failed": "Falha ao aguardar a funcionalidade",
+        "outcomes": {
+          "matched": "Alcançado",
+          "timed-out": "Tempo esgotado; ainda {{state}}",
+          "not-found": "Funcionalidade não encontrada: {{id}}",
+          "ambiguous": "\"{{id}}\" corresponde a mais de uma funcionalidade; use mais do ID",
+          "aborted": "Espera interrompida"
+        }
+      }
+    },
+    "repo": {
+      "description": "Gerenciar repositórios rastreados",
+      "add": {
+        "description": "Importar um repositório GitHub (clonar e registrar)",
+        "urlOption": "URL do repositório GitHub ou abreviação proprietário/repo",
+        "destOption": "Substituir diretório de destino do clone",
+        "importSuccess": "Repositório importado: {{name}}",
+        "pathInfo": "Caminho: {{path}}",
+        "authError": "GitHub CLI não está autenticado. Execute `gh auth login` para entrar.",
+        "invalidUrl": "URL do GitHub inválida: {{error}}",
+        "supportedFormats": "Formatos suportados: https://github.com/proprietário/repo, git@github.com:proprietário/repo.git, ou proprietário/repo",
+        "cloneFailed": "Clone falhou: {{error}}",
+        "failedToImport": "Falha ao importar repositório"
+      },
+      "initRemote": {
+        "description": "Create a GitHub repository from the current local repo",
+        "nameArgument": "Repository name (defaults to directory name)",
+        "publicOption": "Create a public repository (default: private)",
+        "orgOption": "GitHub organization to create the repo under",
+        "created": "GitHub repository created: {{name}}",
+        "urlLabel": "URL:",
+        "failed": "Failed to create GitHub repository"
+      },
+      "ls": {
+        "description": "Listar repositórios rastreados",
+        "title": "Repositórios",
+        "idColumn": "ID",
+        "nameColumn": "Nome",
+        "featuresColumn": "Recursos",
+        "pathColumn": "Caminho",
+        "createdColumn": "Criado",
+        "noRepos": "Nenhum repositório encontrado",
+        "failedToList": "Falha ao listar repositórios"
+      },
+      "show": {
+        "description": "Exibir detalhes de um repositório rastreado",
+        "idArgument": "ID do repositório (ou prefixo)",
+        "title": "Repositório",
+        "timestampsTitle": "Timestamps",
+        "createdLabel": "Criado",
+        "updatedLabel": "Atualizado",
+        "deletedLabel": "Excluído",
+        "featuresTitle": "Recursos ({{count}})",
+        "noFeatures": "Nenhum recurso encontrado",
+        "failedToShow": "Falha ao mostrar repositório"
+      },
+      "resolve": {
+        "multipleMatch": "Múltiplos repositórios correspondem ao prefixo \"{{id}}\": {{matches}}",
+        "notFound": "Repositório não encontrado: {{id}}"
+      },
+      "import": {
+        "description": "Importar pastas locais como repositórios rastreados (em lote)",
+        "dirArgument": "Diretório pai cujas subpastas se tornam candidatas à importação",
+        "allOption": "Importar todos os candidatos sem perguntar",
+        "gitOnlyOption": "Importar apenas candidatos que são repositórios git",
+        "title": "Candidatos à importação",
+        "nameColumn": "Nome",
+        "gitColumn": "Git",
+        "statusColumn": "Status",
+        "pathColumn": "Caminho",
+        "noCandidates": "Nenhuma subpasta encontrada em {{path}}",
+        "statusTracked": "já rastreado",
+        "statusRestorable": "removido anteriormente",
+        "statusNew": "novo",
+        "selectPrompt": "Selecione as pastas para importar",
+        "nothingSelected": "Nada selecionado — nenhum repositório importado",
+        "imported": "{{count}} repositórios importados",
+        "importedOne": "Importado: {{name}}",
+        "failedEntry": "Falhou: {{path}} — {{error}}",
+        "summary": "{{imported}} importados, {{failed}} com falha",
+        "failedToImport": "Falha ao importar repositórios"
+      }
+    },
+    "app": {
+      "description": "Inicie e gerencie apps — comece um app, depois adicione funcionalidades",
+      "ls": {
+        "description": "List applications",
+        "title": "Applications",
+        "idColumn": "ID",
+        "nameColumn": "Name",
+        "statusColumn": "Status",
+        "pathColumn": "Path",
+        "createdColumn": "Created",
+        "noApps": "No applications found",
+        "failedToList": "Failed to list applications"
+      },
+      "show": {
+        "description": "Display details of an application",
+        "idArgument": "Application ID, slug, or prefix",
+        "title": "Application: {{name}}",
+        "nameLabel": "Name",
+        "slugLabel": "Slug",
+        "statusLabel": "Status",
+        "descriptionLabel": "Description",
+        "pathLabel": "Path",
+        "configTitle": "Configuration",
+        "agentLabel": "Agent",
+        "modelLabel": "Model",
+        "timestampsTitle": "Timestamps",
+        "createdLabel": "Created",
+        "updatedLabel": "Updated",
+        "deletedLabel": "Deleted",
+        "failedToShow": "Failed to show application"
+      },
+      "new": {
+        "description": "Inicie um app novo com qualquer stack (a primeira funcionalidade é orientada a especificações por padrão)",
+        "descriptionArgument": "O que o app deve fazer",
+        "agentOption": "Agent type override",
+        "modelOption": "LLM model override (e.g. claude-opus-4-6)",
+        "spinnerText": "Iniciando app",
+        "appCreated": "App iniciado",
+        "idLabel": "ID:",
+        "nameLabel": "Name:",
+        "slugLabel": "Slug:",
+        "pathLabel": "Path:",
+        "statusLabel": "Status:",
+        "agentLabel": "Agent:",
+        "modelLabel": "Model:",
+        "failedToCreate": "Failed to create application",
+        "starterOption": "Como o app recebe o primeiro código: blank (qualquer stack, escolhida pela primeira funcionalidade) ou vite-shadcn (template Vite + React + Tailwind + shadcn, sem fase de especificação)",
+        "fastOption": "Construa a primeira funcionalidade direto da descrição, sem fase de especificação",
+        "invalidStarter": "Ponto de partida desconhecido \"{{starter}}\". Use um de: {{starters}}",
+        "nextStepsTitle": "Próximos passos",
+        "firstFeatureStep": "Acompanhe a primeira funcionalidade: shep feat show {{id}}",
+        "previewStep": "Acompanhe a construção na interface web: shep ui",
+        "addFeatureStep": "Adicione uma funcionalidade: cd {{path}} && shep feat new \"<o que adicionar>\""
+      },
+      "del": {
+        "description": "Delete an application",
+        "idArgument": "Application ID, slug, or prefix",
+        "forceOption": "Skip confirmation prompt",
+        "confirmDelete": "Delete application \"{{name}}\"?",
+        "cancelled": "Cancelled",
+        "appDeleted": "Application deleted",
+        "nameLabel": "Name:",
+        "slugLabel": "Slug:",
+        "failedToDelete": "Failed to delete application"
+      },
+      "resolve": {
+        "multipleMatch": "Multiple applications match prefix \"{{id}}\": {{matches}}",
+        "notFound": "Application not found: {{id}}"
+      }
+    },
+    "cluster": {
+      "description": "Gerenciar clusters",
+      "new": {
+        "description": "Criar um novo cluster",
+        "nameArgument": "Nome do cluster",
+        "argocdOption": "Habilitar ArgoCD para entrega contínua com GitOps",
+        "provisionOption": "Iniciar provisionamento imediatamente após a criação",
+        "spinnerText": "Criando cluster",
+        "clusterCreated": "Cluster criado",
+        "idLabel": "ID:",
+        "nameLabel": "Nome:",
+        "slugLabel": "Slug:",
+        "statusLabel": "Status:",
+        "argocdLabel": "ArgoCD:",
+        "provisioningStarted": "Provisionamento iniciado",
+        "failedToCreate": "Falha ao criar cluster"
+      },
+      "ls": {
+        "description": "Listar clusters",
+        "title": "Clusters",
+        "idColumn": "ID",
+        "nameColumn": "Nome",
+        "statusColumn": "Status",
+        "argocdColumn": "ArgoCD",
+        "reposColumn": "Repos",
+        "appsColumn": "Apps",
+        "noClusters": "Nenhum cluster encontrado",
+        "failedToList": "Falha ao listar clusters"
+      },
+      "show": {
+        "description": "Exibir detalhes de um cluster",
+        "idArgument": "ID do cluster, slug ou prefixo",
+        "title": "Cluster: {{name}}",
+        "nameLabel": "Nome",
+        "slugLabel": "Slug",
+        "statusLabel": "Status",
+        "descriptionLabel": "Descrição",
+        "argocdLabel": "ArgoCD",
+        "argocdNamespaceLabel": "Namespace do ArgoCD",
+        "kubeconfigLabel": "Kubeconfig",
+        "k3dNameLabel": "Nome k3d",
+        "nodeCountLabel": "Quantidade de nós",
+        "errorLabel": "Erro",
+        "configTitle": "Configuração",
+        "timestampsTitle": "Registros de tempo",
+        "createdLabel": "Criado",
+        "updatedLabel": "Atualizado",
+        "provisionedLabel": "Último provisionamento",
+        "healthCheckLabel": "Última verificação de saúde",
+        "linkedTitle": "Entidades vinculadas",
+        "reposLabel": "Repositórios",
+        "appsLabel": "Aplicações",
+        "failedToShow": "Falha ao exibir cluster"
+      },
+      "del": {
+        "description": "Excluir um cluster",
+        "idArgument": "ID do cluster, slug ou prefixo",
+        "forceOption": "Pular confirmação",
+        "confirmDelete": "Excluir cluster \"{{name}}\"? Será destruído se estiver em execução.",
+        "cancelled": "Cancelado",
+        "clusterDeleted": "Cluster excluído",
+        "nameLabel": "Nome:",
+        "slugLabel": "Slug:",
+        "failedToDelete": "Falha ao excluir cluster"
+      },
+      "link": {
+        "description": "Vincular um repositório ou aplicação a um cluster",
+        "clusterArgument": "ID do cluster, slug ou prefixo",
+        "entityArgument": "ID do repositório ou aplicação",
+        "linked": "Vinculado ao cluster",
+        "clusterLabel": "Cluster:",
+        "entityLabel": "Entidade:",
+        "failedToLink": "Falha ao vincular entidade ao cluster"
+      },
+      "unlink": {
+        "description": "Desvincular um repositório ou aplicação de um cluster",
+        "clusterArgument": "ID do cluster, slug ou prefixo",
+        "entityArgument": "ID do repositório ou aplicação",
+        "unlinked": "Desvinculado do cluster",
+        "clusterLabel": "Cluster:",
+        "entityLabel": "Entidade:",
+        "failedToUnlink": "Falha ao desvincular entidade do cluster"
+      },
+      "status": {
+        "description": "Exibir status ao vivo do cluster",
+        "idArgument": "ID do cluster, slug ou prefixo",
+        "title": "Status do cluster: {{name}}",
+        "statusLabel": "Status",
+        "podCountLabel": "Pods",
+        "serviceCountLabel": "Serviços",
+        "argocdLabel": "ArgoCD",
+        "notReady": "O cluster não está no estado Pronto",
+        "podsTitle": "Pods",
+        "servicesTitle": "Serviços",
+        "failedToGetStatus": "Falha ao obter status do cluster"
+      },
+      "resolve": {
+        "multipleMatch": "Vários clusters correspondem ao prefixo \"{{id}}\": {{matches}}",
+        "notFound": "Cluster não encontrado: {{id}}"
+      }
+    },
+    "dev": {
+      "description": "Executar e inspecionar um servidor de desenvolvimento local",
+      "noUrl": "nenhuma URL detectada",
+      "options": {
+        "app": "Usar a aplicação com este id",
+        "feature": "Usar a funcionalidade com este id",
+        "repo": "Usar o repositório com este caminho ou id",
+        "json": "Saída em JSON"
+      },
+      "target": {
+        "conflict": "Informe apenas uma das opções --app, --feature ou --repo",
+        "unmatchedHint": "Execute isto dentro de um repositório monitorado ou informe --app, --feature ou --repo."
+      },
+      "state": {
+        "analyzing": "analisando",
+        "installing": "instalando",
+        "booting": "iniciando",
+        "ready": "pronto",
+        "stopped": "parado"
+      },
+      "start": {
+        "description": "Iniciar o servidor de desenvolvimento e acompanhá-lo até estar pronto",
+        "streaming": "Iniciando o servidor de desenvolvimento para {{targetType}} em {{path}}",
+        "ready": "Servidor de desenvolvimento pronto: {{url}}",
+        "detached": "Desanexado — o servidor de desenvolvimento continua em execução. Pare-o com `shep dev stop`.",
+        "notReady": "O servidor de desenvolvimento não ficou pronto: {{reason}}",
+        "noReason": "nenhum motivo informado",
+        "failedToStart": "Falha ao iniciar o servidor de desenvolvimento"
+      },
+      "stop": {
+        "description": "Parar o servidor de desenvolvimento",
+        "notRunning": "Nenhum servidor de desenvolvimento em execução para {{path}}",
+        "stopped": "Servidor de desenvolvimento parado para {{path}}",
+        "failed": "Falha ao parar o servidor de desenvolvimento"
+      },
+      "status": {
+        "description": "Mostrar o estado do servidor de desenvolvimento e o comando que ele executa",
+        "title": "Servidor de desenvolvimento",
+        "targetLabel": "alvo",
+        "pathLabel": "caminho",
+        "stateLabel": "estado",
+        "notRunning": "não está em execução",
+        "urlLabel": "url",
+        "commandLabel": "comando",
+        "portLabel": "porta",
+        "planSourceLabel": "plano",
+        "failed": "Falha ao ler o estado do servidor de desenvolvimento"
+      },
+      "logs": {
+        "description": "Mostrar a saída do servidor de desenvolvimento",
+        "followOption": "Continuar exibindo a nova saída conforme ela chega",
+        "linesOption": "Mostrar apenas as últimas <count> linhas",
+        "noLogs": "Nenhuma saída do servidor de desenvolvimento registrada para {{path}}",
+        "detached": "Desanexado — o servidor de desenvolvimento continua em execução.",
+        "ended": "O servidor de desenvolvimento não está mais em execução."
+      },
+      "plan": {
+        "description": "Inspecionar, fixar ou limpar o plano de execução resolvido",
+        "staleHint": "Os arquivos de configuração do repositório mudaram desde que este plano foi produzido. Limpe-o para reanalisar ou mantenha-o como está.",
+        "repoConfigControlled": "Um .shep/dev.json versionado controla este repositório — ele é relido a cada início e tem prioridade sobre qualquer plano armazenado. Edite esse arquivo para mudar o que é executado.",
+        "source": {
+          "deterministic": "detectado",
+          "agent": "analisado por IA",
+          "manual": "fixado"
+        },
+        "fields": {
+          "command": "comando",
+          "cwd": "diretório",
+          "source": "origem",
+          "language": "linguagem",
+          "framework": "framework",
+          "expectedPort": "porta esperada",
+          "packageManager": "gerenc. pacotes",
+          "setupCommands": "comandos setup"
+        },
+        "show": {
+          "description": "Mostrar o plano de execução resolvido",
+          "title": "Plano de execução",
+          "empty": "Nenhum plano de execução em cache para {{path}} — inicie o servidor de desenvolvimento uma vez e ele aparecerá aqui.",
+          "failed": "Falha ao ler o plano de execução"
+        },
+        "set": {
+          "description": "Fixar o seu próprio plano de execução",
+          "commandOption": "Comando para executar o servidor de desenvolvimento",
+          "cwdOption": "Diretório de trabalho, absoluto ou relativo à raiz do repositório",
+          "portOption": "Porta esperada, ou `none` para limpar",
+          "languageOption": "Rótulo da linguagem, ou `none` para limpar",
+          "frameworkOption": "Rótulo do framework, ou `none` para limpar",
+          "packageManagerOption": "Gerenciador de pacotes, ou `none` para limpar",
+          "setupOption": "Comandos de preparação executados antes do início",
+          "clearSetupOption": "Remover todos os comandos de preparação",
+          "saved": "Plano de execução fixado",
+          "invalid": "O plano de execução não foi salvo",
+          "executionNotice": "Salvo como {{source}} — este comando será executado na sua máquina no próximo início.",
+          "failed": "Falha ao salvar o plano de execução"
+        },
+        "clear": {
+          "description": "Limpar o plano de execução em cache para que o próximo início reanalise",
+          "cleared": "Plano de execução ({{source}}) limpo — o próximo início reanalisará o repositório.",
+          "empty": "Nenhum plano de execução estava em cache para {{path}}",
+          "failed": "Falha ao limpar o plano de execução"
+        }
+      },
+      "approve": {
+        "description": "Revisar e aprovar os comandos de desenvolvimento do repositório",
+        "fingerprintOption": "Aprovar apenas esta impressão digital de comandos revisada",
+        "invalid": "Nenhum .shep/dev.json válido em {{path}}",
+        "review": "Revise estes comandos e repita o comando com --fingerprint {{fingerprint}}. A aprovação não os executa.",
+        "changed": "A impressão digital não corresponde à configuração atual. Revise novamente antes de aprovar.",
+        "approved": "Comandos de desenvolvimento aprovados. Inicie o servidor quando estiver pronto.",
+        "failed": "Não foi possível aprovar os comandos de desenvolvimento"
+      }
+    },
+    "agent": {
+      "description": "Gerenciar e visualizar execuções de agentes",
+      "show": {
+        "description": "Exibir detalhes de uma execução de agente",
+        "idArgument": "ID da execução do agente (ou prefixo)",
+        "title": "Execução do Agente",
+        "pathsTitle": "Caminhos",
+        "timingTitle": "Tempo",
+        "failedToShow": "Falha ao mostrar execução do agente"
+      },
+      "ls": {
+        "description": "Listar todas as execuções de agentes",
+        "title": "Execuções de Agentes",
+        "idColumn": "ID",
+        "agentColumn": "Agente",
+        "statusColumn": "Status",
+        "durationColumn": "Duração",
+        "pidColumn": "PID",
+        "warningColumn": "Aviso",
+        "noRuns": "Nenhuma execução de agente encontrada",
+        "failedToList": "Falha ao listar execuções de agentes"
+      },
+      "stop": {
+        "description": "Parar um agente em execução",
+        "idArgument": "ID da execução do agente (ou prefixo)",
+        "stoppedSuccess": "Parado {{id}}: {{reason}}",
+        "failedToStop": "Falha ao parar execução do agente"
+      },
+      "logs": {
+        "description": "Visualizar logs de execução do agente",
+        "idArgument": "ID da execução do agente (ou prefixo)",
+        "followOption": "Acompanhar saída do log (como tail -f)",
+        "linesOption": "Número de linhas a exibir do final",
+        "failedToRead": "Falha ao ler logs do agente"
+      },
+      "delete": {
+        "description": "Excluir um registro de execução de agente",
+        "idArgument": "ID da execução do agente (ou prefixo)",
+        "forceOption": "Forçar exclusão mesmo se estiver em execução",
+        "deletedSuccess": "Excluído {{id}}",
+        "failedToDelete": "Falha ao excluir execução do agente"
+      },
+      "approve": {
+        "description": "Aprovar uma execução de agente pausada e retomar a execução",
+        "idArgument": "ID da execução do agente (ou prefixo)",
+        "approvedSuccess": "Aprovado {{id}}: {{reason}}",
+        "failedToApprove": "Falha ao aprovar execução do agente"
+      },
+      "reject": {
+        "description": "Rejeitar uma execução de agente pausada e cancelá-la",
+        "idArgument": "ID da execução do agente (ou prefixo)",
+        "reasonOption": "Motivo da rejeição",
+        "rejectedSuccess": "Rejeitado {{id}}: {{reason}}",
+        "failedToReject": "Falha ao rejeitar execução do agente"
+      },
+      "resolve": {
+        "multipleMatch": "Múltiplas execuções correspondem ao prefixo \"{{id}}\": {{matches}}",
+        "notFound": "Execução de agente não encontrada: {{id}}"
+      }
+    },
+    "session": {
+      "description": "Gerenciar e visualizar sessões do provedor de agentes CLI",
+      "ls": {
+        "description": "Listar sessões do provedor de agentes CLI",
+        "claudeCodeOption": "Listar sessões para Claude Code",
+        "cursorCliOption": "Listar sessões para Cursor CLI",
+        "geminiCliOption": "Listar sessões para Gemini CLI",
+        "limitOption": "Número máximo de sessões a exibir (0 = todas)",
+        "flatOption": "Mostrar lista plana sem agrupamento",
+        "oneProviderOnly": "Apenas uma flag de provedor pode ser especificada por vez",
+        "noSessions": "Nenhuma sessão encontrada",
+        "failedToList": "Falha ao listar sessões"
+      },
+      "show": {
+        "description": "Exibir detalhes de uma sessão do provedor de agentes",
+        "idArgument": "ID da sessão",
+        "claudeCodeOption": "Consultar sessões do Claude Code",
+        "cursorCliOption": "Consultar sessões do Cursor CLI",
+        "geminiCliOption": "Consultar sessões do Gemini CLI",
+        "messagesOption": "Número de mensagens a exibir (0 = todas)",
+        "oneProviderOnly": "Apenas uma flag de provedor pode ser especificada por vez",
+        "sessionNotFound": "Sessão não encontrada: {{error}}",
+        "failedToShow": "Falha ao mostrar sessão",
+        "title": "Sessão",
+        "noMessages": "Nenhuma mensagem nesta sessão",
+        "noDisplayableMessages": "Nenhuma mensagem exibível nesta sessão",
+        "messageCount": "{{count}} mensagens",
+        "showingMessages": "Mostrando as primeiras {{first}} e últimas {{last}} de {{total}} mensagens",
+        "messagesSkipped": "··· {{count}} mensagens ignoradas ···",
+        "userLabel": "Você",
+        "assistantLabel": "Assistente",
+        "toolUsage": "Uso de Ferramentas"
+      }
+    },
+    "upgrade": {
+      "description": "Atualizar o Shep CLI para a versão mais recente",
+      "versionCheckTimeout": "Não foi possível completar a verificação de versão (tempo esgotado)",
+      "versionCheckFailed": "Não foi possível completar a verificação de versão",
+      "alreadyUpToDate": "Já está atualizado (v{{version}})",
+      "upgradingFromTo": "Atualizando de v{{current}} para v{{latest}}",
+      "upgradingToLatest": "Atualizando de v{{current}} para a mais recente",
+      "downloadingPackage": "Baixando nova versão...",
+      "downloadFailed": "Download prévio não concluído — prosseguindo com a instalação",
+      "stoppingDaemon": "Parando daemon antes da atualização...",
+      "restartingDaemon": "Reiniciando daemon...",
+      "daemonRestarted": "Daemon reiniciado com sucesso.",
+      "startingDaemon": "Iniciando daemon do Shep...",
+      "upgradeSuccess": "Shep CLI atualizado com sucesso",
+      "upgradeFailed": "Atualização falhou",
+      "upgradeFailedDaemonRestored": "Atualização falhou — daemon restaurado na versão anterior."
+    },
+    "_serve": {
+      "description": "Iniciar o servidor web daemon (apenas uso interno)",
+      "portOption": "Porta para escutar",
+      "portValidation": "A porta deve ser um número inteiro entre 1024 e 65535"
+    },
+    "codeReview": {
+      "description": "AI-powered code review for pull requests",
+      "targetArgument": "PR number or GitHub PR URL",
+      "ownerOption": "Repository owner (e.g. octocat)",
+      "repoOption": "Repository name (e.g. my-project)",
+      "postOption": "Post review to GitHub after completion",
+      "reviewingPr": "Reviewing PR {{target}}",
+      "spinnerText": "Running code review",
+      "reviewFailed": "Code review failed",
+      "reviewCompleted": "Review completed — {{comments}} finding(s)",
+      "postingReview": "Posting review to GitHub",
+      "postedSuccess": "Review posted to GitHub: {{url}}",
+      "postFailed": "Failed to post review to GitHub",
+      "postHint": "Run `shep review post {{id}}` to post to GitHub",
+      "failedToReview": "Failed to run code review",
+      "show": {
+        "description": "Display a completed code review",
+        "idArgument": "Review ID (or prefix)",
+        "title": "Code Review — PR #{{pr}}",
+        "idLabel": "ID",
+        "prLabel": "Pull Request",
+        "statusLabel": "Status",
+        "commentsLabel": "Findings",
+        "modelLabel": "Model",
+        "reviewUrlLabel": "Review URL",
+        "createdLabel": "Created",
+        "summaryTitle": "Summary",
+        "errorTitle": "Error",
+        "findingsTitle": "Findings",
+        "failedToShow": "Failed to show code review"
+      },
+      "list": {
+        "description": "List recent code reviews",
+        "limitOption": "Maximum number of reviews to show",
+        "title": "Code Reviews",
+        "idColumn": "ID",
+        "prColumn": "PR",
+        "statusColumn": "STATUS",
+        "commentsColumn": "FINDINGS",
+        "dateColumn": "DATE",
+        "noReviews": "No code reviews found",
+        "failedToList": "Failed to list code reviews"
+      },
+      "post": {
+        "description": "Post a completed review to GitHub",
+        "idArgument": "Review ID (or prefix)",
+        "failedToPost": "Failed to post review to GitHub"
+      }
+    },
+    "plugin": {
+      "description": "Manage AI tool plugins",
+      "add": {
+        "description": "Install a plugin from catalog or custom configuration",
+        "nameArg": "Plugin name from the curated catalog",
+        "typeOption": "Plugin type for custom install (mcp, hook, cli)",
+        "commandOption": "MCP server command for custom install",
+        "transportOption": "MCP transport protocol (stdio, http)",
+        "nameOption": "Plugin name for custom install",
+        "success": "Plugin \"{{name}}\" installed successfully",
+        "failed": "Failed to install plugin",
+        "customRequiresName": "Custom plugin install requires --name",
+        "customRequiresType": "Custom plugin install requires --type (mcp, hook, cli)",
+        "invalidType": "Invalid plugin type \"{{type}}\". Must be one of: mcp, hook, cli"
+      },
+      "remove": {
+        "description": "Remove an installed plugin",
+        "nameArg": "Name of the plugin to remove",
+        "success": "Plugin \"{{name}}\" removed",
+        "failed": "Failed to remove plugin"
+      },
+      "list": {
+        "description": "List all installed plugins",
+        "title": "Installed Plugins",
+        "nameColumn": "Name",
+        "typeColumn": "Type",
+        "statusColumn": "Status",
+        "healthColumn": "Health",
+        "sourceColumn": "Source",
+        "noPlugins": "No plugins installed. Run 'shep plugin catalog' to browse available plugins.",
+        "failed": "Failed to list plugins"
+      },
+      "enable": {
+        "description": "Enable a plugin globally",
+        "nameArg": "Name of the plugin to enable",
+        "success": "Plugin \"{{name}}\" enabled",
+        "failed": "Failed to enable plugin"
+      },
+      "disable": {
+        "description": "Disable a plugin globally",
+        "nameArg": "Name of the plugin to disable",
+        "success": "Plugin \"{{name}}\" disabled",
+        "failed": "Failed to disable plugin"
+      },
+      "configure": {
+        "description": "Configure plugin settings",
+        "nameArg": "Name of the plugin to configure",
+        "toolGroupsOption": "Comma-separated list of tool groups to enable",
+        "success": "Plugin \"{{name}}\" configured",
+        "noOptions": "No configuration options provided. Use --tool-groups to set active tool groups.",
+        "failed": "Failed to configure plugin"
+      },
+      "status": {
+        "description": "Show detailed health status of a plugin",
+        "nameArg": "Name of the plugin to check (omit for all)",
+        "title": "Plugin Health Status",
+        "allTitle": "Plugin Health Check",
+        "nameLabel": "Name",
+        "typeLabel": "Type",
+        "healthLabel": "Health",
+        "messageLabel": "Details",
+        "enabledLabel": "Enabled",
+        "runtimeLabel": "Runtime",
+        "transportLabel": "Transport",
+        "envVarsLabel": "Required Env Vars",
+        "toolGroupsLabel": "Tool Groups",
+        "activeGroupsLabel": "Active Groups",
+        "noPlugins": "No plugins installed.",
+        "failed": "Failed to check plugin health"
+      },
+      "catalog": {
+        "description": "Browse available plugins from the curated catalog",
+        "title": "Plugin Catalog",
+        "nameColumn": "Name",
+        "typeColumn": "Type",
+        "descriptionColumn": "Description",
+        "statusColumn": "Status",
+        "installed": "Installed",
+        "available": "Available",
+        "failed": "Failed to load plugin catalog"
+      }
+    },
+    "space": {
+      "description": "Separar áreas de trabalho: espaços, linhas de produto e as regras que colocam os repositórios",
+      "failed": "O comando de espaço falhou",
+      "spaceArg": "Nome, slug ou id do espaço",
+      "pathArg": "Caminho do repositório (por omissão, o diretório atual)",
+      "nameArg": "Nome a apresentar",
+      "lineArg": "Nome, slug ou id da linha de produto",
+      "lineOption": "Linha de produto dentro do espaço",
+      "descriptionOption": "Descrição breve",
+      "colorOption": "Cor hexadecimal, por exemplo #3456c4",
+      "ls": {
+        "description": "Listar espaços com as suas linhas de produto, repositórios e memória",
+        "title": "Espaços",
+        "nameColumn": "Nome",
+        "slugColumn": "Slug",
+        "linesColumn": "Linhas de produto",
+        "reposColumn": "Repos",
+        "memoryColumn": "Memória",
+        "defaultMarker": "(predefinido)"
+      },
+      "show": {
+        "description": "Mostrar em que espaço e linha de produto está um repositório, e porquê",
+        "space": "Espaço",
+        "productLine": "Linha de produto",
+        "source": "Motivo",
+        "sourceAssignment": "fixado com shep space assign",
+        "sourceRule": "corresponde à regra {{kind}} {{pattern}}",
+        "sourceDefault": "nenhuma regra corresponde, aplica-se o espaço predefinido"
+      },
+      "new": {
+        "description": "Criar um espaço",
+        "defaultOption": "Torná-lo o espaço predefinido",
+        "success": "Espaço \"{{name}}\" criado ({{slug}})"
+      },
+      "edit": {
+        "description": "Mudar o nome de um espaço ou a sua descrição ou cor",
+        "success": "Espaço \"{{name}}\" atualizado"
+      },
+      "rm": {
+        "description": "Eliminar um espaço com as suas regras, atribuições e linhas de produto",
+        "success": "Espaço \"{{space}}\" eliminado"
+      },
+      "default": {
+        "description": "Escolher o espaço para repositórios sem regra",
+        "success": "\"{{name}}\" é agora o espaço predefinido"
+      },
+      "line": {
+        "description": "Gerir linhas de produto dentro de um espaço",
+        "new": {
+          "description": "Adicionar uma linha de produto a um espaço",
+          "success": "Linha de produto \"{{name}}\" criada ({{slug}})"
+        },
+        "rm": {
+          "description": "Remover uma linha de produto; os repositórios ficam no espaço",
+          "success": "Linha de produto \"{{line}}\" removida"
+        }
+      },
+      "rule": {
+        "description": "Gerir as regras de caminho e remoto git que colocam os repositórios",
+        "patternArg": "Prefixo de caminho absoluto ou padrão remoto como github.com/acme/*",
+        "idArg": "Id da regra (ver shep space rule ls)",
+        "add": {
+          "description": "Adicionar uma regra que coloca os repositórios correspondentes num espaço",
+          "remoteOption": "Tratar o padrão como remoto git mesmo que pareça um caminho",
+          "priorityOption": "Desempate entre regras igualmente específicas; vence a menor (100 por omissão)",
+          "badPriority": "\"{{value}}\" não é um número inteiro",
+          "success": "Regra {{kind}} adicionada para {{pattern}}"
+        },
+        "ls": {
+          "description": "Listar regras, de um espaço ou de todos",
+          "title": "Regras de espaço",
+          "idColumn": "Id",
+          "kindColumn": "Tipo",
+          "patternColumn": "Padrão",
+          "priorityColumn": "Prioridade",
+          "empty": "Ainda não há regras. Adicione uma com shep space rule add."
+        },
+        "rm": {
+          "description": "Remover uma regra",
+          "success": "Regra removida"
+        }
+      },
+      "assign": {
+        "description": "Fixar um repositório num espaço, acima de qualquer regra",
+        "success": "{{path}} fixado em {{space}}"
+      },
+      "unassign": {
+        "description": "Remover a fixação de um repositório para que as regras voltem a aplicar-se",
+        "success": "{{path}} volta a seguir as regras de espaço"
+      },
+      "config": {
+        "description": "Ver ou alterar os logins dos agentes, a identidade git e os agentes permitidos de um espaço",
+        "claudeOption": "Diretório de configuração do Claude (CLAUDE_CONFIG_DIR) com o login do espaço",
+        "ghOption": "Diretório de configuração do gh (GH_CONFIG_DIR) com o login GitHub do espaço",
+        "gitNameOption": "Nome de autor git para os commits dos agentes",
+        "gitEmailOption": "Email de autor git para os commits dos agentes",
+        "awsProfileOption": "Perfil AWS (AWS_PROFILE), por exemplo para o Bedrock",
+        "bedrockOption": "Encaminhar o Claude pelo Amazon Bedrock",
+        "noBedrockOption": "Nunca usar o Bedrock para o Claude, seja qual for o host",
+        "agentsOption": "Tipos de agente permitidos, separados por vírgulas",
+        "clearOption": "Campos a limpar para voltarem a herdar do host",
+        "badClear": "\"{{field}}\" não é um campo que possa ser limpo",
+        "title": "Definições de agentes de {{name}}",
+        "claudeConfigDir": "Config. do Claude",
+        "ghConfigDir": "Config. do gh",
+        "gitAuthorName": "Nome git",
+        "gitAuthorEmail": "Email git",
+        "useBedrock": "Bedrock",
+        "awsProfile": "Perfil AWS",
+        "allowedAgents": "Agentes permitidos",
+        "inherit": "herdar do host",
+        "on": "ligado",
+        "off": "desligado",
+        "any": "qualquer",
+        "environment": "Ambiente dos processos de agentes",
+        "sets": "Define",
+        "removes": "Remove",
+        "success": "Definições de agentes de {{name}} guardadas",
+        "prCommentsOption": "Quais comentários de revisão o shep responde sozinho: off, mention (#shep) ou all",
+        "resolveThreadsOption": "Resolver uma thread de revisão depois de alterar código para ela",
+        "noResolveThreadsOption": "Deixar quem revisa resolver as threads",
+        "prComments": "Comentários de PR respondidos",
+        "resolveThreads": "Resolver threads",
+        "defaultValue": "{{value}} (padrão)",
+        "badTrigger": "\"{{value}}\" não é um gatilho de comentários de PR. Use um de: {{triggers}}",
+        "autoActions": "Roda em incidentes sem perguntar",
+        "autoActionsOption": "Ações que o shep roda em um incidente sem perguntar: restart, rollback, scale (separadas por vírgula)",
+        "none": "nenhuma",
+        "docsFirstOption": "Os agentes escrevem a documentação ao planejar; uma mudança sem documentação espera uma pessoa antes do merge",
+        "noDocsFirstOption": "Desligar docs first",
+        "docsPathsOption": "Prefixos de caminhos de documentação, separados por vírgula (padrão docs/,README.md)",
+        "docsFirst": "Docs first",
+        "docsFirstOn": "Ligado ({{paths}})"
+      }
+    },
+    "connection": {
+      "description": "Conectar contas do Linear e Jira que o shep mantém sincronizadas, e workspaces do Notion que ele lê",
+      "failed": "O comando de ligação falhou",
+      "connectionArg": "Slug ou id da ligação",
+      "add": {
+        "description": "Conectar uma conta do Linear, Jira ou Notion; a chave é testada antes de ser salva",
+        "providerArg": "linear, jira ou notion",
+        "nameOption": "Nome a apresentar",
+        "spaceOption": "Espaço da ligação (o predefinido se omitido)",
+        "siteOption": "URL do site Jira, por exemplo https://acme.atlassian.net",
+        "emailOption": "Email da conta Jira do token",
+        "secretEnvOption": "Ler a chave ou o token desta variável de ambiente em vez de perguntar",
+        "linearPrompt": "Chave de API do Linear",
+        "jiraPrompt": "Token de API do Jira",
+        "badProvider": "\"{{provider}}\" não é suportado; use linear, jira ou notion",
+        "emptyEnv": "A variável de ambiente {{variable}} está vazia ou não definida",
+        "success": "{{name}} ({{slug}}) ligado como {{account}}",
+        "notionPrompt": "Token de integração do Notion"
+      },
+      "ls": {
+        "description": "Listar conexões",
+        "title": "Conexões",
+        "nameColumn": "Nome",
+        "slugColumn": "Slug",
+        "providerColumn": "Ferramenta",
+        "accountColumn": "Conta",
+        "statusColumn": "Estado",
+        "empty": "Ainda não há ligações. Adicione uma com shep connection add."
+      },
+      "test": {
+        "description": "Verificar de novo as credenciais de uma ligação",
+        "success": "{{name}} funciona ({{account}})"
+      },
+      "rm": {
+        "description": "Remover uma ligação e as suas regras; os itens sincronizados ficam",
+        "success": "Ligação {{ref}} removida"
+      }
+    },
+    "sync": {
+      "description": "Manter equipas Linear e consultas Jira em projetos shep",
+      "failed": "O comando de sincronização falhou",
+      "connectionArg": "Slug ou id da ligação",
+      "ruleArg": "Id da regra (ver shep sync rule ls)",
+      "summary": "{{created}} criados, {{updated}} atualizados, {{pushed}} enviados, {{conflicts}} conflitos, {{failed}} falhados",
+      "rule": {
+        "description": "Gerir regras de sincronização",
+        "add": {
+          "description": "Manter uma equipa Linear ou uma consulta JQL do Jira num projeto",
+          "projectOption": "Slug ou id do projeto shep",
+          "scopeOption": "Chave de equipa Linear (ENG) ou consulta JQL do Jira",
+          "twoWayOption": "Enviar também as alterações do shep para o gestor",
+          "everyOption": "Minutos entre execuções automáticas (15 por omissão)",
+          "success": "Regra {{id}} adicionada para {{scope}}"
+        },
+        "ls": {
+          "description": "Listar regras com a última execução",
+          "title": "Regras de sincronização",
+          "idColumn": "Id",
+          "fromColumn": "Origem",
+          "intoColumn": "Para",
+          "modeColumn": "Modo",
+          "lastRunColumn": "Última execução",
+          "never": "nunca executada",
+          "off": "(desativada)",
+          "empty": "Ainda não há regras. Adicione uma com shep sync rule add."
+        },
+        "enable": {
+          "description": "Deixar o daemon executar uma regra",
+          "success": "Regra {{id}} ativada"
+        },
+        "disable": {
+          "description": "Impedir o daemon de executar uma regra",
+          "success": "Regra {{id}} desativada"
+        },
+        "rm": {
+          "description": "Remover uma regra; os itens sincronizados ficam",
+          "success": "Regra {{id}} removida"
+        }
+      },
+      "run": {
+        "description": "Executar agora uma regra ou todas as ativas",
+        "nothing": "Não há regras ativas",
+        "conflictsNote": "Campos alterados nos dois lados: {{count}}; o valor do tracker foi mantido"
+      }
+    },
+    "item": {
+      "itemArg": "Chave do item de trabalho (PAY-42) ou id",
+      "agentOption": "Agente a usar (padrão: o agente configurado)",
+      "failed": "O comando de item de trabalho falhou",
+      "investigate": {
+        "description": "Fazer um agente ler o código e classificar hipóteses sobre a causa de um bug",
+        "repoOption": "Repositório a ler (padrão: o último do item, depois a aplicação do projeto)",
+        "spinner": "Investigando {{key}} (cópia somente leitura de {{repository}})",
+        "starting": "Investigando {{key}} em {{repository}} com {{agent}}. Seu checkout não é alterado."
+      },
+      "hypotheses": {
+        "description": "Mostrar a última investigação de um item de trabalho"
+      },
+      "fix": {
+        "description": "Iniciar uma funcionalidade de correção a partir de uma hipótese: primeiro um teste que falha, depois a correção",
+        "numberArg": "Número da hipótese (1 é a mais provável)",
+        "specOption": "Executar o pipeline completo de especificação em vez do modo rápido",
+        "agentOption": "Agente para a correção (padrão: o agente que investigou)",
+        "spinner": "Iniciando a funcionalidade de correção",
+        "created": "A funcionalidade {{name}} ({{id}}) está corrigindo {{key}} a partir da hipótese {{number}}.",
+        "startFailed": "A funcionalidade foi criada mas não iniciou: {{error}}"
+      },
+      "render": {
+        "none": "{{key}} não foi investigado. Execute: shep item investigate {{key}} --repo <caminho>",
+        "header": "{{repository}}{{commit}} investigado com {{agent}} — {{status}}",
+        "running": "Ainda em andamento; verifique de novo com: shep item hypotheses {{key}}",
+        "evidence": "Evidências",
+        "test": "Teste que falha",
+        "fix": "Correção",
+        "next": "Inicie uma correção com: shep item fix {{key}} <número>",
+        "approved": "A hipótese {{number}} está sendo corrigida pela funcionalidade {{feature}}."
+      }
+    },
+    "agentOption": {
+      "unknown": "\"{{value}}\" não é um agente suportado. Use um de: {{supported}}"
+    },
+    "everyOption": {
+      "invalid": "\"{{value}}\" não é um número inteiro de minutos"
+    },
+    "knowledge": {
+      "description": "Conhecimento da equipe vindo do Notion que os agentes de um espaço podem ler",
+      "failed": "O comando knowledge falhou",
+      "connectionArg": "Slug ou id da conexão do Notion",
+      "sourceArg": "Id da fonte de conhecimento (veja shep knowledge source ls)",
+      "summary": "{{added}} adicionados, {{updated}} atualizados, {{removed}} removidos, {{failed}} com falha",
+      "source": {
+        "description": "Gerenciar as páginas e bancos de dados do Notion que o shep mantém sincronizados",
+        "add": {
+          "description": "Manter uma árvore de páginas ou um banco de dados do Notion como conhecimento do espaço da conexão",
+          "scopeOption": "Link ou id de uma página ou banco de dados do Notion compartilhado com a integração",
+          "productLineOption": "Somente para repositórios desta linha de produto (slug ou id)",
+          "everyOption": "Minutos entre sincronizações automáticas (padrão 60)",
+          "success": "Fonte de conhecimento {{id}} adicionada para {{title}}; execute shep knowledge sync para lê-la agora"
+        },
+        "ls": {
+          "description": "Listar fontes de conhecimento com sua última sincronização",
+          "title": "Fontes de conhecimento",
+          "idColumn": "Id",
+          "fromColumn": "De",
+          "documentsColumn": "Docs",
+          "everyColumn": "A cada",
+          "lastRunColumn": "Última sincronização",
+          "never": "nunca sincronizada",
+          "off": "(desativada)",
+          "empty": "Nenhuma fonte de conhecimento ainda. Adicione uma com shep knowledge source add."
+        },
+        "enable": {
+          "description": "Deixar o daemon sincronizar uma fonte",
+          "success": "Fonte de conhecimento {{id}} ativada"
+        },
+        "disable": {
+          "description": "Impedir o daemon de sincronizar uma fonte",
+          "success": "Fonte de conhecimento {{id}} desativada"
+        },
+        "rm": {
+          "description": "Remover uma fonte e os documentos que ela sincronizou",
+          "success": "Fonte de conhecimento {{id}} removida"
+        }
+      },
+      "sync": {
+        "description": "Sincronizar agora uma fonte de conhecimento, ou todas as ativadas",
+        "nothing": "Nenhuma fonte de conhecimento ativada"
+      },
+      "ls": {
+        "description": "Listar os documentos de conhecimento de um espaço",
+        "spaceOption": "Slug ou id do espaço (padrão se omitido)",
+        "title": "Conhecimento de {{space}}",
+        "titleColumn": "Documento",
+        "linkColumn": "Link",
+        "empty": "Nenhum documento de conhecimento neste espaço ainda."
+      },
+      "search": {
+        "description": "Mostrar os trechos que um agente trabalhando em um repositório leria para uma tarefa",
+        "queryArg": "Texto da tarefa a buscar",
+        "repoOption": "Caminho do repositório (diretório atual se omitido)",
+        "none": "Nenhum conhecimento da equipe no espaço deste repositório corresponde a essa tarefa."
+      }
+    },
+    "numberOption": {
+      "invalid": "{{option}} espera um número, não \"{{value}}\""
+    },
+    "signal": {
+      "description": "Registrar evidências do que os usuários precisam",
+      "failed": "O comando signal falhou",
+      "spaceOption": "Slug ou id do espaço (padrão se omitido)",
+      "signalArg": "Id do sinal (veja shep signal ls)",
+      "add": {
+        "description": "Registrar um sinal: um pedido, um incidente, uma issue ou uma descoberta",
+        "titleArg": "Resumo de uma linha",
+        "productLineOption": "Linha de produto afetada (slug ou id)",
+        "kindOption": "feedback, incident, tracker, discovery ou manual (padrão manual)",
+        "customerOption": "Cliente ou conta por trás",
+        "revenueOption": "Receita mensal em jogo para esse cliente",
+        "urgentOption": "Precisa de atenção em breve",
+        "urlOption": "Link para o original",
+        "detailOption": "Texto mais longo",
+        "opportunityOption": "Id da oportunidade a vincular",
+        "badKind": "\"{{kind}}\" não é um tipo de sinal; use feedback, incident, tracker, discovery ou manual",
+        "success": "Sinal {{id}} registrado"
+      },
+      "ls": {
+        "description": "Listar sinais, mais recentes primeiro",
+        "unlinkedOption": "Somente sinais sem oportunidade",
+        "title": "Sinais",
+        "idColumn": "Id",
+        "titleColumn": "Sinal",
+        "kindColumn": "Tipo",
+        "customerColumn": "Cliente",
+        "opportunityColumn": "Oportunidade",
+        "unlinked": "não vinculado",
+        "empty": "Nenhum sinal ainda. Registre um com shep signal add."
+      },
+      "rm": {
+        "description": "Remover um sinal",
+        "success": "Sinal {{id}} removido"
+      }
+    },
+    "opportunity": {
+      "description": "Apostas apoiadas por sinais, ordenadas por valor por hora de revisão",
+      "failed": "O comando opportunity falhou",
+      "opportunityArg": "Id da oportunidade (veja shep opportunity ls)",
+      "signalArg": "Id do sinal (veja shep signal ls)",
+      "spaceOption": "Slug ou id do espaço (padrão se omitido)",
+      "hoursOption": "Horas estimadas de revisão humana para fazer o merge",
+      "confidenceOption": "Confiança de que entrega o valor, de 0 a 1 (padrão 0.5)",
+      "strategicOption": "Avança um objetivo estratégico do espaço",
+      "problemOption": "O problema que resolve, nas palavras dos usuários",
+      "add": {
+        "description": "Formar uma nova oportunidade",
+        "titleArg": "Nome de uma linha da aposta",
+        "productLineOption": "Linha de produto afetada (slug ou id)",
+        "success": "Oportunidade {{id}} proposta"
+      },
+      "estimate": {
+        "description": "Alterar a estimativa, a confiança ou o problema de uma oportunidade",
+        "success": "Oportunidade {{id}} atualizada"
+      },
+      "link": {
+        "description": "Vincular um sinal a uma oportunidade do seu espaço",
+        "success": "O sinal {{signal}} apoia {{opportunity}}"
+      },
+      "unlink": {
+        "description": "Desvincular um sinal da sua oportunidade",
+        "success": "Sinal {{signal}} desvinculado"
+      },
+      "accept": {
+        "description": "Aceitar uma oportunidade: ela disputa capacidade de revisão",
+        "success": "{{title}} aceita"
+      },
+      "drop": {
+        "description": "Descartar uma oportunidade, dizendo por quê",
+        "reasonOption": "Por que é descartada",
+        "success": "{{title}} descartada"
+      },
+      "build": {
+        "description": "Transformar uma oportunidade em item de trabalho de um projeto",
+        "projectOption": "Slug ou id do projeto",
+        "success": "Construindo {{title}} como item {{workItem}}"
+      },
+      "ls": {
+        "description": "Ordenar as oportunidades abertas e marcar a linha (▶) que cabe nesta semana",
+        "title": "Oportunidades em {{space}} — {{used}} de {{capacity}} horas de revisão na linha",
+        "idColumn": "Id",
+        "titleColumn": "Oportunidade",
+        "statusColumn": "Status",
+        "scoreColumn": "Valor/h",
+        "hoursColumn": "Horas",
+        "evidenceColumn": "Evidências",
+        "empty": "Nenhuma oportunidade aberta. Forme uma com shep opportunity add.",
+        "unlinked": "Sinais ainda sem oportunidade: {{count}} (shep signal ls --unlinked)"
+      },
+      "show": {
+        "description": "Mostrar uma oportunidade com suas evidências e pontuação",
+        "score": "{{score}} de valor por hora de revisão (valor {{value}}, {{hours}} h, confiança {{confidence}})",
+        "dropped": "Descartada: {{reason}}"
+      },
+      "weights": {
+        "description": "Mostrar ou definir os pesos e a capacidade semanal de revisão de um espaço",
+        "reachOption": "Valor de cada cliente",
+        "revenueOption": "Valor de cada 1.000 por mês em jogo",
+        "urgencyOption": "Valor de cada sinal urgente",
+        "strategicOption": "Valor adicionado a uma aposta estratégica",
+        "capacityOption": "Horas de revisão humana por semana",
+        "current": "alcance {{reach}} · receita {{revenue}} · urgência {{urgency}} · estratégico {{strategic}} · capacidade {{capacity}} h/semana"
+      },
+      "evidenceParts": {
+        "signals_one": "{{count}} sinal",
+        "signals_few": "{{count}} sinais",
+        "signals_many": "{{count}} sinais",
+        "signals_other": "{{count}} sinais",
+        "customers_one": "{{count}} cliente",
+        "customers_few": "{{count}} clientes",
+        "customers_many": "{{count}} clientes",
+        "customers_other": "{{count}} clientes",
+        "urgent_one": "{{count}} urgente",
+        "urgent_few": "{{count}} urgentes",
+        "urgent_many": "{{count}} urgentes",
+        "urgent_other": "{{count}} urgentes",
+        "revenue": "{{revenue}}/mês"
+      }
+    },
+    "feedback": {
+      "description": "Chaves que ferramentas usam para enviar feedback, e os temas que ele forma",
+      "failed": "O comando feedback falhou",
+      "spaceOption": "Slug ou id do espaço (padrão se omitido)",
+      "key": {
+        "description": "Gerenciar chaves de feedback",
+        "keyArg": "Id da chave (veja shep feedback key ls)",
+        "create": {
+          "description": "Criar uma chave que uma ferramenta envia para publicar feedback em um espaço",
+          "nameOption": "Qual ferramenta ou script a usa",
+          "success": "Chave de feedback para {{name}} criada. Copie agora; ela não será mostrada de novo:",
+          "once": "Envie como \"Authorization: Bearer <chave>\" em cada POST para {{path}} no seu servidor shep."
+        },
+        "ls": {
+          "description": "Listar chaves de feedback",
+          "title": "Chaves de feedback",
+          "idColumn": "Id",
+          "nameColumn": "Ferramenta",
+          "prefixColumn": "Chave",
+          "usedColumn": "Último uso",
+          "revoked": "revogada",
+          "never": "nunca usada",
+          "empty": "Nenhuma chave ainda. Crie uma com shep feedback key create."
+        },
+        "revoke": {
+          "description": "Revogar uma chave: envios com ela são recusados",
+          "success": "Chave de feedback {{id}} revogada"
+        }
+      },
+      "themes": {
+        "description": "Agrupar em temas os sinais não vinculados de um espaço",
+        "title": "Temas em {{space}}",
+        "keyColumn": "Tema",
+        "themeColumn": "Palavras",
+        "evidenceColumn": "Evidências",
+        "empty": "Nenhum tema: nenhum par de sinais não vinculados compartilha palavras suficientes."
+      },
+      "promote": {
+        "description": "Transformar um tema em oportunidade com seus sinais vinculados",
+        "themeArg": "Chave do tema (veja shep feedback themes)",
+        "titleOption": "Título da oportunidade (as palavras do tema se omitido)",
+        "success": "{{title}} ({{id}}) proposta; sinais vinculados: {{count}}"
+      }
+    },
+    "discovery": {
+      "description": "Um agente lê os sinais soltos de um espaço e propõe oportunidades",
+      "failed": "O comando discovery falhou",
+      "spaceOption": "Slug ou id do espaço (padrão se omitido)",
+      "run": {
+        "description": "Executar a descoberta em um espaço agora",
+        "agentOption": "Agente a usar (as regras do espaço se aplicam)",
+        "started": "Lendo as evidências do espaço; pode levar alguns minutos…",
+        "success": "Sinais lidos: {{read}} · oportunidades propostas: {{proposed}} · propostas descartadas: {{dropped}}"
+      },
+      "ls": {
+        "description": "Listar as execuções de descoberta de um espaço",
+        "title": "Execuções de descoberta",
+        "whenColumn": "Início",
+        "statusColumn": "Status",
+        "resultColumn": "Resultado",
+        "result": "{{proposed}} propostas a partir de {{read}} sinais ({{dropped}} descartadas)",
+        "empty": "A descoberta ainda não rodou neste espaço."
+      },
+      "schedule": {
+        "description": "Executar a descoberta em um espaço a cada N horas, ou desligá-la",
+        "everyOption": "Horas entre execuções (1 a 720)",
+        "offOption": "Desligar a descoberta agendada",
+        "needEvery": "Informe --every <horas> ou --off",
+        "on": "A descoberta roda a cada {{hours}} horas",
+        "off": "A descoberta agendada está desligada"
+      }
+    },
+    "incident": {
+      "description": "Incidentes de produção: abrir, analisar, agir na carga e resolver",
+      "failed": "O comando incident falhou",
+      "spaceOption": "Slug ou id do espaço (padrão se omitido)",
+      "incidentArg": "Id do incidente (veja shep incident ls)",
+      "actionIdArg": "Id da ação (veja shep incident show)",
+      "badSeverity": "\"{{value}}\" não é uma severidade; use {{severities}}",
+      "badAction": "\"{{value}}\" não é uma ação; use {{actions}}",
+      "recovered": "recuperado",
+      "notRecovered": "não recuperado",
+      "awaiting": "Aguardando aprovação: {{action}} — execute shep incident approve {{id}}",
+      "open": {
+        "description": "Abrir um incidente",
+        "titleArg": "Resumo de uma linha",
+        "severityOption": "critical, major (padrão) ou minor",
+        "detailOption": "O que está acontecendo",
+        "urlOption": "Link para o alerta ou painel",
+        "workloadOption": "O deployment Kubernetes afetado",
+        "namespaceOption": "Seu namespace (padrão: default)",
+        "contextOption": "Seu contexto do kubeconfig (padrão: o atual)",
+        "success": "Incidente {{id}} aberto: {{title}}"
+      },
+      "ls": {
+        "description": "Listar incidentes, mais recentes primeiro",
+        "openOption": "Somente incidentes não resolvidos",
+        "title": "Incidentes",
+        "idColumn": "Id",
+        "titleColumn": "Incidente",
+        "severityColumn": "Severidade",
+        "statusColumn": "Status",
+        "workloadColumn": "Carga",
+        "empty": "Nenhum incidente."
+      },
+      "show": {
+        "description": "Mostrar um incidente com sua linha do tempo e ações"
+      },
+      "note": {
+        "description": "Adicionar uma nota à linha do tempo",
+        "textArg": "A nota",
+        "success": "Nota adicionada"
+      },
+      "triage": {
+        "description": "Ler a carga e pedir a um agente causas e uma ação",
+        "agentOption": "Agente a usar (as regras do espaço se aplicam)",
+        "started": "Lendo a carga e consultando o agente; pode levar alguns minutos…"
+      },
+      "act": {
+        "description": "Reiniciar, reverter ou escalar agora a carga do incidente",
+        "actionArg": "restart, rollback ou scale",
+        "replicasOption": "Número de réplicas, para scale",
+        "reasonOption": "Por quê"
+      },
+      "approve": {
+        "description": "Aprovar uma ação proposta; ela roda na hora"
+      },
+      "reject": {
+        "description": "Recusar uma ação proposta",
+        "reasonOption": "Por quê",
+        "success": "Ação {{id}} recusada"
+      },
+      "resolve": {
+        "description": "Resolver um incidente; o postmortem é rascunhado da linha do tempo se nenhum for dado",
+        "postmortemOption": "Seu postmortem (Markdown)",
+        "success": "{{title}} resolvido"
+      }
+    },
+    "outcome": {
+      "description": "O que aconteceu depois da entrega: relatos antes e depois, clientes a avisar, calibração",
+      "failed": "O comando outcome falhou",
+      "spaceOption": "Slug ou id do espaço (o espaço padrão se omitido)",
+      "opportunityArg": "Id da oportunidade",
+      "ls": {
+        "description": "Listar as oportunidades entregues de um espaço e seus resultados",
+        "title": "Resultados — {{space}}",
+        "opportunityColumn": "Oportunidade",
+        "shippedColumn": "Entregue",
+        "verdictColumn": "Veredito",
+        "reportsColumn": "Relatos",
+        "tellColumn": "A avisar",
+        "empty": "Nada foi entregue neste espaço ainda."
+      },
+      "check": {
+        "description": "Entregar agora as oportunidades cujo item de trabalho terminou e julgar os resultados devidos",
+        "summary": "Entregues {{shipped}}, reabertas {{reopened}}, julgados {{judged}}",
+        "shipped": "entregue:",
+        "reopened": "de volta a aceita:"
+      },
+      "ship": {
+        "description": "Marcar uma oportunidade como entregue manualmente",
+        "success": "{{title}} entregue; o resultado será julgado em {{date}}"
+      },
+      "tell": {
+        "description": "Mostrar os clientes a avisar da entrega, ou marcá-los como avisados",
+        "doneOption": "Marcar os clientes como avisados",
+        "told": "Clientes marcados como avisados: {{told}}",
+        "nobody": "Todos os clientes por trás dela foram avisados.",
+        "note": "Diga a eles: “{{title}}” foi entregue — obrigado por nos dizer o que vocês precisavam.",
+        "markHint": "Quando souberem: shep outcome tell {{id}} --done"
+      },
+      "hours": {
+        "description": "Registrar as horas de revisão humana que uma oportunidade entregue realmente levou",
+        "hoursArg": "Horas, mais de 0",
+        "success": "Registradas {{hours}} horas de revisão"
+      },
+      "calibration": {
+        "hours": "As horas reais de revisão são {{ratio}}× as estimativas ({{timed}} registradas)",
+        "noHours": "Nenhuma hora real de revisão registrada ainda",
+        "solved": "{{solved}} de {{judged}} resultados julgados resolvidos",
+        "noVerdicts": "Nenhum resultado julgado ainda"
+      }
+    },
+    "autopilot": {
+      "description": "O que o shep inicia sozinho num espaço: investigações, correções e a linha da semana",
+      "failed": "O comando autopilot falhou",
+      "spaceOption": "Slug ou id do espaço (o espaço padrão se omitido)",
+      "on": "ligado",
+      "off": "desligado",
+      "investigate": "Investigar itens urgentes",
+      "fix": "Corrigir hipóteses confiáveis",
+      "mergeFixes": "As correções fazem merge sem uma pessoa",
+      "budget": "Correções por dia",
+      "fillLine": "Construir a linha da semana",
+      "project": "Projeto da linha",
+      "pass": "investigados {{investigated}} · corrigidos {{fixed}} · construídos {{built}}",
+      "show": {
+        "description": "Mostrar a política de autopilot de um espaço e as passagens recentes",
+        "title": "Autopilot — {{space}}",
+        "noRuns": "Nenhuma passagem ainda."
+      },
+      "set": {
+        "description": "Alterar a política de autopilot de um espaço",
+        "investigateOption": "Investigar itens urgentes abertos sem investigação",
+        "fixOption": "Iniciar a correção quando a hipótese principal for High",
+        "mergeFixesOption": "Deixar essas correções fazerem merge sem uma pessoa",
+        "fillLineOption": "Construir as oportunidades aceitas dentro da linha",
+        "offOption": "Desligar esta parte",
+        "projectOption": "Projeto onde construir a linha (id ou slug)",
+        "clearProjectOption": "Parar de construir a linha num projeto",
+        "budgetOption": "No máximo estas correções em 24 horas (0 a 20)",
+        "success": "Política de autopilot salva"
+      },
+      "run": {
+        "description": "Executar agora uma passagem de autopilot num espaço",
+        "started": "Executando uma passagem de autopilot; investigações podem levar muitos minutos…"
+      }
+    },
+    "factory": {
+      "description": "A fábrica de software num relance",
+      "failed": "O comando factory falhou",
+      "spaceOption": "Slug ou id do espaço (o espaço padrão se omitido)",
+      "status": {
+        "description": "O que a fábrica de um espaço está fazendo e o que espera por pessoas",
+        "title": "Fábrica — {{space}}",
+        "line": "Linha",
+        "lineValue": "{{used}}/{{capacity}} horas de revisão, {{inLine}} na linha, {{waiting}} esperando",
+        "building": "Em construção",
+        "incidents": "Incidentes abertos",
+        "actions": "Ações aguardando aprovação",
+        "outcomes": "Resultados pendentes",
+        "customers": "Clientes a avisar",
+        "autopilot": "Autopilot",
+        "features": "Funcionalidades",
+        "featuresValue": "{{inFlight}} em andamento, {{waiting}} aguardando aprovação"
+      }
+    },
+    "telemetry": {
+      "description": "Gerenciar métricas de uso (telemetria opcional)",
+      "stateArgument": "on ou off",
+      "invalidState": "Esperado \"on\" ou \"off\", recebido \"{{value}}\"",
+      "failed": "Falha ao atualizar as configurações de métricas de uso",
+      "forcedOff": "As métricas de uso permanecem desativadas neste ambiente: {{reason}}.",
+      "on": {
+        "description": "Ativar métricas de uso",
+        "done": "As métricas de uso estão ativadas."
+      },
+      "off": {
+        "description": "Desativar métricas de uso e excluir eventos na fila",
+        "done": "As métricas de uso estão desativadas. Os eventos na fila foram excluídos."
+      },
+      "identity": {
+        "description": "Incluir ou omitir sua identidade (usuário e proprietários do GitHub, hash da conta do agente)",
+        "on": "Sua identidade será incluída nas métricas de uso.",
+        "off": "Sua identidade será omitida. As métricas de uso continuam anônimas."
+      },
+      "contact": {
+        "description": "Permitir ou recusar contato da equipe do Shep no GitHub",
+        "on": "A equipe do Shep pode entrar em contato com você no GitHub.",
+        "off": "A equipe do Shep não entrará em contato com você."
+      },
+      "status": {
+        "description": "Exibir se as métricas de uso estão ativadas e o que está na fila",
+        "metrics": "Métricas de uso",
+        "on": "ativadas",
+        "off": "desativadas ({{reason}})",
+        "identity": "Identidade",
+        "included": "incluída",
+        "excluded": "omitida",
+        "contact": "Contato no GitHub",
+        "yes": "permitido",
+        "no": "não permitido",
+        "installId": "ID de instalação",
+        "queued": "Eventos na fila",
+        "destination": "Enviado para",
+        "notConfigured": "lugar nenhum — nenhuma chave de projeto configurada"
+      },
+      "show": {
+        "description": "Exibir exatamente o que será enviado",
+        "header": "Próximo lote para {{destination}} ({{queued}} eventos na fila):",
+        "empty": "Nada na fila.",
+        "notConfigured": "Nenhuma chave de projeto configurada, então nada é enviado ainda.",
+        "disabled": "As métricas de uso estão desativadas; os eventos na fila serão excluídos no próximo envio."
+      },
+      "reasons": {
+        "ci": "a variável de ambiente CI está definida",
+        "do-not-track": "DO_NOT_TRACK está definida",
+        "env-disabled": "SHEP_TELEMETRY_DISABLED está definida",
+        "test": "executando em um executor de testes",
+        "user-opt-out": "você as desativou"
+      }
+    },
+    "chat": {
+      "description": "Ferramentas de conversas de chat",
+      "block": {
+        "description": "Mostrar um bloco rico no chat: uma especificação para revisar, uma prévia HTML ou um plano",
+        "kindArgument": "Tipo de bloco: {{kinds}}",
+        "titleOption": "Título exibido no cabeçalho do bloco",
+        "fileOption": "Ler o conteúdo (Markdown, ou HTML para uma prévia) deste arquivo",
+        "contentOption": "Conteúdo (Markdown, ou HTML para uma prévia)",
+        "scopeOption": "Conversa onde publicar (padrão: ${{variable}})",
+        "posted": "\"{{title}}\" publicado no chat (bloco {{id}}).",
+        "unknownKind": "Tipo de bloco desconhecido \"{{kind}}\". Use um de: {{kinds}}.",
+        "noScope": "Nenhuma conversa de chat: passe --scope ou execute dentro de um chat do Shep (ele define {{variable}}).",
+        "oneSource": "Passe --file ou --content (apenas um).",
+        "unreadable": "Não foi possível ler {{file}}.",
+        "failed": "Falha ao publicar o bloco"
+      }
+    },
+    "ps": {
+      "description": "Lista os processos que o Shep executa: o daemon web e os workers de agentes",
+      "allOption": "Incluir execuções cujo processo terminou",
+      "jsonOption": "Imprimir os processos como JSON",
+      "watchOption": "Redesenhar a cada 2 segundos até ctrl+c",
+      "title": "Processos do Shep",
+      "columns": {
+        "kind": "TIPO",
+        "pid": "PID",
+        "feature": "FUNCIONALIDADE",
+        "agent": "AGENTE",
+        "status": "ESTADO",
+        "up": "ATIVO",
+        "cpu": "CPU",
+        "mem": "MEM"
+      },
+      "kind": {
+        "daemon": "daemon",
+        "featureAgent": "agente de funcionalidade",
+        "agentRun": "execução de agente"
+      },
+      "state": {
+        "running": "em execução",
+        "crashed": "travado",
+        "exited": "encerrado"
+      },
+      "empty": "Nenhum processo do Shep em execução. Adicione --all para incluir execuções encerradas.",
+      "summary": "{{running}} em execução · {{crashed}} travados · {{exited}} encerrados",
+      "statsUnavailable": "CPU e memória não estão disponíveis nesta plataforma.",
+      "watchNotTty": "--watch precisa de um terminal interativo. Em scripts, use shep ps --json.",
+      "watchHint": "Atualizando a cada 2 s · ctrl+c para sair",
+      "failed": "Não foi possível listar os processos do Shep",
+      "crashedHint": "Retome uma funcionalidade travada com: shep feat resume <id da funcionalidade>",
+      "stop": {
+        "description": "Parar uma execução de agente pelo id da execução, id da funcionalidade ou um prefixo",
+        "idArgument": "Id da execução, id da funcionalidade ou um prefixo",
+        "stopped": "{{id}} parado: {{reason}}"
+      }
+    },
+    "learn": {
+      "description": "Harness de autoaprendizagem: revise, adote e reverta o que o Shep aprendeu com as execuções de features",
+      "failed": "O comando do harness aprendido falhou",
+      "repoOption": "Caminho do repositório (padrão: o diretório atual)",
+      "jsonOption": "Imprimir JSON",
+      "versionArg": "ID da versão ou um prefixo único dele",
+      "notFound": "Nenhuma versão do harness aprendido corresponde a {{id}}",
+      "fields": {
+        "version": "Versão",
+        "status": "Status",
+        "origin": "Origem",
+        "scope": "Escopo",
+        "created": "Criada",
+        "components": "Componentes",
+        "parent": "Versão pai",
+        "sourceFeature": "Aprendida da feature",
+        "notes": "Notas",
+        "reason": "Motivo"
+      },
+      "status": {
+        "description": "Mostrar o harness aprendido com que este repositório é executado",
+        "title": "Harness aprendido",
+        "none": "Nada está adotado — este repositório é executado com o harness base.",
+        "candidates": "Candidatas aguardando revisão: {{count}} — veja `shep learn history`",
+        "noCandidates": "Nenhuma candidata está aguardando revisão."
+      },
+      "history": {
+        "description": "Listar as versões do harness aprendido com suas métricas de resultado, da mais recente para a mais antiga",
+        "limitOption": "Mostrar no máximo esta quantidade de versões",
+        "invalidLimit": "--limit deve ser um número inteiro maior que 0, recebido: {{value}}",
+        "title": "Versões do harness aprendido",
+        "empty": "Ainda não há versões do harness aprendido. Aprenda com uma feature concluída usando `shep learn reflect <feature>`.",
+        "current": "atual",
+        "regressed": "Versões com regressão: {{count}} — inspecione uma com `shep learn show <version>` e desfaça a adotada com `shep learn rollback`",
+        "columns": {
+          "id": "ID",
+          "status": "STATUS",
+          "origin": "ORIGEM",
+          "created": "CRIADA",
+          "runs": "EXECUÇÕES",
+          "merged": "MESCLADAS",
+          "ciFixes": "CORREÇÕES CI",
+          "trend": "TENDÊNCIA"
+        }
+      },
+      "show": {
+        "description": "Mostrar uma versão: seus componentes, os veredictos das alterações e o diff com a versão pai",
+        "title": "Harness aprendido {{id}}",
+        "componentsTitle": "Componentes",
+        "editsTitle": "Alterações e veredictos",
+        "diffTitle": "Diff com {{id}}",
+        "diffTitleBase": "Diff com o harness base",
+        "noChanges": "Nenhuma alteração."
+      },
+      "diff": {
+        "description": "Mostrar o que mudou entre duas versões",
+        "fromArg": "A versão de origem (ID ou prefixo)",
+        "toArg": "A versão de destino (ID ou prefixo)",
+        "title": "{{from}} → {{to}}"
+      },
+      "adopt": {
+        "description": "Adotar uma versão candidata, ou importar e adotar um harness que você escreveu",
+        "fromDirOption": "Importar o harness deste diretório (estrutura canônica) e adotá-lo",
+        "needsOne": "Informe exatamente um dos dois: uma versão ou --from-dir <dir>",
+        "adopted": "{{id}} adotada — as próximas execuções de features a usarão",
+        "memoryFacts": "Fatos de memória registrados: {{count}}",
+        "refused": "Não foi possível adotar {{id}}: {{reason}}",
+        "imported": "{{id}} importada e adotada",
+        "importedNotAdopted": "{{id}} importada, mas não adotada — veja `shep learn show {{id}}`",
+        "importRefused": "O harness em {{dir}} não foi importado:"
+      },
+      "reject": {
+        "description": "Rejeitar uma versão candidata; seu feedback orienta a próxima reflexão",
+        "feedbackOption": "Por que ela foi rejeitada — a próxima reflexão lerá isto",
+        "rejected": "{{id}} rejeitada",
+        "refused": "Não foi possível rejeitar {{id}}: {{reason}}"
+      },
+      "rollback": {
+        "description": "Desfazer o harness adotado deste repositório e adotar novamente a versão pai",
+        "reasonOption": "Por que ele foi revertido (fica registrado na versão)",
+        "rolledBack": "O harness adotado foi revertido",
+        "restored": "{{id}} está adotada novamente",
+        "toBase": "O repositório volta a ser executado com o harness base",
+        "refused": "Nada foi revertido: {{reason}}"
+      },
+      "reflect": {
+        "description": "Aprender agora com a última execução de uma feature e enviar uma alteração do harness para revisão",
+        "featureArg": "ID da feature ou um prefixo único dele",
+        "spinner": "Refletindo sobre a execução da feature",
+        "skipped": "Nada a aprender: {{reason}}",
+        "finished": "Reflexão concluída: {{status}} (custo {{cost}} USD)",
+        "candidate": "A candidata {{id}} aguarda revisão — `shep learn show {{id}}`",
+        "autoAdopted": "A candidata {{id}} foi adotada automaticamente pela sua política de adoção"
+      },
+      "labels": {
+        "status": {
+          "candidate": "Candidata",
+          "adopted": "Adotada",
+          "rejected": "Rejeitada",
+          "rolledBack": "Revertida",
+          "superseded": "Substituída"
+        },
+        "origin": {
+          "base": "Base",
+          "reflect": "Reflexão",
+          "explore": "Exploração",
+          "manual": "Manual"
+        },
+        "scope": {
+          "project": "Projeto",
+          "organization": "Organização",
+          "space": "Espaço",
+          "productLine": "Linha de produto"
+        },
+        "trend": {
+          "insufficientData": "Poucas execuções",
+          "improved": "Melhorou",
+          "unchanged": "Sem mudança",
+          "regressed": "Piorou",
+          "noBaseline": "Primeira versão"
+        },
+        "verdict": {
+          "helped": "Ajudou",
+          "hurt": "Prejudicou",
+          "noObservedEffect": "Sem efeito observado",
+          "confounded": "Inconclusivo",
+          "untested": "Não testado"
+        },
+        "kind": {
+          "instructions": "Instruções",
+          "guardrails": "Salvaguardas",
+          "memory": "Memória",
+          "toolGuidance": "Orientação de ferramentas",
+          "skill": "Skill",
+          "script": "Script",
+          "subagent": "Subagente",
+          "hook": "Hook"
+        },
+        "refinement": {
+          "running": "Em execução",
+          "proposed": "Proposta",
+          "keptBase": "Harness base mantido",
+          "fellBack": "Voltou ao harness base",
+          "overBudget": "Orçamento excedido",
+          "failed": "Falhou"
+        }
+      }
+    }
+  },
+  "ui": {
+    "installMessages": {
+      "alreadyInstalled": "{{tool}} já está instalado",
+      "installSuccess": "{{tool}} instalado com sucesso",
+      "installFailed": "Falha ao instalar {{tool}}: {{error}}",
+      "unknownTool": "Ferramenta desconhecida: \"{{tool}}\". Disponíveis: {{available}}",
+      "checkingAvailability": "Verificando se {{tool}} está disponível...",
+      "installingHeading": "Instalando {{tool}}"
+    },
+    "daemon": {
+      "alreadyRunning": "O Shep já está em execução em {{url}}",
+      "heading": "Interface Web Shep",
+      "startingServer": "Iniciando servidor",
+      "daemonSpawned": "Daemon iniciado em {{url}}",
+      "serverReady": "Servidor pronto em {{url}}",
+      "serverMayBeStarting": "O servidor pode ainda estar iniciando em {{url}}",
+      "daemonFailed": "O daemon falhou ao iniciar (código de saída {{code}}).",
+      "checkLogs": "Verifique os logs: {{path}}",
+      "stoppingDaemon": "Parando daemon do Shep (PID {{pid}})...",
+      "sigkillFallback": "O daemon não parou graciosamente, enviando SIGKILL...",
+      "daemonStopped": "Daemon do Shep parado."
+    },
+    "logViewer": {
+      "noLogFile": "Nenhum arquivo de log encontrado para {{label}}",
+      "expectedAt": "Esperado: {{path}}",
+      "logEmpty": "O arquivo de log está vazio para {{label}}"
+    },
+    "agentGuard": {
+      "forceOption": "Executar mesmo dentro de uma execução de agente do Shep, mesmo que isso pare o agente que o executa"
+    }
+  },
+  "bootstrap": {
+    "failedDatabase": "Falha ao inicializar banco de dados",
+    "failedSettings": "Falha ao inicializar configurações",
+    "unexpectedError": "Ocorreu um erro inesperado",
+    "unhandledRejection": "Rejeição de promise não tratada",
+    "telemetryNotice": {
+      "title": "O Shep coleta métricas de uso",
+      "intro": "Para saber quais recursos são usados, o Shep envia eventos de uso para a equipe do Shep (PostHog, região da UE). Ele nunca envia prompts, código, caminhos de arquivos, nomes de repositórios ou branches, títulos de features ou mensagens de erro.",
+      "fieldsHeading": "O que é enviado:",
+      "fields": {
+        "installId": "um ID de instalação aleatório",
+        "usage": "quais comandos, páginas e recursos você usa e como as execuções terminam",
+        "platform": "versão do Shep, sistema operacional e versão do Node.js",
+        "agentAccountHash": "um hash SHA-256 do ID da sua conta Claude ou Codex",
+        "githubUsername": "seu usuário do GitHub (lido com gh)",
+        "githubOwners": "os proprietários no GitHub (usuários ou organizações) dos repositórios que você usa com o Shep",
+        "contactConsent": "se a equipe do Shep pode entrar em contato com você no GitHub (não, a menos que você permita)"
+      },
+      "identityHeading": "Enviado apenas se você ativar a identidade (desativada por padrão):",
+      "identityNote": "Esses dados identificam você, por isso ficam desativados até você ativá-los: shep telemetry identity on",
+      "optOut": "Desativar as métricas: shep telemetry off (ou defina DO_NOT_TRACK=1). Ver o que é enviado: shep telemetry show"
+    }
+  },
+  "features": {
+    "queued": "Na fila",
+    "queuedWithPosition": "Na fila · {{position}} à frente",
+    "queuedTooltip": "Aguardando uma vaga livre ({{position}} na fila)"
+  }
+}

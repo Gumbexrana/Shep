@@ -1,0 +1,385 @@
+{
+  "prompts": {
+    "selectAgent": {
+      "message": "Selecione seu agente de codificação AI",
+      "choices": {
+        "claudeCode": {
+          "name": "Claude Code",
+          "description": "CLI Anthropic Claude Code"
+        },
+        "geminiCli": {
+          "name": "Gemini CLI",
+          "description": "CLI Google Gemini"
+        },
+        "codexCli": {
+          "name": "Codex CLI",
+          "description": "Agente de terminal Codex CLI da OpenAI (modelos GPT)"
+        },
+        "copilotCli": {
+          "name": "Copilot CLI",
+          "description": "GitHub Copilot CLI (padrão: Claude Sonnet 4.5, requer assinatura Copilot)"
+        },
+        "cursor": {
+          "name": "Cursor",
+          "description": "Agente de codificação AI Cursor"
+        },
+        "cline": {
+          "name": "Cline",
+          "description": "Multi-provider agentic coding assistant with full tool use (requires cline CLI)"
+        },
+        "devMock": {
+          "name": "Dev (Mock)",
+          "description": "Mock de desenvolvimento local — nenhum binário de agente necessário"
+        },
+        "openRouter": {
+          "name": "OpenRouter",
+          "description": "Acesse centenas de modelos de IA via API OpenRouter (requer chave API)"
+        },
+        "togetherAi": {
+          "name": "Together AI",
+          "description": "Inferência rápida de modelos open-source via API Together AI (requer chave API)"
+        },
+        "ollama": {
+          "name": "Ollama",
+          "description": "Executar LLMs locais via Ollama (não requer chave API, roda em localhost)"
+        },
+        "kimiCode": {
+          "name": "Kimi Code",
+          "description": "Agente de terminal Kimi Code CLI da Moonshot AI (modelos Kimi K)"
+        },
+        "llmProxy": {
+          "name": "LLM Proxy",
+          "description": "Proxy local compatível com OpenAI (normalmente na porta 4000)"
+        },
+        "shepHarness": {
+          "name": "Shep Harness (experimental)",
+          "description": "Loop de agente do Shep, orientado à consulta, com pedidos de permissão"
+        }
+      }
+    },
+    "selectIde": {
+      "message": "Selecione seu IDE preferido"
+    },
+    "selectAuthMethod": {
+      "message": "Selecione o método de autenticação",
+      "choices": {
+        "session": {
+          "name": "Usar sessão existente",
+          "description": "Usar autenticação integrada do Claude Code"
+        },
+        "token": {
+          "name": "Usar token de API",
+          "description": "Fornecer uma chave de API Anthropic"
+        }
+      }
+    },
+    "enterApiKey": "Insira sua chave de API Anthropic",
+    "prdReview": {
+      "reviewComplete": "Revisão concluída{{changeLabel}}. O que você gostaria de fazer?",
+      "changeLabel_one": " ({{count}} alteração)",
+      "changeLabel_other": " ({{count}} alterações)",
+      "approveAndContinue": "Aprovar e continuar",
+      "approveDescription": "Aceitar os requisitos e prosseguir para a pesquisa",
+      "rejectAndIterate": "Rejeitar e iterar",
+      "rejectDescription": "Fornecer feedback e reexecutar os requisitos",
+      "feedbackPrompt": "O que precisa mudar? (feedback para reiteração)",
+      "feedbackRequired": "Feedback é obrigatório para rejeição"
+    },
+    "selectLanguage": {
+      "message": "Selecione o idioma de exibição"
+    }
+  },
+  "wizards": {
+    "onboarding": {
+      "welcomeTitle": "Bem-vindo ao Shep AI CLI",
+      "welcomeSubtitle": "Vamos configurar seu ambiente em 3 passos rápidos.",
+      "prerequisiteWarning": "Pré-requisito: ",
+      "prerequisiteLabel": "GitHub CLI (gh)",
+      "prerequisiteDescription": "é necessário para recursos completos de autocorreção CI/CD.",
+      "installFrom": "Instale em: ",
+      "installUrl": "https://cli.github.com/",
+      "setupComplete": "Configuração concluída! Você está pronto para usar o Shep."
+    },
+    "agentConfig": {
+      "enterApiKey": "Insira sua chave de API Anthropic"
+    },
+    "githubImport": {
+      "methodMessage": "Como você gostaria de adicionar um repositório GitHub?",
+      "pasteUrl": "Colar uma URL do GitHub",
+      "pasteUrlDescription": "Insira uma URL de repositório GitHub ou abreviação proprietário/repo",
+      "browseRepos": "Navegar meus repositórios",
+      "browseReposDescription": "Pesquisar e selecionar dos seus repositórios GitHub",
+      "enterUrl": "Insira uma URL de repositório GitHub ou proprietário/repo",
+      "urlRequired": "URL é obrigatória",
+      "invalidUrlFormat": "Formato de URL do GitHub inválido. Use https://github.com/proprietário/repo ou proprietário/repo",
+      "selectRepo": "Selecione um repositório para importar",
+      "noRepos": "Nenhum repositório encontrado. Certifique-se de que você tem repositórios no GitHub.",
+      "cloneDestination": "Destino do clone (deixe vazio para o padrão)"
+    },
+    "mergeReview": {
+      "message": "Revise o merge. O que você gostaria de fazer?",
+      "approveAndMerge": "Aprovar e fazer merge",
+      "approveDescription": "Aceitar as alterações e fazer merge da branch",
+      "reject": "Rejeitar",
+      "rejectDescription": "Fornecer feedback — a implementação será iterada",
+      "rejectFeedback": "O que precisa mudar antes do merge?",
+      "approveComment": "Algum comentário? (opcional, pressione Enter para pular)",
+      "feedbackRequired": "Feedback é obrigatório para rejeição"
+    },
+    "planReview": {
+      "message": "Revise o plano de implementação. O que você gostaria de fazer?",
+      "approveAndContinue": "Aprovar e continuar",
+      "approveDescription": "Aceitar o plano e prosseguir para a implementação",
+      "rejectAndIterate": "Rejeitar e iterar",
+      "rejectDescription": "Fornecer feedback e reexecutar o planejamento",
+      "rejectFeedback": "O que precisa mudar no plano?",
+      "approveComment": "Algum comentário? (opcional, pressione Enter para pular)",
+      "feedbackRequired": "Feedback é obrigatório para rejeição"
+    },
+    "workflowDefaults": {
+      "message": "Selecione os padrões de fluxo de trabalho para novos recursos",
+      "instructions": "(Espaço para alternar, Enter para confirmar)",
+      "allowPrd": "Permitir PRD",
+      "allowPrdDescription": "Aprovar automaticamente a fase de requisitos",
+      "allowPlan": "Permitir Plano",
+      "allowPlanDescription": "Aprovar automaticamente a fase de planejamento",
+      "allowMerge": "Permitir Merge",
+      "allowMergeDescription": "Aprovar automaticamente e fazer merge após a implementação",
+      "pushOnFinish": "Push ao finalizar",
+      "pushOnFinishDescription": "Enviar branch para o remoto quando a implementação for concluída",
+      "createPr": "Criar PR",
+      "createPrDescription": "Abrir pull request quando a implementação for concluída"
+    }
+  },
+  "console": {
+    "title": "Features",
+    "summary": {
+      "needsYou": "precisam de você",
+      "running": "em execução",
+      "waiting": "aguardando",
+      "failed": "com falha",
+      "done": "concluídas"
+    },
+    "fleet": {
+      "queuePaused": "fila em pausa {{duration}}",
+      "breakerTripped": "disjuntor disparado"
+    },
+    "strip": {
+      "label": "PRECISA DE VOCÊ",
+      "empty": "Nada precisa de você agora",
+      "questions": "perguntas: {{count}}",
+      "gate": "revisar {{phase}}"
+    },
+    "columns": {
+      "state": "ESTADO",
+      "feature": "FEATURE",
+      "repo": "REPO",
+      "phase": "FASE",
+      "agent": "AGENTE",
+      "elapsed": "TEMPO",
+      "cost": "CUSTO"
+    },
+    "state": {
+      "running": "Em execução",
+      "action-required": "Precisa de você",
+      "blocked": "Bloqueada",
+      "pending": "Pendente",
+      "queued": "Na fila",
+      "done": "Concluída",
+      "error": "Com falha",
+      "deleting": "Excluindo",
+      "archived": "Arquivada",
+      "question": "Pergunta"
+    },
+    "phase": {
+      "analyze": "análise",
+      "requirements": "requisitos",
+      "research": "pesquisa",
+      "plan": "plano",
+      "implement": "implementação",
+      "merge": "merge",
+      "maintain": "manutenção",
+      "blocked": "bloqueada",
+      "pending": "pendente",
+      "archived": "arquivada",
+      "prototype-generate": "protótipo"
+    },
+    "inspector": {
+      "repo": "Repo",
+      "branch": "Branch",
+      "worktree": "Worktree",
+      "state": "Estado",
+      "agent": "Agente",
+      "elapsed": "Tempo",
+      "cost": "Custo",
+      "tokens": "Tokens",
+      "tokensValue": "{{input}} entrada · {{output}} saída",
+      "pr": "PR",
+      "questions": "Perguntas",
+      "questionsHint": "{{count}} abertas · responda com: shep agent questions ls",
+      "error": "Erro",
+      "noSelection": "Nenhuma feature selecionada"
+    },
+    "log": {
+      "title": "Log",
+      "empty": "Ainda sem saída",
+      "noRun": "Esta feature ainda não tem execução de agente"
+    },
+    "keys": {
+      "select": "selecionar",
+      "details": "detalhes",
+      "log": "log",
+      "approve": "aprovar",
+      "reject": "rejeitar",
+      "stop": "parar",
+      "resume": "retomar",
+      "releaseQueue": "liberar a fila",
+      "help": "ajuda",
+      "quit": "sair",
+      "shell": "shell",
+      "follow": "seguir log",
+      "filter": "filtrar",
+      "palette": "comandos",
+      "copyId": "copiar id",
+      "chat": "chat",
+      "harness": "alterações do harness ({{count}})",
+      "newFeature": "nova funcionalidade"
+    },
+    "reject": {
+      "prompt": "Feedback para {{name}}:",
+      "hint": "enter enviar · esc cancelar"
+    },
+    "stop": {
+      "confirm": "Parar {{name}}? A execução poderá ser retomada. (y/n)"
+    },
+    "progress": {
+      "approve": "Aprovando {{name}}…",
+      "reject": "Rejeitando {{name}}…",
+      "stop": "Parando {{name}}…",
+      "resume": "Retomando {{name}}…",
+      "releaseQueue": "Liberando a fila em pausa…"
+    },
+    "refreshFailed": "Falha ao atualizar: {{message}}",
+    "empty": {
+      "title": "Ainda não há features",
+      "hint": "Crie uma com: shep feat new \"<o que construir>\""
+    },
+    "help": {
+      "title": "Teclas",
+      "navigate": "↑ ↓ / j k   mover",
+      "pages": "PgUp PgDn / g G   página, primeira, última",
+      "details": "enter / i   painel de detalhes",
+      "log": "l   painel de log",
+      "approve": "a   aprovar a etapa",
+      "reject": "r   rejeitar a etapa com feedback",
+      "stop": "s   parar a execução (pergunta antes)",
+      "resume": "R   retomar uma execução interrompida ou com falha",
+      "releaseQueue": "u   liberar a fila em pausa (pede confirmação)",
+      "help": "?   esta ajuda (esc fecha)",
+      "quit": "q / ctrl+c   sair",
+      "shell": "t / T   shell no worktree (dividido / nova janela)",
+      "follow": "f / F   seguir o log do agente (dividido / nova janela)",
+      "filter": "/   filtrar as funcionalidades (esc limpa)",
+      "palette": ":/ctrl+p   paleta de comandos",
+      "copyId": "c   copiar o id da funcionalidade",
+      "controlCenter": "C   uma janela por funcionalidade ativa (centro de controle)",
+      "chat": "o   conversar com o agente da funcionalidade (esc volta)",
+      "harness": "d   alterações aprendidas do harness à sua espera (adotar / rejeitar)",
+      "newFeature": "N   nova funcionalidade no repositório da funcionalidade selecionada"
+    },
+    "notTty": "shep tui precisa de um terminal interativo. Em scripts e pipes, use \"shep feat ls\".",
+    "filter": {
+      "hint": "digite para filtrar · enter manter · esc limpar",
+      "active": "filtro “{{query}}” · {{shown}} de {{total}}",
+      "noMatch": "Nenhuma funcionalidade corresponde a “{{query}}”"
+    },
+    "inline": {
+      "shell": "Shell em {{cwd}}. Digite exit para voltar ao shep tui.",
+      "log": "Seguindo o log de {{name}}. Pressione ctrl+c para voltar ao shep tui."
+    },
+    "notify": {
+      "body": "{{name}} precisa de você"
+    },
+    "windowTitle": {
+      "attention": "shep · precisam de você: {{count}}",
+      "idle": "shep tui"
+    },
+    "palette": {
+      "title": "Comandos",
+      "count": "{{count}} disponíveis",
+      "noMatch": "Nenhum comando corresponde",
+      "hint": "digite para buscar · ↑↓ escolher · enter executar · esc fechar",
+      "commands": {
+        "approve": "Aprovar o portão",
+        "reject": "Rejeitar o portão com feedback",
+        "stop": "Parar a execução",
+        "resume": "Retomar a execução",
+        "shell": "Abrir um shell ao lado do console",
+        "shell-window": "Abrir um shell em nova janela",
+        "follow-log": "Seguir o log do agente ao lado do console",
+        "follow-log-window": "Seguir o log do agente em nova janela",
+        "details": "Mostrar detalhes",
+        "log": "Mostrar o log",
+        "copy-id": "Copiar o id da funcionalidade",
+        "filter": "Filtrar funcionalidades",
+        "clear-filter": "Limpar o filtro",
+        "help": "Mostrar teclas",
+        "quit": "Sair",
+        "control-center": "Abrir uma janela para cada funcionalidade ativa",
+        "chat": "Conversar com o agente da funcionalidade",
+        "harness-decisions": "Rever as alterações aprendidas do harness",
+        "new-feature": "Criar uma nova funcionalidade"
+      }
+    },
+    "copied": "Id de {{name}} copiado: {{id}}",
+    "controlCenter": {
+      "none": "Cada funcionalidade ativa já tem uma janela"
+    },
+    "chat": {
+      "title": "Chat",
+      "you": "você",
+      "working": "trabalhando…",
+      "loading": "Carregando o chat…",
+      "empty": "Ainda sem mensagens. Escreva abaixo para falar com o agente desta funcionalidade; ele roda em {{directory}}.",
+      "answerPrompt": "resposta",
+      "hint": "enter enviar · esc voltar às funcionalidades",
+      "hintQuestion": "1–9 escolher uma opção · ou digite uma resposta e pressione enter · esc voltar"
+    },
+    "release": {
+      "confirm": "Liberar a fila em pausa? Novos features podem começar. (y/n)",
+      "done": "Fila liberada — os features em espera podem começar"
+    },
+    "hostStatus": {
+      "blocked": "precisam de você: {{count}}"
+    },
+    "harness": {
+      "title": "Alterações aprendidas do harness",
+      "waiting": "em espera: {{count}}",
+      "empty": "Nenhuma alteração do harness está à sua espera",
+      "hint": "↑↓ escolher · a adotar · r rejeitar · esc voltar às funcionalidades",
+      "rejectPrompt": "Rejeitar — porquê?",
+      "rejectHint": "o feedback opcional orienta a próxima proposta · enter rejeitar · esc cancelar",
+      "progress": "A responder à alteração do harness…",
+      "adopted": "Alteração do harness adotada",
+      "rejected": "Alteração do harness rejeitada",
+      "alreadySettled": "Esta alteração do harness já foi respondida noutro lugar",
+      "collaborationOff": "As alterações do harness são respondidas na caixa de entrada; ative-a com: shep settings flags enable collaboration"
+    },
+    "create": {
+      "title": "Nova funcionalidade em {{repository}}",
+      "prompt": "descrever",
+      "describe": "Descreva a funcionalidade na linha abaixo e prima enter. As aprovações, o push e o PR seguem as suas definições de fluxo de trabalho.",
+      "explore": "Explore",
+      "k": "k",
+      "on": "ligado",
+      "off": "desligado",
+      "kRange": "↑↓ 1–{{max}}",
+      "exploreCost": "O Explore experimenta várias variantes do harness no passo de implementação, só para esta funcionalidade, e fica com a melhor. Custa cerca de 4 vezes o passo de implementação com k = 1, mais com k maior.",
+      "hint": "enter criar · esc cancelar",
+      "hintExplore": "enter criar · tab Explore ligado/desligado · ↑↓ k · esc cancelar",
+      "progress": "A criar uma funcionalidade em {{repository}}…",
+      "created": "{{name}} criada",
+      "queued": "{{name}} criada — em fila na posição {{position}}"
+    }
+  }
+}
