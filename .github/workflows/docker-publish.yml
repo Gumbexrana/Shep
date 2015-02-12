@@ -1,0 +1,82 @@
+# =============================================================================
+# Docker Publish
+# =============================================================================
+# Builds the production image from the multi-stage Dockerfile and publishes it
+# to the GitHub Container Registry (GitHub Packages) at ghcr.io/shep-ai/shep.
+#
+# Triggers:
+#   - a published GitHub Release. semantic-release creates the release (and its
+#     `v*` tag) via the RELEASE_TOKEN PAT, so the `release` event cascades and
+#     fires this workflow. We deliberately do NOT trigger on `push: tags: v*`:
+#     semantic-release tags the `chore(release): x.y.z [skip ci]` commit, and a
+#     tag pointing at a `[skip ci]` commit is skipped by GitHub Actions — so a
+#     tag-push trigger would never run. The `release` event is immune to that.
+#   - manual dispatch, for one-off/backfill publishes.
+#
+# Auth: logs in with the RELEASE_TOKEN PAT (which carries `write:packages`).
+# The built-in GITHUB_TOKEN cannot create the org-owned package on first push
+# (ghcr.io returns 403 Forbidden until the package exists and is linked to the
+# repo), so we use the same PAT semantic-release already uses.
+# =============================================================================
+
+name: Docker Publish
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+concurrency:
+  group: docker-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  docker:
+    name: Build & Push Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          # RELEASE_TOKEN (PAT with write:packages) — GITHUB_TOKEN 403s on the
+          # first org package publish until the package is created + repo-linked.
+          password: ${{ secrets.RELEASE_TOKEN }}
+
+      - name: Extract image metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,prefix=sha-,format=long
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
