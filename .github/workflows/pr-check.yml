@@ -1,0 +1,99 @@
+# =============================================================================
+# Pull Request Check Workflow
+# =============================================================================
+# Additional checks for pull requests including commit message validation.
+
+name: PR Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  # ===========================================================================
+  # Commit Message Validation
+  # ===========================================================================
+  commitlint:
+    name: Validate Commits
+    # `edited` fires on closed and merged PRs too — editing the description of
+    # a PR that landed weeks ago re-runs this job. GitHub stops maintaining
+    # refs/pull/N/merge once a PR closes, so the base..head range no longer
+    # resolves and commitlint dies with "fatal: Invalid revision range", making
+    # a merged PR look freshly broken. Nothing here is worth checking after the
+    # commits have already landed.
+    if: github.event.pull_request.state == 'open'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate commit messages
+        run: |
+          pnpm exec commitlint \
+            --from ${{ github.event.pull_request.base.sha }} \
+            --to ${{ github.event.pull_request.head.sha }} \
+            --verbose
+
+  # ===========================================================================
+  # PR Title Validation (Conventional Commits)
+  # ===========================================================================
+  pr-title:
+    name: Validate PR Title
+    # Same reason as above: a merged PR's title is no longer actionable.
+    if: github.event.pull_request.state == 'open'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - name: Check PR title format
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+            revert
+          scopes: |
+            specs
+            shep-kit
+            cli
+            tui
+            web
+            api
+            domain
+            agents
+            deployment
+            tsp
+            deps
+            config
+            dx
+            release
+            ci
+          requireScope: false
+          subjectPattern: ^.+$
+          subjectPatternError: |
+            PR title subject must not be empty.
+            Example: "feat(cli): Add new command"
