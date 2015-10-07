@@ -1,0 +1,27 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: NotificationEventType.yaml
+type: string
+enum:
+  - agent_started
+  - phase_completed
+  - waiting_approval
+  - agent_completed
+  - agent_failed
+  - pr_merged
+  - pr_closed
+  - pr_checks_passed
+  - pr_checks_failed
+  - pr_blocked
+  - merge_review_ready
+  - cloud_deployment_updated
+  - application_updated
+  - operation_log_appended
+  - agent_question_pending
+  - agent_question_blocking
+  - agent_message_blocked
+  - supervisor_escalated
+  - supervisor_failed
+  - workflow_started
+  - workflow_completed
+  - workflow_failed
+description: Types of agent lifecycle notification events
