@@ -1,0 +1,77 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: Settings.yaml
+type: object
+properties:
+  models:
+    $ref: ModelConfiguration.yaml
+    description: AI model configuration for different agents
+  user:
+    $ref: UserProfile.yaml
+    description: User profile information
+  environment:
+    $ref: EnvironmentConfig.yaml
+    description: Environment and tooling preferences
+  system:
+    $ref: SystemConfig.yaml
+    description: System-level parameters
+  agent:
+    $ref: AgentConfig.yaml
+    description: AI coding agent selection and authentication
+  notifications:
+    $ref: NotificationPreferences.yaml
+    description: Notification preferences for agent lifecycle events
+  workflow:
+    $ref: WorkflowConfig.yaml
+    description: Global workflow configuration defaults
+  featureFlags:
+    $ref: FeatureFlags.yaml
+    description: Feature flag toggles for runtime feature control
+  onboardingComplete:
+    type: boolean
+    default: false
+    description: "Whether first-run onboarding has been completed (default: false)"
+  interactiveAgent:
+    $ref: InteractiveAgentConfig.yaml
+    description: Interactive agent chat configuration (optional, defaults applied at runtime)
+  fabLayout:
+    $ref: FabLayoutConfig.yaml
+    description: FAB layout configuration (optional, defaults applied at runtime)
+  supervisor:
+    $ref: SupervisorConfig.yaml
+    description: Supervisor agent default configuration (optional, defaults applied at runtime)
+  defaultHomePage:
+    $ref: DefaultHomePage.yaml
+    description: "Default landing page when opening the web UI (default: control-center)"
+  whatsapp:
+    $ref: WhatsAppConfig.yaml
+    description: WhatsApp integration configuration (optional, defaults applied at runtime)
+  security:
+    $ref: SecurityConfig.yaml
+    description: Supply-chain security configuration (optional, defaults applied at runtime)
+  messaging:
+    $ref: MessagingConfig.yaml
+    description: Messaging remote control configuration (optional, defaults applied at runtime)
+  worktree:
+    $ref: WorktreeConfig.yaml
+    description: Custom worktree provisioning commands (optional, built-in git worktree by default)
+  harness:
+    $ref: HarnessConfig.yaml
+    description: Query-aware agent harness configuration (optional, defaults applied at runtime)
+  telemetry:
+    $ref: TelemetryConfig.yaml
+    description: Usage metrics preferences (optional, defaults applied at runtime)
+  learning:
+    $ref: LearningConfig.yaml
+    description: Self-learning harness settings (optional, defaults applied at runtime)
+required:
+  - models
+  - user
+  - environment
+  - system
+  - agent
+  - notifications
+  - workflow
+  - onboardingComplete
+allOf:
+  - $ref: BaseEntity.yaml
+description: Global Shep platform settings (singleton)
