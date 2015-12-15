@@ -1,0 +1,11 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: SystemConfig.yaml
+type: object
+properties:
+  logLevel:
+    type: string
+    default: info
+    description: Log level for CLI output
+required:
+  - logLevel
+description: System configuration
