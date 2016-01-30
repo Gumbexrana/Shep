@@ -1,0 +1,1637 @@
+# CLI Command Reference
+
+## Global Options
+
+| Option          | Description                     |
+| --------------- | ------------------------------- |
+| `-v, --version` | Display version number and exit |
+| `-h, --help`    | Display help and exit           |
+
+Running `shep` with no arguments starts the web UI daemon.
+
+---
+
+## Daemon Commands
+
+### `shep`
+
+Start the web UI daemon. This is the default action when no subcommand is
+provided: the root command's `.action()` calls `startDaemon()` and nothing else.
+
+`startDaemon()` spawns a detached `shep _serve` child, waits for the server to
+answer, writes `daemon.json` (pid, port, start time), and then opens
+`http://localhost:<port>/applications` in the browser.
+
+**First run does not open a terminal wizard.** Onboarding is completed in the web
+UI that `startDaemon()` just opened. The only CLI onboarding gate lives in
+`shep feat new`, which runs the TUI wizard before creating a feature when stdin
+is a TTY and onboarding is incomplete.
+
+**Source**: `src/presentation/cli/index.ts` (default action) + `src/presentation/cli/commands/daemon/start-daemon.ts`
+
+### `shep start`
+
+Start the web UI as a background daemon.
+
+**Source**: `src/presentation/cli/commands/start.command.ts`
+
+| Option                | Description              | Default |
+| --------------------- | ------------------------ | ------- |
+| `-p, --port <number>` | Port number (1024-65535) | `4050`  |
+
+### `shep stop`
+
+Stop the running web UI daemon.
+
+**Source**: `src/presentation/cli/commands/stop.command.ts`
+
+### `shep restart`
+
+Restart (or start) the web UI daemon.
+
+**Source**: `src/presentation/cli/commands/restart.command.ts`
+
+### `shep status`
+
+Show status and metrics of the running daemon.
+
+**Source**: `src/presentation/cli/commands/status.command.ts`
+
+### `shep ps`
+
+List the processes Shep runs on this machine (spec 144): the web daemon and every agent worker,
+with the feature it serves, its agent, status, uptime, CPU and memory.
+
+**Source**: `src/presentation/cli/commands/ps/ps.command.ts` (rows: `ListShepProcessesUseCase`)
+
+**Options**:
+
+| Option        | Description                                                         | Default |
+| ------------- | ------------------------------------------------------------------- | ------- |
+| `--all`       | Include runs whose process has exited (finished, failed, at a gate) | —       |
+| `--json`      | Print the rows as JSON, without colour                              | —       |
+| `-w, --watch` | Redraw every 2 seconds until `ctrl+c` (interactive terminals only)  | —       |
+
+**Subcommands**:
+
+| Command                        | Description                                                            |
+| ------------------------------ | ---------------------------------------------------------------------- |
+| `shep ps stop <id> [--force]`  | Stop an agent run by run id, feature id, or a prefix of either; a feature id stops that feature's running agent. The daemon is refused: use `shep stop`. |
+
+**Examples**:
+
+```bash
+shep ps                 # live Shep processes
+shep ps --all           # include exited runs
+shep ps --json | jq '.processes[] | select(.state == "crashed")'
+shep ps -w              # redraw every 2 seconds
+shep ps stop feat-abc1  # stop a feature's running agent
+```
+
+**Behavior**:
+
+- **State** is `running` (the process is alive), `crashed` (its run is still marked running or
+  pending but the process is gone; resume it with `shep feat resume`), or `exited` (finished,
+  failed, or paused at an approval gate). A zombie — exited but not yet reaped, so it still
+  answers `kill(pid, 0)` — counts as exited.
+- **CPU and memory** come from one `ps -o pid=,stat=,pcpu=,rss=` call for every row. They are not
+  available on Windows, where the columns show `—`.
+- Refuses to stop the agent run it is called from (inside a Shep agent) unless `--force`.
+
+### `shep ui`
+
+Start the web UI in foreground (interactive, non-daemon mode).
+
+**Source**: `src/presentation/cli/commands/ui.command.ts`
+
+**Options**:
+
+| Option                | Description              | Default |
+| --------------------- | ------------------------ | ------- |
+| `-p, --port <number>` | Port number (1024-65535) | `4050`  |
+| `--no-open`           | Do not open the browser  | —       |
+
+**Examples**:
+
+```bash
+# Start on default port
+shep ui
+
+# Start on custom port
+shep ui --port 8080
+
+# Start without opening the browser
+shep ui --no-open
+```
+
+**Behavior**:
+
+- Starts the web UI server and prints the URL.
+- Auto-increments port if the requested port is already occupied.
+- Graceful shutdown on Ctrl+C.
+
+### `shep tui`
+
+Open the live terminal console of every feature (specs 142, 143). It runs full screen and
+refreshes every 2 seconds. Features waiting on you (an approval gate or an open agent question)
+are pinned in a strip at the top and sorted first. Inside tmux, Zellij, WezTerm or kitty it opens
+a feature's shell or followed agent log in a split pane.
+
+**Source**: `src/presentation/cli/commands/tui.command.ts` (view: `src/presentation/tui/feature-console/`)
+
+**Options**:
+
+| Option          | Description                            | Default |
+| --------------- | -------------------------------------- | ------- |
+| `--repo <path>` | Only show features of this repository  | —       |
+| `--all`         | Include archived features              | —       |
+| `--no-notify`   | No bell or terminal notification when a feature starts needing you | notify on |
+| `--status [style]` | Print a one-line summary and exit (`plain`, or `tmux` with styles); needs no TTY | — |
+
+**Keys**:
+
+| Key               | Action                                             |
+| ----------------- | -------------------------------------------------- |
+| `↑` `↓` / `j` `k` | Move the selection                                 |
+| `PgUp` `PgDn`, `g` `G` | Page, first, last                             |
+| `enter` / `i`     | Details pane                                       |
+| `l`               | Log pane (tail of the current run, kept fresh)     |
+| `a`               | Approve the gate                                   |
+| `r`               | Reject the gate; type feedback, `enter` sends      |
+| `s`               | Stop the run, after `y` to confirm (stays resumable) |
+| `R`               | Resume an interrupted or failed run                |
+| `u`               | Release a paused fleet queue (spec 148), after `y` to confirm; only offered while paused |
+| `o`               | Attach: chat with the feature's agent (the web Chat tab's conversation); `esc` returns |
+| `t` / `T`         | Shell in the feature's worktree: split pane / new window |
+| `f` / `F`         | Follow the agent log (`shep feat logs -f`): split pane / new window |
+| `/`               | Filter the roster by every word typed; `enter` keeps it, `esc` clears it |
+| `ctrl+p` / `:`    | Command palette: every command that applies, fuzzy search, `enter` runs it |
+| `c`               | Copy the selected feature's full id to the clipboard (OSC 52) |
+| `C`               | Control center: a window per active feature, following its log, named with its state |
+| `?`               | Help                                               |
+| `q` / `ctrl+c`    | Quit and restore the terminal                      |
+
+A parked admission queue — from `shep fleet pause` or a circuit-breaker trip — shows as a banner
+line above the strip, with its age and reason (spec 148). `u` releases it through the same
+`SetFleetQueuePauseUseCase` as `shep fleet resume` and the web dashboard's Resume button. The
+console never parks the queue itself.
+
+Action keys appear in the key bar only when the selected feature's run accepts them.
+
+**Behavior**:
+
+- Needs an interactive terminal; in scripts and pipes it exits 1 and points to `shep feat ls`.
+- Works without the web daemon: it reads the database and runs actions through the same use
+  cases as `shep feat approve` / `reject` / `resume` and `shep agent stop`.
+- Uses the terminal's alternate screen, so your scrollback is untouched when you quit.
+- **Panes.** The multiplexer is detected from its session variable: `TMUX`, `ZELLIJ`,
+  `WEZTERM_PANE`, then `KITTY_WINDOW_ID` (kitty needs `allow_remote_control yes`).
+  `SHEP_MULTIPLEXER=tmux|zellij|wezterm|kitty` picks one, and `SHEP_MULTIPLEXER=none` turns panes
+  off. A pane starts in the worktree, or in the repository before the worktree exists, and
+  inherits the console's `SHEP_HOME`. A shell pane takes focus; a log pane leaves it on the
+  console. Each split halves the console's pane, so use `T` / `F` for several at once.
+- **No multiplexer.** `t` and `f` run in this terminal: the console steps aside, and comes back
+  when the shell exits or `ctrl+c` ends the log.
+- **Attach (`o`).** A full-screen transcript of the feature's agent chat — the same conversation
+  the web UI's Chat tab shows, with an interactive agent (Claude Code or Cursor) running in the
+  feature's worktree. Text streams in as the agent writes, each tool call is one muted line, and
+  `enter` sends what you type. When the agent asks a question, its options are numbered: a digit
+  on an empty line picks one, or type an answer in your own words. Chat sessions the console
+  starts run inside it and stop when you quit. The background feature worker is not affected:
+  steer it at its gates with `a` / `r`.
+- **Control center.** `C` opens a window (tmux window, WezTerm or kitty tab, Zellij floating pane)
+  for every active feature that has a run and no window yet, each following that feature's log.
+  The console renames each window as its state changes (`◆` needs you, `●` running, `✗` failed,
+  `✓` done); Zellij cannot rename an unfocused pane, so its names stay as opened.
+- **tmux status.** Inside tmux the console publishes `@shep_status` (styled) and
+  `@shep_needs_you` (a number) whenever they change:
+
+  ```tmux
+  set -g status-right '#{@shep_status}  %H:%M'
+  ```
+
+  Outside the console, `shep tui --status tmux` prints the same segment (it opens the database,
+  so prefer the option while the console runs).
+- **Alerts.** When a feature starts needing you, the console sends the terminal's own
+  notification (OSC 9 in iTerm2, OSC 777 in WezTerm and Ghostty, OSC 99 in kitty) or a bell. In
+  tmux it uses passthrough (set `allow-passthrough on`) plus a bell; in Zellij a bell. The window
+  title shows how many features need you.
+
+### `shep _serve` (internal, hidden)
+
+> **Not a user-facing command.** The name is `_serve`, with the leading
+> underscore, and it is hidden from `--help` (`helpOption(false)`,
+> `addHelpCommand(false)`). Do not document or script against it as `shep serve`
+> — no such command exists.
+
+The daemon child entry point. `startDaemon()` spawns it as a detached process;
+it starts the web server in the foreground and boots the background watchers
+(notifications, auto-archive, contributor pipeline). Run `shep start` or
+`shep ui` instead.
+
+| Option                | Description | Default |
+| --------------------- | ----------- | ------- |
+| `-p, --port <number>` | Port number | `4050`  |
+
+**Source**: `src/presentation/cli/commands/_serve.command.ts`
+
+---
+
+## Feature Commands
+
+### `shep feat new <description>`
+
+Create a new feature. When stdin is a TTY and onboarding is not yet complete,
+this command runs the onboarding wizard first.
+
+**Source**: `src/presentation/cli/commands/feat/new.command.ts`
+
+| Option                       | Description                                                          |
+| ---------------------------- | -------------------------------------------------------------------- |
+| `-r, --repo <path>`          | Target repository (default: cwd)                                      |
+| `--remote <url>`             | Remote URL to use                                                     |
+| `--push`                     | Push the branch on completion                                         |
+| `--pr` / `--no-pr`           | Open (or suppress) a pull request on completion                       |
+| `--allow-prd`                | Auto-approve the PRD gate                                             |
+| `--allow-plan`               | Auto-approve the plan gate                                            |
+| `--allow-merge`              | Auto-approve the merge gate                                           |
+| `--allow-all`                | Auto-approve all three spec/merge gates                               |
+| `--parent <fid>`             | Set a parent feature (dependency)                                     |
+| `--pending`                  | Create the feature without spawning the agent                         |
+| `--fast` / `--no-fast`       | Fast mode — skip detailed planning                                    |
+| `--explore`                  | Exploration mode (mutually exclusive with `--fast`)                   |
+| `--model <model>`            | Pin a model for this run                                              |
+| `--no-rebase`                | Skip the rebase onto the base branch                                  |
+| `--inject-skills` / `--no-inject-skills` | Override the skill-injection setting                      |
+| `--attach <path>`            | Attach a reference file (repeatable)                                  |
+
+`--allow-all` sets only the three approval gates
+(`allowPrd`, `allowPlan`, `allowMerge`). It does **not** imply `--push` or
+`--pr`. `--model` falls back to Shep's configured default
+(`settings.models.default`) when omitted.
+
+### `shep feat ls`
+
+List features.
+
+**Source**: `src/presentation/cli/commands/feat/ls.command.ts`
+
+| Option              | Description                             |
+| ------------------- | --------------------------------------- |
+| `-r, --repo <path>` | Scope the listing to one repository     |
+| `--include-deleted` | Include soft-deleted features           |
+| `--show-archived`   | Include archived features               |
+
+### `shep feat show <id>`
+
+Show details of a specific feature.
+
+**Source**: `src/presentation/cli/commands/feat/show.command.ts`
+
+### `shep feat status <id>`
+
+What a feature's agent is doing (working, blocked, waiting, done or failed),
+why, and the command that moves it along: approve or reject at a gate, answer
+an open question, or resume a failed run.
+[Agent activity](../architecture/agent-activity.md).
+
+| Option   | Description                  |
+| -------- | ---------------------------- |
+| `--json` | Print the activity as JSON   |
+
+**Source**: `src/presentation/cli/commands/feat/status.command.ts`
+
+### `shep feat wait <id>`
+
+Block until the feature's agent needs someone or stops, or reaches the states
+given with `--until`. Returns at once if it already has.
+
+| Option                | Description                                                                 |
+| --------------------- | --------------------------------------------------------------------------- |
+| `--until <states>`    | Comma-separated: `working`, `blocked`, `waiting`, `done`, `failed` (default `blocked,done,failed`) |
+| `--timeout <seconds>` | Give up after this long (default: wait forever)                             |
+| `--json`              | Print `{ outcome, activity }` as JSON                                       |
+
+Exit codes: `0` reached, `1` not found, `2` timed out, `3` ambiguous id, `130` interrupted.
+
+**Source**: `src/presentation/cli/commands/feat/wait.command.ts`
+
+### `shep feat start <id>`
+
+Start a pending feature (spawn the agent). `--force` starts it even when the
+usual preconditions do not hold.
+
+**Source**: `src/presentation/cli/commands/feat/start.command.ts`
+
+### `shep feat del <id>`
+
+Delete a feature.
+
+**Source**: `src/presentation/cli/commands/feat/del.command.ts`
+
+| Option           | Description                           |
+| ---------------- | ------------------------------------- |
+| `-f, --force`    | Skip the confirmation prompt          |
+| `--no-cleanup`   | Leave the worktree and branch in place |
+| `--no-close-pr`  | Leave an open PR open                 |
+
+### `shep feat resume <id>`
+
+Resume a stopped or failed feature agent.
+
+**Source**: `src/presentation/cli/commands/feat/resume.command.ts`
+
+### `shep feat review [id]`
+
+Interactive review of a feature waiting for approval.
+
+**Source**: `src/presentation/cli/commands/feat/review.command.ts`
+
+### `shep feat approve [id]`
+
+Approve a feature waiting for review.
+
+**Source**: `src/presentation/cli/commands/feat/approve.command.ts`
+
+### `shep feat reject [id] --reason <text>`
+
+Reject a feature waiting for review.
+
+**Source**: `src/presentation/cli/commands/feat/reject.command.ts`
+
+| Option            | Description                               |
+| ----------------- | ----------------------------------------- |
+| `--reason <text>` | Rejection reason — **required**            |
+
+`--reason` is a `requiredOption`: the command fails without it. There is no
+`--feedback` flag.
+
+### `shep feat comments <id>` / `shep feat address-comments <id> [comments...]`
+
+Review comments on the feature's pull request (spec 124). `comments` reads them from GitHub
+and lists each with its state (`--no-refresh` shows the stored ones). `address-comments` has an
+agent address the pending comments (or the ids or id prefixes given) in the feature's
+worktree, push, and reply on each; it exits 1 if the round fails. The feature must be waiting
+for review with an open pull request. See the [PR comments guide](../guides/pr-comments.md).
+
+### `shep feat logs <id>`
+
+View feature agent logs.
+
+**Source**: `src/presentation/cli/commands/feat/logs.command.ts`
+
+| Option                | Description                            | Default |
+| --------------------- | -------------------------------------- | ------- |
+| `-f, --follow`        | Stream new lines as they arrive        | —       |
+| `-n, --lines <count>` | Show only the last N lines (0 = all)   | `0`     |
+
+### `shep feat checkpoints <id>`
+
+List the git checkpoint taken after each step of the feature's run, with each checkpoint's label,
+time, change summary and commit. See [git checkpoints](../architecture/git-checkpoints.md).
+
+**Source**: `src/presentation/cli/commands/feat/checkpoints.command.ts`
+
+### `shep feat diff <id> --to <step>`
+
+Show what one step changed, compared with the step before it. Add `--from` to compare any two
+steps. A step is a sequence number (`3`), a step name (`implement`, meaning its latest
+checkpoint) or a label (`0003-implement`).
+
+**Source**: `src/presentation/cli/commands/feat/diff.command.ts`
+
+| Option          | Description                                  | Default             |
+| --------------- | -------------------------------------------- | ------------------- |
+| `--to <step>`   | The step to show (required)                  | —                   |
+| `--from <step>` | The step to compare against                  | the step before `--to` |
+| `--stat`        | List only the changed files                  | —                   |
+
+### `shep feat restore <id> <step>`
+
+Roll the feature's worktree back to a checkpoint. The state before the restore is saved as a
+`pre-restore` checkpoint, the branch is not moved, and ignored files are kept. The restore is
+refused unless the feature runs in its own linked worktree and no agent is running.
+`-f, --force` skips the confirmation prompt.
+
+**Source**: `src/presentation/cli/commands/feat/restore.command.ts`
+
+### `shep feat adopt <branch>`
+
+Adopt an existing branch as a tracked feature. `-r, --repo <path>` selects the
+repository.
+
+**Source**: `src/presentation/cli/commands/feat/adopt.command.ts`
+
+### `shep feat archive <id>` / `shep feat unarchive <id>`
+
+Archive a feature to hide it from the canvas, or restore an archived feature to
+its previous state. `archive` accepts `-f, --force`.
+
+**Source**: `src/presentation/cli/commands/feat/archive.command.ts`,
+`src/presentation/cli/commands/feat/unarchive.command.ts`
+
+### `shep feat feedback <id> <feedback>`
+
+Send feedback on an exploration prototype so the agent iterates on it.
+
+**Source**: `src/presentation/cli/commands/feat/feedback.command.ts`
+
+### `shep feat promote <id>`
+
+Promote an exploration feature to Regular or Fast mode (`--fast` selects Fast).
+
+**Source**: `src/presentation/cli/commands/feat/promote.command.ts`
+
+---
+
+## Agent Commands
+
+### `shep agent ls`
+
+List all agent runs.
+
+**Source**: `src/presentation/cli/commands/agent/ls.command.ts`
+
+### `shep agent show`
+
+Show details of a specific agent run.
+
+**Source**: `src/presentation/cli/commands/agent/show.command.ts`
+
+### `shep agent stop`
+
+Stop a running agent.
+
+**Source**: `src/presentation/cli/commands/agent/stop.command.ts`
+
+### `shep agent logs`
+
+View agent run logs.
+
+**Source**: `src/presentation/cli/commands/agent/logs.command.ts`
+
+### `shep agent delete`
+
+Delete an agent run record.
+
+**Source**: `src/presentation/cli/commands/agent/delete.command.ts`
+
+### `shep agent approve`
+
+Approve an agent action.
+
+**Source**: `src/presentation/cli/commands/agent/approve.command.ts`
+
+### `shep agent reject`
+
+Reject a paused agent run and cancel it.
+
+**Source**: `src/presentation/cli/commands/agent/reject.command.ts`
+
+### `shep agent questions` (group)
+
+The unified question/escalation inbox (spec 093, gated on the `collaboration`
+feature flag). Every subcommand takes `--app <id>` for scope isolation.
+
+| Subcommand                          | Purpose                                                   |
+| ----------------------------------- | --------------------------------------------------------- |
+| `ls --app <id>`                     | List questions; `--feature <id>` and `--limit <n>` narrow  |
+| `answer <questionId> --app <id> --answer <text>` | Record an answer (`--answered-by`, default `user:cli`) |
+| `cancel <questionId> --app <id>`    | Cancel a question (`--reason`, `--cancelled-by`)           |
+
+**Source**: `src/presentation/cli/commands/agent/questions/`
+
+### `shep agent message send` (group)
+
+Publish a message onto the inter-agent message bus. Requires `--app <id>`,
+`--from-actor <actor>` and `--payload <json>`; `--feature`,
+`--from-agent-run-id` and `--correlation-id` are optional.
+
+**Source**: `src/presentation/cli/commands/agent/message/`
+
+---
+
+## Repository Commands
+
+### `shep repo ls`
+
+List tracked repositories.
+
+**Source**: `src/presentation/cli/commands/repo/ls.command.ts`
+
+### `shep repo show <id>`
+
+Display details of a tracked repository.
+
+**Source**: `src/presentation/cli/commands/repo/show.command.ts`
+
+### `shep repo add`
+
+Import a GitHub repository — clone and register it. `--url <url>` names the
+repository, `--dest <path>` the clone destination.
+
+**Source**: `src/presentation/cli/commands/repo/add.command.ts`
+
+### `shep repo import <dir>`
+
+Import local folders as tracked repositories in bulk. `--all` skips the
+interactive picker; `--git-only` restricts the import to folders that are git
+repositories.
+
+**Source**: `src/presentation/cli/commands/repo/import.command.ts`
+
+### `shep repo init-remote [name]`
+
+Create a GitHub repository from the current local repo and push to it.
+`--public` makes it public; `--org <name>` creates it under an organization.
+
+**Source**: `src/presentation/cli/commands/repo/init-remote.command.ts`
+
+---
+
+## Session Commands
+
+### `shep session ls`
+
+List sessions.
+
+**Source**: `src/presentation/cli/commands/session/ls.command.ts`
+
+### `shep session show`
+
+Show details of a specific session.
+
+**Source**: `src/presentation/cli/commands/session/show.command.ts`
+
+---
+
+## Chat Commands
+
+### `shep chat block <spec-review|preview|plan>`
+
+Post a rich block into a chat conversation (spec 137): a spec or PRD to approve or send back
+(`spec-review`), a self-contained HTML page shown in a sandboxed, network-less frame
+(`preview`), or a plan to implement or refine (`plan`). Chat agents run it to show something
+inline; the user's answer arrives as their next message.
+
+```bash
+shep chat block plan --title "Add dark mode" --file plan.md
+shep chat block preview --title "Pricing card" --file card.html
+shep chat block spec-review --scope global --title "Login PRD" --content "# Login"
+```
+
+| Option | Description |
+| ------ | ----------- |
+| `--title <title>` | Title shown in the block header (required) |
+| `--file <path>` / `--content <text>` | The body: Markdown, or HTML for `preview` (exactly one) |
+| `--scope <conversation>` | `global`, `repo-<id>`, `app-<id>` or a feature id. Defaults to `$SHEP_CHAT_SCOPE`, which every chat session sets |
+
+The same block can be posted by any MCP client through the `post_chat_block` tool of `shep mcp`.
+
+**Source**: `src/presentation/cli/commands/chat/index.ts`
+
+---
+
+## Settings Commands
+
+### `shep settings`
+
+Launch the full setup wizard (agent + IDE + workflow). Running `shep settings` without a subcommand launches the onboarding wizard interactively.
+
+**Source**: `src/presentation/cli/commands/settings/index.ts`
+
+### `shep settings show`
+
+Display current settings.
+
+**Source**: `src/presentation/cli/commands/settings/show.command.ts`
+
+**Options**:
+
+| Option                  | Description                            | Default |
+| ----------------------- | -------------------------------------- | ------- |
+| `-o, --output <format>` | Output format: `table`, `json`, `yaml` | `table` |
+
+**Examples**:
+
+```bash
+# Table format (default)
+shep settings show
+
+# JSON format
+shep settings show --output json
+
+# YAML format (short flag)
+shep settings show -o yaml
+```
+
+**Table output** renders four sections (Models, User, Environment, System) followed by database metadata (path, file size). Optional user fields show `(not set)` when null.
+
+**JSON/YAML output** prints the raw Settings object without database metadata.
+
+**Data source**: Reads from the in-memory settings singleton via `getSettings()`.
+
+**Error handling**: Catches errors, prints via `messages.error()`, sets `process.exitCode = 1`.
+
+### `shep settings init`
+
+Reset settings to defaults. Creates a fresh `Settings` object from `createDefaultSettings()`, resets the in-memory singleton, and re-initializes it.
+
+**Source**: `src/presentation/cli/commands/settings/init.command.ts`
+
+**Options**:
+
+| Option        | Description              |
+| ------------- | ------------------------ |
+| `-f, --force` | Skip confirmation prompt |
+
+**Examples**:
+
+```bash
+# With confirmation prompt
+shep settings init
+
+# Skip confirmation
+shep settings init --force
+shep settings init -f
+```
+
+**Behavior**:
+
+- Without `--force`: Prints a warning about data loss, prompts `Are you sure? (y/N):`. Only `y` (case-insensitive) confirms. EOF on stdin resolves to `false` (safe default).
+- With `--force`: Skips confirmation, resets immediately.
+- On success: Prints `messages.success('Settings initialized to defaults.')`.
+- On cancel: Prints `messages.info('Operation cancelled.')`.
+
+**Data flow**: `createDefaultSettings()` -> `resetSettings()` -> `initializeSettings(newSettings)`.
+
+**Error handling**: Same pattern as `settings show`.
+
+### `shep settings agent`
+
+Configure AI coding agent.
+
+**Source**: `src/presentation/cli/commands/settings/agent.command.ts`
+
+**Options**:
+
+| Option            | Description                       |
+| ----------------- | --------------------------------- |
+| `--agent <type>`  | Agent type (e.g. claude-code)     |
+| `--auth <method>` | Auth method: `session` or `token` |
+| `--token <key>`   | API token for the agent           |
+
+**Examples**:
+
+```bash
+# Interactive wizard
+shep settings agent
+
+# Non-interactive with flags
+shep settings agent --agent claude-code --auth session
+```
+
+**Behavior**:
+
+- Without flags: Launches an interactive wizard that guides through agent selection, authentication method, and token entry.
+- With flags: Runs non-interactively using the provided values.
+
+When `--agent` is supplied and is not `dev`, `--auth` becomes required.
+Valid `--agent` values are the supported members of `AgentType`
+(`claude-code`, `kimi-code`, `codex-cli`, `copilot-cli`, `cursor`, `gemini-cli`,
+`cline`, `openrouter`, `together-ai`, `ollama`, `llmproxy`, `dev`). `aider` and
+`continue` are declared but not supported.
+
+### `shep settings ide`
+
+Configure the preferred IDE/editor.
+
+**Source**: `src/presentation/cli/commands/settings/ide.command.ts`
+
+### `shep settings workflow`
+
+Configure default workflow behavior for new features:
+`--allow-prd`, `--allow-plan`, `--allow-merge`, `--allow-all`,
+`--push` / `--no-push`, `--pr` / `--no-pr`, plus the CI options.
+
+**Source**: `src/presentation/cli/commands/settings/workflow.command.ts`
+
+### `shep settings model`
+
+Configure the default LLM model for agent runs.
+
+**Source**: `src/presentation/cli/commands/settings/model.command.ts`
+
+### `shep settings adaptive-models`
+
+Configure per-task model tier routing (spec 110).
+
+**Source**: `src/presentation/cli/commands/settings/adaptive-models.command.ts`
+
+| Option            | Description                                                      |
+| ----------------- | ---------------------------------------------------------------- |
+| `--enable`        | Route each task to a model matching its complexity                |
+| `--disable`       | Run every task on the pinned model                                |
+| `--high <model>`  | Model for High-complexity tasks (empty string to derive)          |
+| `--medium <model>`| Model for Medium-complexity tasks (empty string to derive)        |
+| `--low <model>`   | Model for Low-complexity tasks (empty string to derive)           |
+| `--clear`         | Remove all tier overrides and derive them from the pinned model   |
+
+### `shep settings language`
+
+Configure the display language. Nine locales ship under `translations/`:
+`ar`, `de`, `en`, `es`, `fr`, `he`, `pt`, `ru`, `uk`.
+
+**Source**: `src/presentation/cli/commands/settings/language.command.ts`
+
+### `shep settings messaging`
+
+Configure the messaging integrations (Telegram / WhatsApp routing).
+
+**Source**: `src/presentation/cli/commands/settings/messaging.command.ts`
+
+### `shep settings worktree`
+
+Override how worktrees are created.
+
+**Source**: `src/presentation/cli/commands/settings/worktree.command.ts`
+
+### `shep settings flags`
+
+List every feature flag with its state, default and a one-line description, grouped into
+Platform, Software factory and Experimental. `shep settings flags enable <flag>` and
+`shep settings flags disable <flag>` turn one on or off; an unknown flag exits 1. The web UI's
+`/settings/feature-flags` view shows the same list.
+
+A command group whose flag is off (for example `shep space` with `spaces` off, or `shep aspm`
+with `aspm` off) is hidden from `--help`, and running it prints the `enable` command to use.
+
+**Source**: `src/presentation/cli/commands/settings/flags.command.ts`
+
+| Option                       | Description                                        |
+| ---------------------------- | -------------------------------------------------- |
+| `--create-command <cmd>`     | Command that replaces `git worktree add`            |
+| `--post-create-command <cmd>`| Command run inside each new worktree                |
+| `--timeout <ms>`             | Timeout in milliseconds applied to each command     |
+| `--clear`                    | Clear all overrides and use the built-in git worktree |
+
+---
+
+## Fleet Commands
+
+Manage and monitor a fleet of parallel agents. Every count is derived at query time from the
+`features`, `agent_runs`, and `agent_questions` tables (spec 111), so nothing has to be
+reconciled after a crash.
+
+### `shep fleet status`
+
+Show aggregate fleet health: total features, cruising, queued, attention needed, and failed.
+Also reports whether the circuit breaker has tripped — 4 consecutive failed agent runs, or a
+failure rate above 25% across at least 4 finished runs, within a rolling 15-minute window.
+
+**Source**: `src/presentation/cli/commands/fleet/status.command.ts`
+
+```
+$ shep fleet status
+
+  === Shep Fleet Health ===
+  Total Features:     52
+  ✓ Cruising:          42
+  • Queued:            5
+  ⚠ Attention Needed:  3
+  ✗ Failed:            2
+
+  ⚠ Admission Queue: PAUSED
+    Consecutive failure threshold reached (4/4 runs failed in the last 15m)
+    New work is parked; running agents continue. Run `shep fleet resume` to admit again.
+
+  ✗ Circuit Breaker: TRIPPED
+    Consecutive failure threshold reached (4/4 runs failed in the last 15m)
+    Recent agent runs are failing repeatedly — run `shep fleet triage` to inspect them.
+```
+
+| Option          | Description                            |
+| --------------- | -------------------------------------- |
+| `--repo <path>` | Scope the fleet to one repository path |
+
+### `shep fleet triage`
+
+List only the exceptions that need a human, ordered P1 (approval gates, blocking questions),
+P2 (failed runs, merge conflicts, failing CI), then P3 (advisory warnings). Healthy features
+are omitted.
+
+**Source**: `src/presentation/cli/commands/fleet/triage.command.ts`
+
+| Option          | Description                            |
+| --------------- | -------------------------------------- |
+| `--repo <path>` | Scope the feed to one repository path  |
+
+### `shep fleet approve`
+
+Batch-approve features waiting on approval gates. Candidates are approved sequentially so one
+conflicted feature cannot block the rest of the batch; the summary reports per-feature failures and
+the features the `--low-risk` filter deliberately left for a human.
+
+**Source**: `src/presentation/cli/commands/fleet/approve.command.ts`
+
+| Option           | Description                                          |
+| ---------------- | ---------------------------------------------------- |
+| `--all`          | Approve every feature currently waiting at a gate     |
+| `--gate <type>`  | Restrict approval to one gate: `prd`, `plan`, `merge` |
+| `--low-risk`     | Approve only the gates the guardrail rules prove safe |
+
+At least one of `--all`, `--gate` or `--low-risk` is required, so a bare `shep fleet approve` can
+never approve anything by accident.
+
+**`--low-risk` approves only what is provably safe.** Each candidate is judged against the
+`GuardrailRule`s stored on its supervisor policy — the same deterministic pass the supervisor runs
+before the LLM. A gate is approved only when **every** matching rule passes *and* permits
+auto-approval. A breached rule, an advise-only rule, unreadable rules, a disabled supervisor
+policy, or a diff/CI fact that cannot be computed all leave the gate for a human, with the reason.
+
+**No guardrail rules means no approvals.** That is deliberate: a flag that approved everything when
+nothing is configured would be a synonym for `--all`. The summary says so, and the exit code is 1.
+
+**Exit code.** `0` only when every selected gate was approved. Any failure, or a gate the low-risk
+filter skipped, exits `1`, so `shep fleet approve --low-risk && …` does not read a partial batch as
+a cleared fleet.
+
+### `shep fleet pause` / `shep fleet resume`
+
+Park and release the **admission queue** — the gate that decides whether queued features may
+start. Pausing stops new work from starting; it never stops a running agent, because the cap and
+the pause both govern admission only. Queued features keep their place and drain in FIFO order
+once the queue is released.
+
+When an install has opted in via `workflow.circuitBreakerAutoPauseQueue`, the circuit breaker
+pauses the queue on its own (see `shep fleet status` above) as soon as consecutive failures or the
+rolling failure rate cross the threshold. **That switch ships off**: by default a trip is reported
+and the pause is yours to make with `shep fleet pause`. A breaker pause **cannot clear itself**: a
+fleet that tripped overnight would otherwise restart into the same failing conditions as soon as
+the window looked healthy. A person releases it — with `shep fleet resume`, or with **Resume** on
+the dashboard's fleet status bar, which shows any pause in force with its reason and calls the
+same use case. `shep fleet pause` is the manual lever when you want to stop new work without a
+trip.
+
+**Source**: `src/presentation/cli/commands/fleet/pause.command.ts`
+
+| Option           | Description                                                       |
+| ---------------- | ----------------------------------------------------------------- |
+| `--reason <text>` | (`pause` only) Why the queue is parked; recorded and shown by `status` |
+
+`resume` drains whatever now has room, so queued features start immediately rather than waiting
+for the next lifecycle event.
+
+**`resume` acknowledges the trip, so it sticks.** The breaker judges only runs that finished
+*after* the last acknowledgement, so the same failures cannot re-park the queue the moment you
+release it — which on the web would otherwise happen on the next dashboard render or SSE agent
+event, for the rest of the 15-minute window. A **new** failure after the acknowledgement trips
+again, so acknowledging once does not disarm the breaker.
+
+Two things the pause deliberately does **not** do:
+
+- **It does not count a user stopping agents as a failure.** `interrupted` runs still appear in
+  `shep fleet triage` — they are worth retrying — but they do not trip the breaker. Otherwise
+  stopping four agents in a row, or restarting the daemon with four running, would park the fleet.
+- **A scoped read does not park the fleet.** `shep fleet status --repo <path>` reports the trip
+  for that repository but never writes the global pause, because one repo's failures must not stop
+  work in every other repo. Run `shep fleet pause` if that is what you want.
+
+The pause is stored as its own record (`workflow.queuePaused`) beside
+`workflow.maxParallelFeatures`, never as `maxParallelFeatures = 0` — in that field `0` means
+**unlimited**, so using it to mean "paused" would remove the cap and admit everything.
+
+### `shep fleet retry`
+
+Restart the agents behind failures the triage feed has already surfaced — "restart the 3 that
+crashed" as one command instead of three.
+
+**Source**: `src/presentation/cli/commands/fleet/retry.command.ts`
+
+| Option          | Description                                                                    |
+| --------------- | ------------------------------------------------------------------------------ |
+| `--failed`      | Retry the runs that crashed, failed **or were stopped by the user** (`crash`)  |
+| `--repo <path>` | Restrict the batch to one repository path                                      |
+
+```
+$ shep fleet retry --failed
+✓ Retried 3 of 3 failed features.
+  ✓ Payment Retry
+  ✓ Auth Refactor
+  ✓ CSV Import
+```
+
+`--failed` is required, for the same reason `fleet approve` requires a scope: a bare
+`shep fleet retry` must never be able to restart the whole fleet by accident.
+
+`--failed` includes runs **you stopped on purpose**. `StopAgentRunUseCase` writes `interrupted`,
+the same status a crash reconciliation writes, and nothing in the run record reliably separates
+them — so the help text says so rather than pretending a deliberate stop was a crash.
+
+Retry is a **projection of the triage feed**, not a second resume path — each selected feature
+goes through the same `ResumeFeatureUseCase` that `shep feat resume` and the web Resume action
+use, so agent identity, worktree sync and capacity accounting stay in one place. Four
+consequences worth knowing:
+
+- **Each feature is retried once**, even if the feed lists it several times (a crashed run *and* a
+  failing CI check on its PR). Retrying twice would put two agents in one worktree on one branch.
+- **Gates and questions are never retried.** Those are decisions for a human; re-running them
+  would bypass the gate. Approving them is `shep fleet approve`.
+- **`ci_failed` alone never selects a feature**, which is why there is no `--ci`. That category
+  fires for any feature with a red CI run, whatever its agent run is doing, and both states it
+  produces are unusable here: a run parked at the merge gate would be resumed with no payload,
+  which the worker reads as `{ approved: true }` — a silent approval of a merge with failing CI —
+  and a run that already finished cannot be resumed at all. The only CI-red features that *were*
+  resumable are those whose run had already failed, which `--failed` covers.
+- **One refusal does not strand the batch.** The summary reports per-feature reasons, taken
+  verbatim from the resume path. A batch that retried nothing prints a warning, not a success
+  tick, and features are listed by name in both the retried and the failed list.
+
+**A paused admission queue refuses the batch once.** While the queue is parked
+(`shep fleet pause`, or a circuit-breaker trip), no resume is attempted: the command prints a
+single line naming the pause and `shep fleet resume`, instead of one identical refusal per
+feature.
+
+**Exit code**: `0` when every selected feature restarted, or when nothing had failed; `1` when
+any selected feature was not restarted — a partial batch or a paused queue — so
+`shep fleet retry --failed && …` does not carry on as if the fleet recovered.
+
+The same action is in the web triage drawer: **Retry** on a failed row, and **Retry all failed**
+in the footer behind a confirmation.
+
+---
+
+## Tools Commands
+
+### `shep tools list`
+
+List all available development tools with their installed status.
+
+**Source**: `src/presentation/cli/commands/tools.command.ts`
+
+### `shep install [tool]`
+
+Install a development tool. With no argument, lists the available tools. `--how`
+prints the installation instructions without installing anything.
+
+```bash
+shep install                      # list available tools
+shep install claude-code          # install Claude Code
+shep install claude-code --how    # show instructions only
+```
+
+**Source**: `src/presentation/cli/commands/install.command.ts`
+
+### `shep ide <feat-id>`
+
+Open a feature's worktree in your IDE.
+
+> The file is `ide-open.command.ts`, but the command it registers is
+> `new Command('ide')`. **`shep ide-open` does not exist.**
+
+**Arguments**: `<feat-id>` — the feature whose worktree to open (required).
+
+**Options**: one boolean flag per editor, **derived at runtime** from the tool
+metadata JSONs — every tool that declares an `openDirectory` entry gets a
+`--<tool-id>` flag. Today that is `--vscode`, `--cursor`, `--cursor-cli`,
+`--windsurf`, `--zed`, `--antigravity`, the terminals (`--warp`, `--kitty`,
+`--alacritty`, `--iterm2`, `--tmux`, `--system-terminal`) and the CLI agents
+(`--claude-code`, `--codex`, `--copilot`, `--gemini-cli`, `--kimi`). Run
+`shep ide --help` for the list this build actually registers.
+
+The first matching flag wins; with no flag, the command falls back to
+`settings.environment.defaultEditor`.
+
+```bash
+shep ide feat-123
+shep ide feat-123 --zed
+```
+
+**Source**: `src/presentation/cli/commands/ide-open.command.ts`
+
+---
+
+## Application Commands
+
+`shep app` starts and manages apps. Start an app, then add features to it: every feature
+created in an app's folder (`shep feat new`) attaches to that app.
+
+| Command                      | Description                                                |
+| ---------------------------- | ---------------------------------------------------------- |
+| `shep app ls`                | List applications                                          |
+| `shep app show`              | Display details of an application                          |
+| `shep app new`               | Start a new app: blank (any stack; spec-driven first feature) or `--starter vite-shadcn` |
+| `shep app del`               | Delete an application                                      |
+| `shep app cloud-providers ls`      | List cloud deployment providers and their connection state |
+| `shep app cloud-providers connect` | Connect a provider with an API token                 |
+| `shep app cloud-providers github-login` | Run `gh auth login --web` and wait for completion |
+| `shep app deploy start`      | Start a cloud deployment (streams progress)                |
+| `shep app deploy status`     | Show the latest cloud deployment status                    |
+| `shep app git create-remote` | Create a GitHub repository for the application and push    |
+
+```bash
+shep app new "A booking tool for climbing gyms"              # blank starter, spec-driven first feature
+shep app new "A photo-renaming CLI" --fast                   # blank starter, first feature built directly
+shep app new "Landing page for a bakery" --starter vite-shadcn  # Vite + React + Tailwind + shadcn template
+cd ~/.shep/projects/<app-slug> && shep feat new "Add waitlists" # add a feature to the app
+```
+
+**Source**: `src/presentation/cli/commands/app/`
+
+---
+
+## Cluster Commands
+
+`shep cluster` groups repositories and applications that ship together. Gated on
+the `clusters` feature flag.
+
+| Command                | Description                                        |
+| ---------------------- | -------------------------------------------------- |
+| `shep cluster new`     | Create a new cluster                               |
+| `shep cluster ls`      | List clusters                                      |
+| `shep cluster show`    | Display details of a cluster                       |
+| `shep cluster del`     | Delete a cluster                                   |
+| `shep cluster link`    | Link a repository or application to a cluster      |
+| `shep cluster unlink`  | Unlink a repository or application from a cluster  |
+| `shep cluster status`  | Show live cluster status                           |
+
+**Source**: `src/presentation/cli/commands/cluster/`
+
+---
+
+## Dev Server Commands
+
+`shep dev` runs and inspects a local dev server, driven by the DevServerAgent
+graph (see [../architecture/agent-system.md](../architecture/agent-system.md)).
+
+| Command                 | Description                                                  |
+| ----------------------- | ------------------------------------------------------------ |
+| `shep dev start`        | Start the dev server and stream it until it is ready         |
+| `shep dev stop`         | Stop the dev server                                          |
+| `shep dev status`       | Show the dev server state and the command it runs            |
+| `shep dev logs`         | Show the dev server output                                   |
+| `shep dev plan show`    | Show the resolved run plan                                   |
+| `shep dev plan set`     | Pin a run plan of your own                                   |
+| `shep dev plan clear`   | Clear the cached run plan so the next start re-analyzes      |
+
+A repo may also pin its own configuration in `<repo>/.shep/dev.json`. Because this
+file can arrive through a Git pull, its executable settings require local consent.
+Until approved, Shep ignores the file and uses the detector chain.
+
+Run `shep dev approve --repo /absolute/path/to/repo` to review the command, working
+directory, package manager, setup commands and fingerprint. After reviewing them,
+repeat the command with `--fingerprint <displayed-hash>` to record approval. The
+command also supports the shared `--app` and `--feature` target flags. Approval
+does not execute the commands; start the server with `shep dev start` afterward.
+If executable settings change between review and approval, the command refuses
+the stale fingerprint. Later changes require another approval. Consent is stored
+under `SHEP_HOME/approvals/`, outside the repository, for this repository path.
+
+**Source**: `src/presentation/cli/commands/dev/`
+
+---
+
+## Project Management Commands
+
+Gated on the `projects` feature flag.
+
+### `shep project`
+
+| Command              | Description          |
+| -------------------- | -------------------- |
+| `shep project new`   | Create a new project (`--repo <path>` links it to the application of a local folder, registering one if needed) |
+| `shep project ls`    | List all projects    |
+| `shep project show`  | Show project details |
+| `shep project del`   | Delete a project     |
+
+### `shep item`
+
+| Command             | Description                                  |
+| ------------------- | -------------------------------------------- |
+| `shep item new`     | Create a new work item                       |
+| `shep item ls`      | List work items in a project                 |
+| `shep item relate`  | Create a relation between two work items     |
+| `shep item export`  | Export work items as CSV                     |
+
+### `shep cycle`
+
+| Command                  | Description                                            |
+| ------------------------ | ------------------------------------------------------ |
+| `shep cycle new`         | Create a new cycle                                     |
+| `shep cycle ls`          | List cycles in a project                               |
+| `shep cycle show`        | Show cycle details                                     |
+| `shep cycle add-items`   | Add work items to a cycle                              |
+| `shep cycle transfer`    | Transfer incomplete items from one cycle to another    |
+
+### `shep intake`
+
+| Command               | Description                                         |
+| --------------------- | --------------------------------------------------- |
+| `shep intake ls`      | List intake items for a project                     |
+| `shep intake accept`  | Accept an intake item and convert it to a work item |
+| `shep intake decline` | Decline an intake item with a reason                |
+
+**Source**: `src/presentation/cli/commands/{project,item,cycle,intake}/`
+
+---
+
+## Notifications
+
+### `shep notifications ls` (alias `shep notif ls`)
+
+List notifications.
+
+**Source**: `src/presentation/cli/commands/notifications/`
+
+---
+
+## Supervisor Commands
+
+`shep supervisor` manages the delegated supervisor agent (spec 093), gated on
+the `collaboration` feature flag. See
+[../architecture/supervision.md](../architecture/supervision.md).
+
+| Command                     | Description                                     |
+| --------------------------- | ----------------------------------------------- |
+| `shep supervisor configure` | Create or update a supervisor policy            |
+| `shep supervisor enable`    | Enable an existing supervisor policy            |
+| `shep supervisor disable`   | Disable an existing supervisor policy           |
+| `shep supervisor status`    | Show the effective supervisor policy for a scope |
+| `shep supervisor approve`   | Approve a waiting agent run as the supervisor   |
+| `shep supervisor reject`    | Reject a waiting agent run as the supervisor    |
+
+**Source**: `src/presentation/cli/commands/supervisor/`
+
+---
+
+## Bedrock Commands
+
+`shep bedrock` manages project-bedrock memory for an application. Gated on the
+`bedrockIntegration` feature flag. Each subcommand takes `--app`.
+
+| Command                | Description                                                        |
+| ---------------------- | ------------------------------------------------------------------ |
+| `shep bedrock init`    | Enable bedrock memory for an application and run `bedrock init`     |
+| `shep bedrock sync`    | Reconcile bedrock memory with git state inside the app worktree     |
+| `shep bedrock ship`    | Commit bedrock memory updates inside the app worktree               |
+| `shep bedrock doctor`  | Verify bedrock prerequisites (Python, pipx, bedrock binary)         |
+
+**Source**: `src/presentation/cli/commands/bedrock/`
+
+---
+
+## Plugin Commands
+
+`shep plugin` manages AI tool plugins.
+
+| Command                  | Description                                            |
+| ------------------------ | ------------------------------------------------------ |
+| `shep plugin catalog`    | Browse available plugins from the curated catalog      |
+| `shep plugin add`        | Install a plugin from catalog or custom configuration  |
+| `shep plugin remove`     | Remove an installed plugin                             |
+| `shep plugin list`       | List all installed plugins                             |
+| `shep plugin enable`     | Enable a plugin globally                               |
+| `shep plugin disable`    | Disable a plugin globally                              |
+| `shep plugin configure`  | Configure plugin settings                              |
+| `shep plugin status`     | Show detailed health status of a plugin                |
+
+**Source**: `src/presentation/cli/commands/plugin/`
+
+---
+
+## Space Commands
+
+`shep space` keeps bodies of work apart (spec 120). A **space** is a hard wall:
+memory shared inside one space (Space or ProductLine scope) is never read by a
+repository in another. A **product line** groups repositories inside a space.
+
+A repository lands in a space by, in order: an explicit pin (`assign`), the most
+specific matching rule (path prefix or git-remote pattern; between equally
+specific rules the lower `--priority` wins, and the rule id settles any
+remaining tie so the answer never flips), or the default space. Every repository is always
+in exactly one space.
+
+| Command                                             | Description                                             |
+| --------------------------------------------------- | ------------------------------------------------------- |
+| `shep space ls`                                     | Spaces with their product lines, repository and memory counts |
+| `shep space show [path]`                            | Which space and line a repository is in, and why        |
+| `shep space new <name>`                             | Create a space (`-d` description, `-c #hex`, `--default`) |
+| `shep space edit <space>`                           | Rename (`-n`), describe (`-d`) or recolour (`-c`) a space |
+| `shep space rm <space>`                             | Delete a space; refused for the default space or while it holds memory |
+| `shep space default <space>`                        | Make a space the one unmatched repositories land in     |
+| `shep space line new <space> <name>`                | Add a product line                                      |
+| `shep space line rm <space> <line>`                 | Remove a product line; refused while memory is shared with it |
+| `shep space rule add <space> <pattern>`             | Add a rule (`-l` line, `-p` priority, `--remote`)        |
+| `shep space rule ls [space]`                        | List rules                                              |
+| `shep space rule rm <id>`                           | Remove a rule                                           |
+| `shep space assign <space> [path]`                  | Pin a repository to a space (`-l` line)                 |
+| `shep space unassign [path]`                        | Remove a pin so the rules apply again                   |
+| `shep space config <space>`                         | Show or set the space's agent logins, git identity and allowed agents (spec 121) |
+
+`<space>` and `<line>` accept a name's slug or an id. `[path]` defaults to the
+current directory and expands a leading `~`. A rule pattern that is an absolute
+path is a path rule; anything else is a git-remote rule matched against the
+repository's normalised remote (`host/owner/repo`, no scheme, no `.git`).
+In remote patterns `*` matches within one segment and `**` across segments.
+
+```bash
+shep space new Acme -c "#3456c4"
+shep space line new acme Payments
+shep space rule add acme "github.com/acme/*"
+shep space rule add acme "github.com/acme/pay-*" -l payments
+shep space rule add acme ~/work/acme
+shep space assign personal ~/oss/acme-fork
+shep space show ~/work/acme/pay-api
+```
+
+`shep space config <space>` with no options shows the settings and the environment they
+produce. Options: `--claude-config-dir <dir>`, `--gh-config-dir <dir>`, `--git-name`,
+`--git-email`, `--aws-profile`, `--bedrock` / `--no-bedrock`, `--agents a,b`,
+`--pr-comments off|mention|all` (which PR review comments shep answers on its own; default
+mention), `--resolve-threads` / `--no-resolve-threads`, `--auto-actions restart,rollback,scale`
+(runtime actions shep runs on the space's incidents without asking), `--docs-first` /
+`--no-docs-first` with `--docs-paths docs/,README.md` (docs first, spec 131) and
+`--clear <fields...>` (`claude-config-dir`, `gh-config-dir`, `git-name`, `git-email`,
+`aws-profile`, `bedrock`, `agents`, `pr-comments`, `resolve-threads`, `auto-actions`,
+`docs-first`, `docs-paths`). Feature runs and feature chats in the space's
+repositories run with these settings; host `GH_TOKEN`/`GITHUB_TOKEN` (with a gh dir) and
+`ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN`/`CLAUDE_CODE_OAUTH_TOKEN` (with a Claude dir) are
+removed for them.
+
+**Source**: `src/presentation/cli/commands/space/`
+
+---
+
+## Connection and Sync Commands
+
+`shep connection` connects Linear, Jira and Notion accounts; `shep sync` keeps tracker issues
+in shep projects (spec 122) and `shep knowledge` keeps Notion pages as team knowledge (spec 125).
+See the [tracker guide](../guides/trackers.md) and the [knowledge guide](../guides/knowledge.md).
+
+| Command | Description |
+| ------- | ----------- |
+| `shep connection add <linear\|jira\|notion> --name <n>` | Connect an account (`--space`, Jira: `--site`, `--email`); the key is prompted, or read from `--secret-env VAR`, and tested before saving |
+| `shep connection ls` | Connections with account and status |
+| `shep connection test <connection>` | Re-check the stored credentials |
+| `shep connection rm <connection>` | Remove a connection with its rules and knowledge sources; synced work items stay |
+| `shep sync rule add <connection> --project <p> --scope <s>` | Keep a Linear team key or Jira JQL in a project (`--two-way`, `--every <minutes>`, 5-1440, default 15) |
+| `shep sync rule ls [connection]` | Rules with mode, interval and last run |
+| `shep sync rule enable\|disable\|rm <rule>` | Pause, resume or remove a rule |
+| `shep sync run [rule]` | Run one rule, or every enabled rule, now; exits 1 if a run failed |
+| `shep knowledge source add <connection> --scope <link>` | Keep a Notion page tree or database as knowledge of the connection's space (`--product-line <l>`, `--every <minutes>`, 15-1440, default 60) |
+| `shep knowledge source ls` | Sources with documents, interval and last sync |
+| `shep knowledge source enable\|disable\|rm <source>` | Pause, resume or remove a source (removing drops its documents) |
+| `shep knowledge sync [source]` | Sync one source, or every enabled source, now; exits 1 if a sync stopped early |
+| `shep knowledge ls [--space <space>]` | A space's knowledge documents with links |
+| `shep knowledge search <query> [--repo <path>]` | The passages an agent working in that repository would read for the task |
+
+The daemon runs enabled rules and sources on their interval. Secrets are never accepted as
+arguments.
+
+**Source**: `src/presentation/cli/commands/connection/`, `src/presentation/cli/commands/sync/`,
+`src/presentation/cli/commands/knowledge/`
+
+---
+
+## Signal and Opportunity Commands
+
+`shep signal` records evidence of what users need; `shep opportunity` shapes bets backed by
+signals, ranks them by value per review hour and draws the line that fits a space's weekly
+review capacity (spec 126). See the [opportunities guide](../guides/opportunities.md).
+
+| Command | Description |
+| ------- | ----------- |
+| `shep signal add <title>` | Record a signal (`--space`, `--product-line`, `--kind feedback\|incident\|tracker\|discovery\|manual`, `--customer`, `--revenue <per month>`, `--urgent`, `--url`, `--detail`, `--opportunity`) |
+| `shep signal ls` | Signals, newest first (`--space`, `--unlinked`) |
+| `shep signal rm <signal>` | Remove a signal |
+| `shep opportunity add <title> --hours <h>` | Shape an opportunity (`--confidence 0-1`, `--strategic`, `--problem`, `--space`, `--product-line`) |
+| `shep opportunity ls [--space]` | Open opportunities ranked by value per review hour; ▶ marks the line |
+| `shep opportunity show <opportunity>` | Score, evidence and signals |
+| `shep opportunity estimate <opportunity>` | Change `--hours`, `--confidence`, `--strategic` or `--problem` |
+| `shep opportunity link <signal> <opportunity>` / `unlink <signal>` | Link a signal to an opportunity of its space, or unlink it |
+| `shep opportunity accept <opportunity>` | Accept: it competes for review capacity |
+| `shep opportunity drop <opportunity> --reason <text>` | Drop it, saying why |
+| `shep opportunity build <opportunity> --project <p>` | Create a work item carrying the problem and evidence |
+| `shep opportunity weights` | Show, or set with `--reach`, `--revenue`, `--urgency`, `--strategic`, `--capacity <h/week>` |
+
+**Source**: `src/presentation/cli/commands/signal/`, `src/presentation/cli/commands/opportunity/`
+
+---
+
+## Outcome Commands
+
+`shep outcome` follows opportunities past the merge: a Building opportunity ships when its work
+item is done, and 14 days later its outcome is judged from the space's similar signals before
+and after (spec 130). The daemon checks every hour. See the
+[opportunities guide](../guides/opportunities.md#after-it-ships).
+
+| Command | Description |
+| ------- | ----------- |
+| `shep outcome ls` | Shipped opportunities with verdict, similar reports before → after and customers to tell, then the space's calibration (`--space`) |
+| `shep outcome check` | Ship opportunities whose work item is done, reopen cancelled ones and judge due outcomes now |
+| `shep outcome ship <opportunity>` | Mark a proposed, accepted or building opportunity shipped by hand |
+| `shep outcome tell <opportunity>` | The customers behind it not yet told, with a note; `--done` marks them told |
+| `shep outcome hours <opportunity> <hours>` | Record the review hours it really took |
+
+**Source**: `src/presentation/cli/commands/outcome/`
+
+---
+
+## Feedback Commands
+
+`shep feedback` manages the keys tools use to post customer feedback into a space through
+`POST /api/feedback`, and groups unlinked signals into themes (spec 127). See the
+[feedback guide](../guides/feedback.md).
+
+| Command | Description |
+| ------- | ----------- |
+| `shep feedback key create --name <tool>` | Create a key for a space (`--space`); the key is printed once |
+| `shep feedback key ls` | Keys by name and prefix, with last use (`--space`) |
+| `shep feedback key revoke <key>` | Refuse posts with the key from now on |
+| `shep feedback themes` | Themes among a space's unlinked signals, with their evidence (`--space`) |
+| `shep feedback promote <theme> --hours <h>` | Create an opportunity with the theme's signals linked (`--confidence`, `--title`, `--space`) |
+
+**Source**: `src/presentation/cli/commands/feedback/`
+
+---
+
+## Discovery Commands
+
+`shep discovery` asks an agent to read a space's loose signals and propose opportunities backed
+by them (spec 128). See the [discovery guide](../guides/discovery.md).
+
+| Command | Description |
+| ------- | ----------- |
+| `shep discovery run` | Run discovery now (`--space`, `--agent <type>`); proposals become Discovered opportunities |
+| `shep discovery ls` | A space's runs with what each read, proposed and dropped (`--space`) |
+| `shep discovery schedule --every <hours>` | Let the daemon run discovery every 1–720 hours (`--space`); `--off` turns it off |
+
+**Source**: `src/presentation/cli/commands/discovery/`
+
+---
+
+## Incident Commands
+
+`shep incident` opens production incidents, triages them with the space's agent and restarts,
+rolls back or scales their Kubernetes deployment (spec 129). Monitoring tools open them through
+`POST /api/alerts`. See the [incidents guide](../guides/incidents.md).
+
+| Command | Description |
+| ------- | ----------- |
+| `shep incident open <title>` | Open an incident (`--space`, `--severity critical\|major\|minor`, `--detail`, `--url`, `--workload`, `--namespace`, `--context`) |
+| `shep incident ls` | Incidents, newest first (`--open` for unresolved only) |
+| `shep incident show <incident>` | The incident with its timeline and runtime actions |
+| `shep incident note <incident> <text>` | Add a note to the timeline |
+| `shep incident triage <incident>` | Read evidence, rank likely causes and propose one action (`--agent <type>`) |
+| `shep incident act <incident> <restart\|rollback\|scale>` | Run an action now (`--replicas` for scale, `--reason`) |
+| `shep incident approve <action>` / `reject <action>` | Run or refuse a proposed action (`--reason` on reject) |
+| `shep incident resolve <incident>` | Resolve with `--postmortem <markdown>`, or a draft from the timeline |
+
+**Source**: `src/presentation/cli/commands/incident/`
+
+---
+
+## Autopilot and Factory Commands
+
+`shep autopilot` sets what shep starts on its own in a space every hour — investigating urgent
+work items, fixing confident hypotheses, building the week's line — and `shep factory status`
+shows a space's factory at a glance (spec 132). See the [autopilot guide](../guides/autopilot.md).
+
+| Command | Description |
+| ------- | ----------- |
+| `shep autopilot show` | The policy and recent passes (`--space`) |
+| `shep autopilot set` | `--investigate`, `--fix`, `--merge-fixes`, `--fill-line` (each with `--no-…`), `--project <p>` / `--clear-project`, `--budget <fixes a day>` (`--space`) |
+| `shep autopilot run` | A pass now, printing what it investigated, fixed and built (`--space`) |
+| `shep factory status` | Line, building, incidents, actions awaiting approval, outcomes, customers to tell and autopilot (`--space`) |
+
+**Source**: `src/presentation/cli/commands/autopilot/`, `src/presentation/cli/commands/factory/`
+
+---
+
+## Bug Loop Commands
+
+`shep item investigate`, `hypotheses` and `fix` take a bug from report to fix (spec 123). See the
+[bug loop guide](../guides/bug-loop.md).
+
+| Command | Description |
+| ------- | ----------- |
+| `shep item investigate <item>` | An agent reads a throwaway read-only copy of the repository and ranks up to five root-cause hypotheses (`--repo <path>`, `--agent <type>`); exits 1 if the investigation fails |
+| `shep item hypotheses <item>` | The latest investigation of a work item |
+| `shep item fix <item> <number>` | Start a feature from a hypothesis that writes the failing test first (`--spec` for the full pipeline, `--agent <type>`); moves the item to Started |
+
+`<item>` is a key such as `PAY-42` or a work item id. Without `--repo`, the item's previous
+repository is used, then its project's application repository.
+
+**Source**: `src/presentation/cli/commands/item/`
+
+---
+
+## Scheduled Workflow Commands
+
+`shep workflow` manages scheduled workflows. Gated on the `scheduledWorkflows`
+feature flag.
+
+| Command                   | Description                            |
+| ------------------------- | -------------------------------------- |
+| `shep workflow create`    | Create a new workflow                  |
+| `shep workflow list`      | List all workflows                     |
+| `shep workflow show`      | Show workflow details                  |
+| `shep workflow update`    | Update a workflow                      |
+| `shep workflow delete`    | Delete a workflow                      |
+| `shep workflow schedule`  | Set a cron schedule on a workflow      |
+| `shep workflow enable`    | Enable a workflow schedule             |
+| `shep workflow disable`   | Disable a workflow schedule            |
+| `shep workflow run`       | Manually trigger a workflow            |
+| `shep workflow history`   | View workflow execution history        |
+
+**Source**: `src/presentation/cli/commands/workflow/`
+
+---
+
+## Security Commands
+
+### `shep security enforce`
+
+Evaluate repository security posture and enforce policy. Supply-chain security
+is part of ASPM, so the command is gated on the `aspm` feature flag; when the
+flag is off the command is a no-op that exits 0.
+
+| Option                  | Description                                | Default |
+| ----------------------- | ------------------------------------------ | ------- |
+| `-r, --repo <path>`     | Repository to evaluate                     | cwd     |
+| `-o, --output <format>` | Output format (`table` or `json`)          | `table` |
+
+`SHEP_SUPPLY_CHAIN_SECURITY` overrides the flag for CI: `false` (or `0`) turns
+enforcement off, `true` (or `1`) turns it on even while `aspm` is off.
+
+**Source**: `src/presentation/cli/commands/security.command.ts`
+
+### `shep aspm` (group)
+
+Application Security Posture Management — findings, campaigns, posture,
+exceptions and AI-change review. Gated on the `aspm` feature flag. See
+[../architecture/aspm.md](../architecture/aspm.md).
+
+| Command                  | Description                                                  |
+| ------------------------ | ------------------------------------------------------------ |
+| `shep aspm scan`         | Run a fresh ASPM scan over the application working tree       |
+| `shep aspm rescan`       | Re-scan an application — idempotent if the tree is unchanged  |
+| `shep aspm ingest`       | Ingest SARIF or CycloneDX findings for an application         |
+| `shep aspm findings`     | List and inspect ASPM security findings                       |
+| `shep aspm campaigns`    | Manage ASPM remediation campaigns                             |
+| `shep aspm posture`      | Show ASPM posture summary (workspace or per-application)      |
+| `shep aspm exceptions`   | Manage ASPM risk exceptions                                   |
+| `shep aspm ai-review`    | Triage AI-change risk signals                                 |
+
+`scan` and `rescan` take `-a, --app <slug>` (required), an optional
+`--stages <list>` (`sbom,sca,secrets,sast,container,iac`) and `--json`.
+
+**Source**: `src/presentation/cli/commands/aspm/`
+
+---
+
+## Code Review Commands
+
+`shep review` provides AI-powered code review for pull requests. Gated on the
+`codeReview` feature flag.
+
+| Command              | Description                        |
+| -------------------- | ---------------------------------- |
+| `shep review show`   | Display a completed code review    |
+| `shep review list`   | List recent code reviews           |
+| `shep review post`   | Post a completed review to GitHub  |
+
+**Source**: `src/presentation/cli/commands/review.command.ts`
+
+---
+
+## Integration Commands
+
+### `shep whatsapp status`
+
+Show the WhatsApp integration configuration (spec 101): the `whatsappDispatch`
+feature flag, whether the integration is enabled, the adapter, the linked number
+and the count of authorized senders.
+
+**Source**: `src/presentation/cli/commands/whatsapp/whatsapp.command.ts`
+
+### `shep mcp`
+
+Start the MCP server so external AI agents can drive Shep. Besides the feature,
+agent-run, repository, settings, work-item and chat-block tools, it offers the
+agent-activity tools (spec 149): `get_agent_activity`, `wait_for_agent_activity`,
+`decide_feature_gate` and `answer_agent_question`.
+[Agent activity](../architecture/agent-activity.md).
+
+The web daemon also speaks A2A 1.0 at `/api/a2a`: [A2A guide](../guides/a2a.md).
+
+**Source**: `src/presentation/cli/commands/mcp.command.ts`
+
+### `shep contributors` (CI entry points)
+
+Entry points for the GitHub Actions contributor-pipeline workflows. These read
+their input from the Actions environment, not from flags.
+
+| Command                          | Description                                                        |
+| -------------------------------- | ------------------------------------------------------------------ |
+| `shep contributors groom-issue`  | Groom a newly opened GitHub issue. Reads `$GITHUB_EVENT_PATH` and `$GITHUB_REPOSITORY`; defines **no options**. |
+| `shep contributors welcome-pr`   | Welcome a first-time contributor on `pull_request.opened`           |
+
+**Source**: `src/presentation/cli/commands/contributors/`
+
+---
+
+## Harness Commands
+
+Experimental (spec 119). The `shep harness` group is hidden from `--help` until
+`featureFlags.queryAwareHarness` is on (Settings → Feature flags). Every command
+sets `process.exitCode = 1` on error; `--json` output is the use case's result
+object, unchanged. Architecture: [query-aware harness](../architecture/query-aware-harness.md).
+
+| Command | What it does |
+| ------- | ------------ |
+| `shep harness init [--repo] [--yes] [--json]` | Detect instruction files, test/lint commands and sensitive files; preview `.shep/harness/{config.yaml,policies/default.yaml,instructions/README.md}`; write only on confirm, never outside `.shep/harness/`, never overwriting |
+| `shep harness run "<task>" [--repo] [--mode baseline\|query_aware] [--budget] [--max-turns] [--model] [--test-command] [--shadow-context-router] [--shadow-permissions] [--shadow-tool-router] [--non-interactive] [--json]` | Run a standalone task in its own worktree (`harness/<id>` branch); the checkout is never touched. Permission asks are answered inline; with `--non-interactive` (or no TTY, or `--json`) they resolve to deny and the output says so |
+| `shep harness resume <id> ["<next instruction>"]` | Next task in a standalone session (or retry its last goal); state is restored, never replayed |
+| `shep harness stop <id>` | Stop the running task before its next turn (works across processes) |
+| `shep harness apply <id> [--branch] [--message]` | Commit the worktree's changes and point a branch at them; nothing is pushed |
+| `shep harness promote <id> [--agent]` | Commit to the harness branch and create a feature that starts from it |
+| `shep harness discard <id>` | Remove the worktree; the session's state and evidence are kept |
+| `shep harness ls [--origin] [--feature] [--json]` | Sessions, newest first, with pending approvals |
+| `shep harness inspect session <id>` | A session (or feature AgentRun id): tasks, turns, tool calls, usage, permission log |
+| `shep harness inspect context <plan-id \| task-id --turn n>` | What the model saw on one turn: every candidate with visibility, tokens shown/raw, relevance, reason and source |
+| `shep harness view <chunk-id> [--level short\|long\|full]` | Render a chunk from stored output (nothing re-runs); secret chunks are never rendered |
+| `shep harness explain <decision-id> \| <plan-id> --chunk <id>` | Why: score on the visibility bands, provider, latency, cost, probabilities only when the provider returned them, matched rules |
+| `shep harness permissions ls [--session] [--all]` / `allow <id> [--scope once\|task\|session] [--note]` / `deny <id> [--note]` | Answer and review permission requests; the note goes back to the agent |
+| `shep harness capabilities` | The tiered tool catalog (Tier-1 snippet vs Tier-2 schema token cost) |
+| `shep harness policies [--repo]` | Effective rules (builtin + `.shep/harness/policies/*.yaml`); exits 1 on a policy file that fails to parse |
+| `shep harness eval run <suite> [--repo] [--variants] [--repeats] [--model] [--json]` | Run a suite on baseline and query-aware in throwaway repositories and print the comparison |
+| `shep harness eval ls` / `eval report <run-id>` / `eval save <session-id> --suite <id> [--check]` | Suites and runs; a run's report; save a standalone session as a case in `.shep/harness/evals/<suite>.yaml` |
+
+`shep doctor` gains a `harness-readiness` check while the flag is on: backend
+credential (blocker when Shep Harness is the configured agent), blob storage
+writable and git installed (blockers), ripgrep and decision-provider endpoints
+(warnings), builtin policy parse (blocker).
+
+**Source**: `src/presentation/cli/commands/harness/`
+
+## Other Commands
+
+### `shep doctor`
+
+Diagnose the local Shep contributor environment.
+
+**Source**: `src/presentation/cli/commands/doctor.command.ts`
+
+### `shep version`
+
+Display detailed version information.
+
+**Source**: `src/presentation/cli/commands/version.command.ts`
+
+```
+$ shep version
+
+@shepai/cli v1.228.2
+Autonomous AI Native SDLC Platform
+
+Node:     v22.11.0
+Platform: linux x64
+```
+
+Output includes package name, version (via `VersionService`), description, Node.js version, and OS platform/arch. Shep requires Node >= 22.
+
+### `shep run <agent-name>`
+
+Run an AI agent workflow.
+
+**Source**: `src/presentation/cli/commands/run.command.ts`
+
+| Option                  | Description                       | Default |
+| ----------------------- | --------------------------------- | ------- |
+| `-p, --prompt <prompt>` | Prompt to send to the agent       | built-in |
+| `-r, --repo <path>`     | Repository to run against         | cwd     |
+| `-s, --stream`          | Stream agent output as it arrives | —       |
+
+```bash
+shep run analyze-repository
+shep run analyze-repository --prompt "Focus on security"
+shep run analyze-repository --repo /path/to/repo --stream
+```
+
+### `shep upgrade`
+
+Upgrade Shep CLI to the latest version.
+
+**Source**: `src/presentation/cli/commands/upgrade.command.ts`
+
+---
+
+## Adding a New Command
+
+1. Create `src/presentation/cli/commands/<name>.command.ts` (or `<group>/<name>.command.ts` for subcommands).
+2. Export `create<Name>Command(): Command` factory function.
+3. Add options, help text, and action handler following the patterns above.
+4. Register in `index.ts` via `program.addCommand(create<Name>Command())`.
+5. For command groups, create an `index.ts` that uses `.addCommand()` to compose subcommands.
+6. Use `messages.*` for feedback, `OutputFormatter` for multi-format output, `process.exitCode = 1` for errors.
