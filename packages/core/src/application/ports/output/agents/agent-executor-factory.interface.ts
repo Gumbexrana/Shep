@@ -1,0 +1,170 @@
+/**
+ * Agent Executor Factory Interface
+ *
+ * Output port for creating agent executor instances based on agent type.
+ * Infrastructure layer provides concrete implementations that wire up
+ * the appropriate executor for each supported agent.
+ *
+ * Following Clean Architecture:
+ * - Domain and Application layers depend on this interface
+ * - Infrastructure layer provides concrete implementations
+ *
+ * @example
+ * ```typescript
+ * const factory: IAgentExecutorFactory = container.resolve('IAgentExecutorFactory');
+ * const supported = factory.getSupportedAgents();
+ * const executor = factory.createExecutor(AgentType.ClaudeCode, settings.agent);
+ * ```
+ */
+
+import type { AgentType, AgentConfig } from '../../../../domain/generated/output.js';
+import type { AdaptiveTierPlan, TierOverrides } from '../../../../domain/shared/model-tier.js';
+import type { IAgentExecutor } from './agent-executor.interface.js';
+import type { IInteractiveAgentExecutor } from './interactive-agent-executor.interface.js';
+
+/**
+ * CLI binary info for an agent executor, used for version detection.
+ */
+export interface AgentCliInfo {
+  /** Agent type identifier (e.g. 'claude-code') */
+  agentType: AgentType;
+  /** CLI binary name (e.g. 'claude') */
+  cmd: string;
+  /** Arguments to get version (e.g. ['--version']) */
+  versionArgs: string[];
+}
+
+/**
+ * Rich model listing returned by dynamic model catalogs.
+ *
+ * Providers may fill display metadata when available; callers should tolerate
+ * listings that only have {@link id}.
+ */
+export interface AgentModelListing {
+  /** Provider-specific model identifier (e.g. 'anthropic/claude-sonnet-4.5'). */
+  id: string;
+  /** Human-friendly display name, if the provider supplies one. */
+  displayName?: string;
+  /** Short description of the model. */
+  description?: string;
+  /** Context window size in tokens. */
+  contextLength?: number;
+  /** True if the model is billed at $0 (free tier). */
+  isFree?: boolean;
+  /** Vendor / organization (e.g. 'anthropic', 'meta-llama'). */
+  vendor?: string;
+}
+
+/**
+ * Port interface for creating agent executor instances.
+ *
+ * Implementations must:
+ * - Create the correct executor for the given agent type
+ * - Configure the executor with the provided auth configuration
+ * - Report which agent types are supported
+ */
+export interface IAgentExecutorFactory {
+  /**
+   * Create an executor for the specified agent type.
+   *
+   * @param agentType - The type of agent to create an executor for
+   * @param authConfig - Agent authentication and configuration
+   * @returns A configured agent executor
+   */
+  createExecutor(agentType: AgentType, authConfig: AgentConfig): IAgentExecutor;
+
+  /**
+   * Get the list of agent types this factory can create executors for.
+   *
+   * @returns Array of supported agent types
+   */
+  getSupportedAgents(): AgentType[];
+
+  /**
+   * Get CLI binary info for each agent executor (for version detection).
+   * Excludes non-CLI agents (e.g. 'dev').
+   *
+   * @returns Array of CLI info for version-checkable agents
+   */
+  getCliInfo(): AgentCliInfo[];
+
+  /**
+   * Get the list of model identifiers supported by the given agent executor.
+   * Returns synchronously with no I/O — supported lists are static data.
+   *
+   * @param agentType - The agent type to query
+   * @returns Array of model identifier strings, or empty array for unknown/dev agents
+   */
+  getSupportedModels(agentType: AgentType): string[];
+
+  /**
+   * List models available for the given agent type, enriched with metadata
+   * when a registered {@link IModelCatalog} can discover them live.
+   *
+   * Discovery is TTL-cached in-process. Agents without a catalog (or when
+   * discovery returns empty) fall back to the same identifiers as
+   * {@link getSupportedModels}, wrapped as listings with only the `id` field
+   * populated. Callers MUST pass auth when the active agent needs a token for
+   * a full list.
+   *
+   * @param agentType - The agent type to query
+   * @param authConfig - Optional auth config supplying an API token
+   * @returns Promise resolving to available model listings (possibly empty)
+   */
+  listAvailableModels(agentType: AgentType, authConfig?: AgentConfig): Promise<AgentModelListing[]>;
+
+  /**
+   * Prefetch every registered {@link IModelCatalog} in parallel so the model
+   * picker can hit the in-process TTL cache. Pass the active agent config when
+   * available — token-backed catalogs (e.g. Together AI) only receive auth when
+   * their agent type matches.
+   *
+   * Failures are swallowed per catalog; this must not throw for a single
+   * unreachable provider.
+   */
+  warmModelCatalogs(authConfig?: AgentConfig): Promise<void>;
+
+  /**
+   * Resolve which model adaptive selection would use for each complexity tier,
+   * given a pinned model and the agent that will run it.
+   *
+   * The pinned model is a ceiling: a tier never resolves to a more capable
+   * model than the pin, candidates stay inside the pin's model family, and a
+   * pin this factory cannot classify collapses all three tiers onto itself.
+   *
+   * Synchronous and side-effect free — it reads the same static per-agent list
+   * as {@link getSupportedModels}, so presentation layers can call it while
+   * rendering.
+   *
+   * @param agentType - The agent that will execute the tasks
+   * @param baseModel - The model pinned for the run
+   * @param overrides - Explicit per-tier models from settings, if any
+   * @returns One model identifier per tier
+   */
+  resolveAdaptiveModelPlan(
+    agentType: AgentType,
+    baseModel: string,
+    overrides?: TierOverrides
+  ): AdaptiveTierPlan;
+
+  /**
+   * Create an interactive executor for multi-turn agent sessions.
+   *
+   * @param agentType - The type of agent to create an interactive executor for
+   * @param authConfig - Agent authentication and configuration
+   * @returns A configured interactive agent executor
+   * @throws Error if the agent type does not support interactive sessions
+   */
+  createInteractiveExecutor(
+    agentType: AgentType,
+    authConfig: AgentConfig
+  ): IInteractiveAgentExecutor;
+
+  /**
+   * Check whether the given agent type supports interactive sessions.
+   *
+   * @param agentType - The agent type to query
+   * @returns true if createInteractiveExecutor can be called for this type
+   */
+  supportsInteractive(agentType: AgentType): boolean;
+}
