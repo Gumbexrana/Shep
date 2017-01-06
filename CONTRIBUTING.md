@@ -302,4 +302,4 @@ Update CONTRIBUTING.md when:
 - [docs/development/contributing-with-shep.md](./docs/development/contributing-with-shep.md) — extended walk-through of the dogfooding loop
 - [docs/development/setup.md](./docs/development/setup.md) — detailed dev environment setup
 
-<!-- maintenance 2016 -->
+<!-- maintenance 2017 -->
