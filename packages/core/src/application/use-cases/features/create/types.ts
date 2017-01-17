@@ -1,0 +1,102 @@
+import type {
+  AgentEffort,
+  ApprovalGates,
+  Attachment,
+  BuildMode,
+  Feature,
+} from '../../../../domain/generated/output.js';
+
+export interface CreateFeatureInput {
+  userInput: string;
+  repositoryPath: string;
+  approvalGates?: ApprovalGates;
+  push?: boolean;
+  openPr?: boolean;
+  /** Optional ID of the parent feature. When set, child may be created in Blocked state. */
+  parentId?: string;
+  /**
+   * Optional ID of the parent application. When set, the new feature is rendered
+   * as a child of the application on the Control Center canvas and queryable by
+   * `applicationId`. Used by the SDD-mode entry points scoped to an existing app.
+   */
+  applicationId?: string;
+  /**
+   * Build mode for the new feature. When omitted, the use case derives a
+   * sensible default from the legacy `fast` flag for backward compatibility.
+   */
+  buildMode?: BuildMode;
+  /** Pre-supplied name (skips AI metadata extraction for name). */
+  name?: string;
+  /** Pre-supplied description (skips AI metadata extraction for description). */
+  description?: string;
+  /** When true, skip SDLC phases and implement directly from the user prompt. */
+  fast?: boolean;
+  /**
+   * Fill the build mode, approval gates, push and PR choices this input leaves
+   * unset from the user's Settings → Workflow, as `shep feat new` does. For
+   * callers with no flags of their own (A2A, MCP). Honoured by `execute()`.
+   */
+  useWorkflowDefaults?: boolean;
+  /** Fork repo and create PR to upstream at merge time (default: false). */
+  forkAndPr?: boolean;
+  /** Commit specs/evidences into the repo (default: true, auto-false when forkAndPr). */
+  commitSpecs?: boolean;
+  /** Enable CI watch/fix loop after push (default: true). */
+  ciWatchEnabled?: boolean;
+  /** Enable evidence collection after implementation (default: false). */
+  enableEvidence?: boolean;
+  /** Commit evidence to PR (default: false, requires enableEvidence). */
+  commitEvidence?: boolean;
+  /** When true, create feature in Pending state — fully initialized but agent not spawned. */
+  pending?: boolean;
+  /** Optional agent type override (overrides settings.agent.type). */
+  agentType?: string;
+  /** Optional model identifier forwarded to the agent executor for this invocation. */
+  model?: string;
+  /**
+   * Optional reasoning effort for this feature (overrides settings.models.effort).
+   * Pinned on the agent run and re-sent on every resume.
+   */
+  effort?: AgentEffort;
+  /** Attachment records to persist with the feature. */
+  attachments?: Attachment[];
+  /** Session ID for committing pending uploads (web UI flow). */
+  sessionId?: string;
+  /** Absolute file paths to attach (CLI --attach flow). */
+  attachmentPaths?: string[];
+  /** Sync the default branch from remote before creating the feature branch (default: true). */
+  rebaseBeforeBranch?: boolean;
+  /** Inject curated skills into the worktree (overrides settings.workflow.skillInjection.enabled). */
+  injectSkills?: boolean;
+  /** Per-feature plugin activation overrides (plugin name -> enabled/disabled). */
+  activePlugins?: Record<string, boolean>;
+  /**
+   * Run the implement step in Explore mode for this feature, whatever the
+   * learning mode (spec 150). Still needs the selfLearning flag at run time.
+   */
+  exploreHarness?: boolean;
+  /** Explore rollouts budget k for this feature; only stored with exploreHarness. */
+  exploreK?: number;
+}
+
+export interface CreateFeatureResult {
+  feature: Feature;
+  warning?: string;
+  /**
+   * True when the parallel-feature limit held the new feature back. It is fully
+   * initialized — worktree, spec, agent run record — but no agent was spawned,
+   * and it starts automatically when a slot frees.
+   */
+  queued: boolean;
+  /** 1-based place in the capacity queue, present only when `queued`. */
+  queuePosition?: number;
+}
+
+/** Result of the fast createRecord phase (before metadata/worktree/agent). */
+export interface CreateRecordResult {
+  feature: Feature;
+  /** Whether the agent should be spawned (false when child is blocked or queued). */
+  shouldSpawn: boolean;
+  /** True when the parallel-feature limit, rather than a dependency, deferred the spawn. */
+  queued: boolean;
+}
