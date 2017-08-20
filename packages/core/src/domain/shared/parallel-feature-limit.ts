@@ -1,0 +1,233 @@
+/**
+ * Parallel-Feature Capacity Rule
+ *
+ * The single place that decides how many features may run at once. Every
+ * surface that reads `settings.workflow.maxParallelFeatures` — the admission
+ * check, the queue drain, the SQLite mapper, the web settings input, the CLI
+ * settings command, the TUI — goes through these helpers, so "0 means
+ * unlimited", "which lifecycles occupy a slot", and "what is a valid limit"
+ * have exactly one definition.
+ *
+ * Note the import convention: relative imports inside `domain/` carry no file
+ * extension, because the web package consumes this directory as raw TypeScript
+ * source and its bundler cannot resolve a `.js` specifier pointing at a `.ts`
+ * file.
+ */
+
+import { SdlcLifecycle } from '../generated/output';
+import type { AgentRunStatus } from '../generated/output';
+import { TERMINAL_AGENT_RUN_STATUSES } from './agent-run-status';
+import type { Feature } from '../generated/output';
+
+/**
+ * The limit value that disables the cap entirely.
+ *
+ * This is the default. A feature that predates the setting must behave exactly
+ * as it did before it existed, and "off" needs to be expressible without a
+ * second boolean.
+ */
+export const UNLIMITED_PARALLEL_FEATURES = 0;
+
+/**
+ * Highest limit a user may configure.
+ *
+ * Not a technical ceiling — an upper bound that keeps a typo (or a stray paste)
+ * from writing a number so large the cap is effectively off while still
+ * *looking* set.
+ */
+export const MAX_PARALLEL_FEATURES_LIMIT = 64;
+
+/**
+ * Lifecycles that mean an agent is actively working on the feature, and so the
+ * feature is occupying one of the configured slots.
+ *
+ * Deliberately excludes every state where the feature is waiting on something
+ * other than an agent: `Pending` and `Blocked` have not started, `Review` and
+ * `AwaitingUpstream` are waiting on a human or on CI, and `Maintain`,
+ * `Deleting` and `Archived` are finished. Holding a slot open for a PR awaiting
+ * review would make the cap mean "features in flight" rather than "agents
+ * running", which is not the resource anyone is short of.
+ */
+export const RUNNING_LIFECYCLES: ReadonlySet<SdlcLifecycle> = new Set<SdlcLifecycle>([
+  SdlcLifecycle.Started,
+  SdlcLifecycle.Analyze,
+  SdlcLifecycle.Requirements,
+  SdlcLifecycle.Research,
+  SdlcLifecycle.Planning,
+  SdlcLifecycle.Implementation,
+  SdlcLifecycle.Exploring,
+]);
+
+/**
+ * Agent-run statuses that release a slot even while the lifecycle still says
+ * "running".
+ *
+ * Lifecycle alone over-counts: a worker that is SIGKILLed, OOM-killed, stopped
+ * or fails leaves the feature in a running phase (the failure path even resets
+ * it to `Started`, which is itself in {@link RUNNING_LIFECYCLES}), so with a cap
+ * set every such feature held a slot forever and the queue never drained. A
+ * feature occupies a slot only while its CURRENT agent run is not finished.
+ *
+ * Exactly the terminal statuses. `waiting_approval` is deliberately absent: the run is parked on a human gate
+ * and will resume in place, so it keeps the slot it holds. A feature with no
+ * run recorded yet (spawn in progress) also keeps its slot.
+ */
+export const SLOT_RELEASING_RUN_STATUSES: ReadonlySet<AgentRunStatus> = TERMINAL_AGENT_RUN_STATUSES;
+
+/** Does a feature in this lifecycle occupy one of the parallel slots? */
+export function isRunningLifecycle(lifecycle: SdlcLifecycle): boolean {
+  return RUNNING_LIFECYCLES.has(lifecycle);
+}
+
+/**
+ * Is there room to start one more feature?
+ *
+ * Derived from the current count rather than a decrementing counter on purpose:
+ * a crashed, force-deleted or externally-mutated feature would leak a slot from
+ * a counter forever, whereas a count recomputed from lifecycle is self-healing.
+ */
+export function hasCapacity(runningCount: number, limit: number): boolean {
+  if (limit === UNLIMITED_PARALLEL_FEATURES) return true;
+  return runningCount < limit;
+}
+
+/**
+ * Coerce any input — user typing, a corrupt DB value, a parsed query param —
+ * into a limit that is safe to store and to compare against.
+ *
+ * Negatives and unparseable values collapse to unlimited rather than to `1`:
+ * the failure mode of "cap accidentally off" is a busy machine, while the
+ * failure mode of "cap accidentally 1" is a queue that never visibly drains and
+ * looks like Shep has hung.
+ */
+export function clampMaxParallelFeatures(value: number | undefined | null): number {
+  if (value === undefined || value === null || Number.isNaN(value)) {
+    return UNLIMITED_PARALLEL_FEATURES;
+  }
+  if (value >= MAX_PARALLEL_FEATURES_LIMIT) return MAX_PARALLEL_FEATURES_LIMIT;
+  const truncated = Math.trunc(value);
+  if (truncated <= UNLIMITED_PARALLEL_FEATURES) return UNLIMITED_PARALLEL_FEATURES;
+  return truncated;
+}
+
+/**
+ * Is this feature waiting for a capacity slot?
+ *
+ * The marker is the timestamp, never the lifecycle. A feature the user deferred
+ * with `--pending` and a feature the cap is holding back sit in the SAME
+ * lifecycle, and only one of them may be started automatically — so every
+ * surface that asks "is this queued" must ask about `queuedAt`.
+ */
+export function isQueuedForCapacity(feature: Pick<Feature, 'queuedAt'>): boolean {
+  return feature.queuedAt !== undefined && feature.queuedAt !== null;
+}
+
+/**
+ * The queued form of a feature: parked in Pending, stamped with the moment the
+ * user asked for it to run.
+ *
+ * `queuedAt` is the FIFO key, so stamping it at the moment of the *request* is
+ * what makes a feature queued later by pressing Start fall in behind features
+ * that were queued earlier.
+ */
+export function markQueuedForCapacity<T extends Feature>(feature: T, now: Date = new Date()): T {
+  return {
+    ...feature,
+    lifecycle: SdlcLifecycle.Pending,
+    queuedAt: now,
+    updatedAt: now,
+  };
+}
+
+/** Minimal shape this rule needs from settings — keeps callers free of the full entity. */
+export interface MaxParallelFeaturesSource {
+  workflow?: {
+    maxParallelFeatures?: number;
+    queuePaused?: FleetQueuePauseSource;
+    breakerAcknowledgedAt?: unknown;
+  };
+}
+
+/** The shape of a recorded pause, as the settings entity carries it. */
+export interface FleetQueuePauseSource {
+  pausedAt: unknown;
+  reason: string;
+}
+
+/**
+ * When the user last acknowledged a circuit-breaker trip, or undefined.
+ *
+ * The breaker only counts runs that finished after this moment, so a trip means
+ * "failures since you last looked". Without it, `fleet resume` is undone by the
+ * next read while the same failures sit inside the rolling window.
+ *
+ * A value that cannot be parsed as a date is treated as ABSENT, which is the
+ * safe direction: the breaker then judges the whole window and still trips,
+ * rather than silently going blind because a timestamp was corrupt.
+ */
+export function resolveBreakerAcknowledgedAt(
+  settings: MaxParallelFeaturesSource | undefined | null
+): Date | undefined {
+  const raw = settings?.workflow?.breakerAcknowledgedAt;
+  if (raw === undefined || raw === null) return undefined;
+
+  const parsed = raw instanceof Date ? raw : new Date(String(raw));
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
+/**
+ * The recorded pause, or undefined when the queue is draining.
+ *
+ * Absence of the record IS "not paused" — there is no separate boolean to fall
+ * out of sync with the reason it carries.
+ */
+export function resolveFleetQueuePause(
+  settings: MaxParallelFeaturesSource | undefined | null
+): FleetQueuePauseSource | undefined {
+  return settings?.workflow?.queuePaused ?? undefined;
+}
+
+/** Is the fleet admission queue parked? */
+export function isFleetQueuePaused(
+  settings: MaxParallelFeaturesSource | undefined | null
+): boolean {
+  return resolveFleetQueuePause(settings) !== undefined;
+}
+
+/**
+ * The effective limit for the given settings, clamped.
+ *
+ * Accepts `undefined`/`null` so callers that may run before settings are
+ * initialised do not have to branch — an uninitialised install is unlimited,
+ * which is also its default once written.
+ *
+ * A PAUSED queue resolves to 0 — and this is the one case where the returned 0
+ * does NOT mean "unlimited". It cannot be told apart from an uncapped queue by
+ * the number alone (`hasCapacity(0, 0)` is true), so any caller that GATES on
+ * this value must read {@link isFleetQueuePaused} as well — see
+ * `FeatureCapacityService.hasCapacity`/`claimSlot`, which is the only place
+ * admission is actually decided. Callers that merely PERSIST or DISPLAY the
+ * user's own ceiling (`settings.mapper`) want this raw value and must NOT let
+ * the pause overwrite it, or `fleet resume` would have nothing to restore.
+ */
+export function resolveMaxParallelFeatures(
+  settings: MaxParallelFeaturesSource | undefined | null
+): number {
+  if (isFleetQueuePaused(settings)) {
+    return 0;
+  }
+  return resolveConfiguredMaxParallelFeatures(settings);
+}
+
+/**
+ * The ceiling the user configured, ignoring any pause.
+ *
+ * For callers that persist or display the setting rather than gate on it. The
+ * pause must never be written into this number: it is the user's own choice, and
+ * overwriting it would leave `fleet resume` with nothing to restore.
+ */
+export function resolveConfiguredMaxParallelFeatures(
+  settings: MaxParallelFeaturesSource | undefined | null
+): number {
+  return clampMaxParallelFeatures(settings?.workflow?.maxParallelFeatures);
+}
