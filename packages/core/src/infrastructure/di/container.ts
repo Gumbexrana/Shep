@@ -1,0 +1,537 @@
+/**
+ * Dependency Injection Container
+ *
+ * Configures tsyringe DI container with all application dependencies.
+ * Registers repository implementations, use cases, and services.
+ *
+ * Usage:
+ * ```typescript
+ * import { container } from './infrastructure/di/container.js';
+ * const useCase = container.resolve(InitializeSettingsUseCase);
+ * ```
+ */
+
+import 'reflect-metadata';
+import { container } from 'tsyringe';
+import type Database from 'better-sqlite3';
+
+// Messaging — not yet in a registration module
+import type { IMessagingService } from '../../application/ports/output/services/messaging-service.interface.js';
+import { getSettings } from '../services/settings.service.js';
+import type { ISettingsRepository } from '../../application/ports/output/repositories/settings.repository.interface.js';
+import { BeginMessagingPairingUseCase } from '../../application/use-cases/messaging/begin-pairing.use-case.js';
+import { ConfirmMessagingPairingUseCase } from '../../application/use-cases/messaging/confirm-pairing.use-case.js';
+import { DisconnectMessagingUseCase } from '../../application/use-cases/messaging/disconnect-messaging.use-case.js';
+import type { IGatewayClient } from '../../application/ports/output/services/gateway-client.interface.js';
+import { HttpGatewayClient } from '../services/messaging/http-gateway.client.js';
+import { StubGatewayClient } from '../services/messaging/stub-gateway.client.js';
+import { isMessagingConfigured } from '../services/messaging/messaging-config.js';
+import { type getNotificationBus } from '../services/notifications/notification-bus.js';
+import { CreateFeatureUseCase } from '../../application/use-cases/features/create/create-feature.use-case.js';
+import { ApproveAgentRunUseCase } from '../../application/use-cases/agents/approve-agent-run.use-case.js';
+import { RejectAgentRunUseCase } from '../../application/use-cases/agents/reject-agent-run.use-case.js';
+import { StopAgentRunUseCase } from '../../application/use-cases/agents/stop-agent-run.use-case.js';
+import { ResumeFeatureUseCase } from '../../application/use-cases/features/resume-feature.use-case.js';
+import { ListFeaturesUseCase } from '../../application/use-cases/features/list-features.use-case.js';
+import { ShowFeatureUseCase } from '../../application/use-cases/features/show-feature.use-case.js';
+import { ListRepositoriesUseCase } from '../../application/use-cases/repositories/list-repositories.use-case.js';
+
+// Webhook and tunnel services (PR #367: per-repo webhook toggle)
+import type { ITunnelService } from '../../application/ports/output/services/tunnel-service.interface.js';
+import type { IWebhookService as IGitHubWebhookServiceInterface } from '../../application/ports/output/services/webhook-service.interface.js';
+import type { IFeatureRepository } from '../../application/ports/output/repositories/feature-repository.interface.js';
+import type { IGitPrService } from '../../application/ports/output/services/git-pr-service.interface.js';
+import type { INotificationService } from '../../application/ports/output/services/notification-service.interface.js';
+import type { ExecFunction } from '../services/webhook/github-webhook.service.js';
+import { CloudflareTunnelService } from '../services/tunnel/cloudflare-tunnel.service.js';
+import { GitHubWebhookService } from '../services/webhook/github-webhook.service.js';
+import {
+  loadOrCreateWebhookIdentity,
+  WEBHOOK_IDENTITY_FILENAME,
+} from '../services/webhook/webhook-identity.store.js';
+import { getShepHomeDir } from '../services/filesystem/shep-directory.service.js';
+import { join as joinPath } from 'node:path';
+
+// Database connection
+import { getSQLiteConnection } from '../persistence/sqlite/connection.js';
+import { runSQLiteMigrations } from '../persistence/sqlite/migrations.js';
+
+// Eagerly-constructed services that cannot live in pure registration modules.
+import type { IDeploymentService } from '../../application/ports/output/services/deployment-service.interface.js';
+import { DeploymentService } from '../services/deployment/deployment.service.js';
+import type { IInteractiveSessionRepository } from '../../application/ports/output/repositories/interactive-session-repository.interface.js';
+import type { IInteractiveMessageRepository } from '../../application/ports/output/repositories/interactive-message-repository.interface.js';
+import type { IWorkflowStepRepository } from '../../application/ports/output/repositories/workflow-step-repository.interface.js';
+import type { IInteractiveSessionService } from '../../application/ports/output/services/interactive-session-service.interface.js';
+import type { IAgentExecutorFactory } from '../../application/ports/output/agents/agent-executor-factory.interface.js';
+import { InteractiveSessionService } from '../services/interactive/interactive-session.service.js';
+import { FeatureContextBuilder } from '../services/interactive/feature-context.builder.js';
+import { SessionRegistry } from '../services/interactive/core/session-registry.js';
+import { StreamEventDispatcher } from '../services/interactive/core/stream-event-dispatcher.js';
+import { SessionPersistence } from '../services/interactive/core/session-persistence.js';
+import { SettingsProviderAdapter } from '../services/interactive/lifecycle/settings-provider.adapter.js';
+import { AgentConfigResolver } from '../services/interactive/lifecycle/agent-config.resolver.js';
+import { AgentStreamConsumer } from '../services/interactive/runtime/agent-stream.consumer.js';
+import { BootPromptResolver } from '../services/interactive/lifecycle/boot-prompt.resolver.js';
+import { SelectProjectMemoryUseCase } from '../../application/use-cases/project-memory/select-project-memory.use-case.js';
+import { AgentQuestionBridgeFactory } from '../services/agents/agent-question-service/agent-question-bridge.factory.js';
+import { SessionBootstrapper } from '../services/interactive/lifecycle/session-bootstrapper.js';
+import { SessionBootAttempt } from '../services/interactive/lifecycle/session-boot-attempt.js';
+import { DeadAgentSessionRecovery } from '../services/interactive/lifecycle/dead-agent-session.recovery.js';
+import { SessionTerminator } from '../services/interactive/lifecycle/session-terminator.js';
+import { TurnExecutor } from '../services/interactive/runtime/turn.executor.js';
+import { UserInteractionCoordinator } from '../services/interactive/runtime/user-interaction.coordinator.js';
+import { MessageDispatcher } from '../services/interactive/api/message-dispatcher.js';
+import { ChatStateAssembler } from '../services/interactive/api/chat-state.assembler.js';
+import { WorkflowHooks } from '../services/interactive/api/workflow-hooks.js';
+import type { ILogger } from '../../application/ports/output/services/logger.interface.js';
+import type { IVersionService } from '../../application/ports/output/services/version-service.interface.js';
+
+// Topic-grouped registration modules
+import { registerRepositories } from './modules/register-repositories.js';
+import { registerSpaces } from './modules/register-spaces.js';
+import { registerTrackers } from './modules/register-trackers.js';
+import { registerBugLoop } from './modules/register-bug-loop.js';
+import { registerPrComments } from './modules/register-pr-comments.js';
+import { registerKnowledge } from './modules/register-knowledge.js';
+import { registerOpportunities } from './modules/register-opportunities.js';
+import { registerFeedback } from './modules/register-feedback.js';
+import { registerDiscovery } from './modules/register-discovery.js';
+import { registerIncidents } from './modules/register-incidents.js';
+import { registerOutcomes } from './modules/register-outcomes.js';
+import { registerAutopilot } from './modules/register-autopilot.js';
+import { SessionSpaceEnvironment } from '../services/interactive/lifecycle/session-space-environment.js';
+import { ResolveSpaceEnvironmentUseCase } from '../../application/use-cases/spaces/resolve-space-environment.use-case.js';
+import { registerServices } from './modules/register-services.js';
+import { registerTools } from './modules/register-tools.js';
+import { registerAgents } from './modules/register-agents.js';
+import { registerDecisions } from './modules/register-decisions.js';
+import { registerChatBlocks } from './modules/register-chat-blocks.js';
+import { registerCloudDeploy } from './modules/register-cloud-deploy.js';
+import { registerIntegrations } from './modules/register-integrations.js';
+import { registerDeployment } from './modules/register-deployment.js';
+import { registerUseCases } from './modules/register-use-cases.js';
+import { registerPmUseCases } from './modules/register-pm-use-cases.js';
+import { registerInteractive } from './modules/register-interactive.js';
+import { registerWhatsApp } from './modules/register-whatsapp.js';
+import { registerAspm } from './modules/register-aspm.js';
+import { registerCluster } from './modules/register-cluster.js';
+import { registerSecurity } from './modules/register-security.js';
+import { registerScheduledWorkflows } from './modules/register-scheduled-workflows.js';
+import { registerPlugins } from './modules/register-plugins.js';
+import { registerHarness } from './modules/register-harness.js';
+import type { ITelemetry } from '../../application/ports/output/services/telemetry.interface.js';
+import { registerTelemetry } from './modules/register-telemetry.js';
+import { registerGitCheckpoints } from './modules/register-git-checkpoints.js';
+import { registerFeatureConsole } from './modules/register-feature-console.js';
+import { registerAgentActivity } from './modules/register-agent-activity.js';
+import { registerProcesses } from './modules/register-processes.js';
+import { registerHarnessLearning } from './modules/register-harness-learning.js';
+import { createInteractiveHarnessText } from '../services/harness-learning/learned-harness-session.factory.js';
+import { PruneRetainedDataUseCase } from '../../application/use-cases/maintenance/prune-retained-data.use-case.js';
+
+let _initialized = false;
+
+/**
+ * Initialize the DI container with all dependencies.
+ * Must be called before resolving any dependencies.
+ * Safe to call multiple times — returns existing container if already initialized.
+ *
+ * @returns Configured container instance
+ */
+export async function initializeContainer(): Promise<typeof container> {
+  if (_initialized) {
+    return container;
+  }
+
+  // Get database connection
+  const db = await getSQLiteConnection();
+
+  // Run migrations
+  await runSQLiteMigrations(db);
+
+  // Register database instance
+  container.registerInstance<Database.Database>('Database', db);
+
+  // ─── Topic-grouped registrations (pure, lazy) ────────────────────────────
+  registerRepositories(container);
+  registerSpaces(container);
+  registerTrackers(container);
+  registerKnowledge(container);
+  registerOpportunities(container);
+  registerFeedback(container);
+  registerDiscovery(container);
+  registerIncidents(container);
+  registerOutcomes(container);
+  registerAutopilot(container);
+  registerBugLoop(container);
+  registerPrComments(container);
+  registerServices(container);
+  registerTools(container);
+  registerAgents(container);
+  registerDecisions(container);
+  registerChatBlocks(container);
+  registerCloudDeploy(container);
+  registerIntegrations(container);
+  registerDeployment(container);
+  registerUseCases(container);
+  registerPmUseCases(container);
+  registerInteractive(container);
+  registerWhatsApp(container);
+  registerAspm(container);
+  registerCluster(container);
+  registerSecurity(container);
+  registerScheduledWorkflows(container);
+  registerPlugins(container);
+  registerHarness(container);
+  registerTelemetry(container);
+  registerGitCheckpoints(container);
+  registerFeatureConsole(container);
+  registerAgentActivity(container);
+  registerProcesses(container);
+  registerHarnessLearning(container);
+
+  // ─── Retention housekeeping ──────────────────────────────────────────────
+  // The daemon may never have been started, so history (and worker log files)
+  // is pruned on every process start; long-lived processes (`_serve`, `shep ui`)
+  // additionally re-run it on a RetentionScheduler timer. The use case claims
+  // a once-a-day cycle first, so the usual cost here is one indexed point
+  // read. Housekeeping must never be the reason Shep fails to start.
+  try {
+    await container.resolve(PruneRetainedDataUseCase).execute();
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.warn('[shep] data retention prune skipped:', error);
+  }
+
+  // ─── Eager deployment service ────────────────────────────────────────────
+  // DeploymentService needs the database and calls `recoverAll()` at startup,
+  // so it's constructed here and registered as a pre-built instance rather
+  // than as a lazy singleton.
+  const deploymentService = new DeploymentService();
+  deploymentService.setDatabase(db);
+  deploymentService.recoverAll();
+  container.registerInstance<IDeploymentService>('IDeploymentService', deploymentService);
+
+  // ─── Messaging registration ──────────────────────────────────────────────
+  if (process.env.SHEP_MOCK_GATEWAY === '1') {
+    container.register<IGatewayClient>('IGatewayClient', {
+      useFactory: () => new StubGatewayClient(),
+    });
+  } else {
+    container.register<IGatewayClient>('IGatewayClient', {
+      useFactory: () => new HttpGatewayClient(),
+    });
+  }
+  container.registerSingleton(BeginMessagingPairingUseCase);
+  container.registerSingleton(ConfirmMessagingPairingUseCase);
+  container.registerSingleton(DisconnectMessagingUseCase);
+  container.register('BeginMessagingPairingUseCase', {
+    useFactory: (c) => c.resolve(BeginMessagingPairingUseCase),
+  });
+  container.register('ConfirmMessagingPairingUseCase', {
+    useFactory: (c) => c.resolve(ConfirmMessagingPairingUseCase),
+  });
+  container.register('DisconnectMessagingUseCase', {
+    useFactory: (c) => c.resolve(DisconnectMessagingUseCase),
+  });
+
+  // ─── Tunnel and webhook services (PR #367: per-repo webhook toggle) ────────
+  container.register<ITunnelService>('ITunnelService', {
+    useFactory: () => new CloudflareTunnelService(),
+  });
+
+  // Register GitHub webhook service under a distinct token to avoid colliding with
+  // the outbound-delivery IWebhookService (webhook.interface.ts / NoopWebhookService).
+  container.register<IGitHubWebhookServiceInterface>('IGitHubWebhookService', {
+    useFactory: (c) => {
+      const featureRepo = c.resolve<IFeatureRepository>('IFeatureRepository');
+      const gitPrService = c.resolve<IGitPrService>('IGitPrService');
+      const notifService = c.resolve<INotificationService>('INotificationService');
+      const execFnResolved = c.resolve<ExecFunction>('ExecFunction');
+      // The webhook service runs inside the daemon; give it the container's
+      // logger rather than letting it fall back to its own ConsoleLogger.
+      const webhookLogger = c.resolve<ILogger>('ILogger');
+      // A persisted per-installation identity: a stable secret keeps existing
+      // hooks validating across restarts, and the instance id limits stale-hook
+      // cleanup to hooks this installation created.
+      const identity = loadOrCreateWebhookIdentity(
+        joinPath(getShepHomeDir(), WEBHOOK_IDENTITY_FILENAME)
+      );
+      return new GitHubWebhookService(
+        featureRepo,
+        gitPrService,
+        notifService,
+        execFnResolved,
+        webhookLogger,
+        identity,
+        c.resolve<ITelemetry>('ITelemetry')
+      );
+    },
+  });
+
+  // ─── Boot-time workflow-step recovery ────────────────────────────────────
+  // Any step left in `running` by a previous daemon is orphaned. Flip it to
+  // `interrupted` BEFORE any session can resolve so the UI never shows
+  // phantom "in-progress" state from a dead process.
+  const workflowStepRepoBoot =
+    container.resolve<IWorkflowStepRepository>('IWorkflowStepRepository');
+  const interruptedCount = await workflowStepRepoBoot.markAllRunningAsInterrupted();
+  if (interruptedCount > 0) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `[workflow-step-recovery] marked ${interruptedCount} orphaned running step(s) as interrupted`
+    );
+  }
+
+  // ─── Interactive session service (eager) ─────────────────────────────────
+  // Constructed with already-resolved dependencies + the boot workflow-step
+  // repo so the recovery state is shared with the running instance.
+  const interactiveSessionRepo = container.resolve<IInteractiveSessionRepository>(
+    'IInteractiveSessionRepository'
+  );
+  const interactiveMessageRepo = container.resolve<IInteractiveMessageRepository>(
+    'IInteractiveMessageRepository'
+  );
+  const sessionRegistry = new SessionRegistry();
+  const streamEventDispatcher = new StreamEventDispatcher(sessionRegistry);
+  // SessionPersistence is a process-wide singleton so its monotonic
+  // `createdAt` counter is shared across every write. See
+  // `core/session-persistence.ts` for why strictly-increasing timestamps
+  // matter (tool_use / tool_result collisions).
+  const sessionPersistence = new SessionPersistence(
+    interactiveMessageRepo,
+    interactiveSessionRepo,
+    sessionRegistry,
+    streamEventDispatcher
+  );
+  // Settings-provider port + agent-config resolver. The adapter is the
+  // one legitimate place the `settings.service` singleton is called —
+  // everywhere else consults it through the injected port. Registered
+  // by token so application-layer use cases (e.g. CreateApplicationUseCase)
+  // can resolve the user's default agent without bypassing the port
+  // contract.
+  const settingsProvider = new SettingsProviderAdapter();
+  container.registerInstance('ISettingsProvider', settingsProvider);
+  const agentConfigResolver = new AgentConfigResolver(settingsProvider);
+
+  const logger: ILogger = {
+    // eslint-disable-next-line no-console
+    debug: (msg, meta) => console.debug(`[shep] ${msg}`, meta ?? ''),
+    // eslint-disable-next-line no-console
+    info: (msg, meta) => console.info(`[shep] ${msg}`, meta ?? ''),
+    // eslint-disable-next-line no-console
+    warn: (msg, meta) => console.warn(`[shep] ${msg}`, meta ?? ''),
+    // eslint-disable-next-line no-console
+    error: (msg, meta) => console.error(`[shep] ${msg}`, meta ?? ''),
+  };
+  const streamConsumer = new AgentStreamConsumer(sessionPersistence, streamEventDispatcher, logger);
+  const featureRepository = container.resolve<IFeatureRepository>('IFeatureRepository');
+  const agentExecutorFactory = container.resolve<IAgentExecutorFactory>('IAgentExecutorFactory');
+  const featureContextBuilder = new FeatureContextBuilder();
+  const bootPromptResolver = new BootPromptResolver(
+    featureRepository,
+    featureContextBuilder,
+    container.resolve(SelectProjectMemoryUseCase),
+    createInteractiveHarnessText(container)
+  );
+  const interactionCoordinator = new UserInteractionCoordinator(
+    sessionPersistence,
+    streamEventDispatcher,
+    logger,
+    sessionRegistry
+  );
+  const bootAttempt = new SessionBootAttempt(
+    interactiveSessionRepo,
+    sessionPersistence,
+    streamEventDispatcher,
+    bootPromptResolver,
+    streamConsumer,
+    agentExecutorFactory,
+    agentConfigResolver,
+    interactionCoordinator,
+    logger,
+    new SessionSpaceEnvironment(
+      featureRepository,
+      container.resolve(ResolveSpaceEnvironmentUseCase)
+    ),
+    // Spec 134: chat AskUserQuestion is also recorded in the unified inbox.
+    // Resolved per boot, not here: its use cases reach IInteractiveSessionService,
+    // which is registered below.
+    {
+      create: (session, surface) =>
+        container.resolve(AgentQuestionBridgeFactory).create(session, surface),
+    }
+  );
+  const bootstrapper = new SessionBootstrapper(
+    interactiveSessionRepo,
+    sessionRegistry,
+    sessionPersistence,
+    streamEventDispatcher,
+    agentExecutorFactory,
+    agentConfigResolver,
+    logger,
+    bootAttempt,
+    new DeadAgentSessionRecovery(
+      interactiveSessionRepo,
+      sessionRegistry,
+      streamEventDispatcher,
+      logger
+    )
+  );
+  const terminator = new SessionTerminator(
+    sessionRegistry,
+    sessionPersistence,
+    streamEventDispatcher,
+    logger,
+    interactiveMessageRepo,
+    workflowStepRepoBoot
+  );
+  const turnExecutor = new TurnExecutor(
+    interactiveSessionRepo,
+    sessionRegistry,
+    sessionPersistence,
+    streamConsumer,
+    logger,
+    streamEventDispatcher
+  );
+  const messageDispatcher = new MessageDispatcher(
+    interactiveSessionRepo,
+    interactiveMessageRepo,
+    sessionRegistry,
+    sessionPersistence,
+    bootstrapper,
+    terminator,
+    turnExecutor
+  );
+  const chatStateAssembler = new ChatStateAssembler(
+    interactiveMessageRepo,
+    interactiveSessionRepo,
+    workflowStepRepoBoot,
+    sessionRegistry
+  );
+  const workflowHooks = new WorkflowHooks(sessionRegistry, streamEventDispatcher);
+  const interactiveSessionService = new InteractiveSessionService(
+    interactiveSessionRepo,
+    interactiveMessageRepo,
+    featureRepository,
+    featureContextBuilder,
+    workflowStepRepoBoot,
+    sessionRegistry,
+    streamEventDispatcher,
+    sessionPersistence,
+    logger,
+    bootstrapper,
+    terminator,
+    turnExecutor,
+    interactionCoordinator,
+    messageDispatcher,
+    chatStateAssembler,
+    workflowHooks
+  );
+  container.registerInstance<IInteractiveSessionService>(
+    'IInteractiveSessionService',
+    interactiveSessionService
+  );
+
+  // Startup cleanup: mark any zombie sessions (booting/ready from a prior
+  // server run) as stopped.
+  await interactiveSessionRepo.markAllActiveStopped();
+
+  // Register messaging service as a lazy factory — only instantiated when
+  // the daemon resolves it. Avoids loading ws and messaging code for CLI commands.
+  container.register<IMessagingService>('IMessagingService', {
+    useFactory: (c) => {
+      let instance: IMessagingService | null = null;
+      const getInstance = async (): Promise<IMessagingService> => {
+        if (!instance) {
+          const { MessagingService } = await import('../services/messaging/messaging.service.js');
+          const { HttpTelegramClient } = await import(
+            '../services/messaging/http-telegram.client.js'
+          );
+          const settingsRepository = c.resolve<ISettingsRepository>('ISettingsRepository');
+
+          // The service re-reads messaging settings from the DB at use time
+          // (pairing may be begun/confirmed by another process) and asks the
+          // gateway for a fresh token on every tunnel connection attempt.
+          instance = new MessagingService({
+            loadConfig: async () => (await settingsRepository.load())?.messaging,
+            gatewayClient: c.resolve<IGatewayClient>('IGatewayClient'),
+            telegramClient: new HttpTelegramClient(),
+            fallbackTelegramBotToken: process.env.SHEP_TELEGRAM_BOT_TOKEN,
+            notificationBus: c.resolve('NotificationEventBus') as ReturnType<
+              typeof getNotificationBus
+            >,
+            featureRepo: c.resolve<IFeatureRepository>('IFeatureRepository'),
+            createFeature: c.resolve(CreateFeatureUseCase),
+            approveAgentRun: c.resolve(ApproveAgentRunUseCase),
+            rejectAgentRun: c.resolve(RejectAgentRunUseCase),
+            stopAgentRun: c.resolve(StopAgentRunUseCase),
+            resumeFeature: c.resolve(ResumeFeatureUseCase),
+            listFeatures: c.resolve(ListFeaturesUseCase),
+            showFeature: c.resolve(ShowFeatureUseCase),
+            listRepositories: c.resolve(ListRepositoriesUseCase),
+            confirmPairing: c.resolve(ConfirmMessagingPairingUseCase),
+            interactiveSessionService: c.resolve<IInteractiveSessionService>(
+              'IInteractiveSessionService'
+            ),
+          });
+        }
+        return instance;
+      };
+      return new Proxy({} as IMessagingService, {
+        get: (_target, prop) => {
+          if (prop === 'isConfigured') {
+            // isConfigured is synchronous — check settings directly.
+            // A route is enough: the tunnel must start in pending-pairing
+            // state so the daemon can receive the user's `/pair <code>`
+            // message and auto-confirm via the tunnel.
+            return () => {
+              try {
+                return isMessagingConfigured(getSettings().messaging);
+              } catch {
+                return false;
+              }
+            };
+          }
+          return async (...args: unknown[]) => {
+            const svc = await getInstance();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            return (svc as any)[prop](...args);
+          };
+        },
+      });
+    },
+  });
+
+  // McpServerFactory is registered as a lazy async factory to avoid importing
+  // @modelcontextprotocol/sdk for non-MCP commands. The factory uses dynamic
+  // import() — the actual SDK import only happens when the factory is called.
+  container.register('McpServerFactory', {
+    useFactory: (c) => {
+      return async () => {
+        const { McpServerService } = await import('../services/mcp/mcp-server.service.js');
+        const versionService = c.resolve<IVersionService>('IVersionService');
+        const { version } = versionService.getVersion();
+        return new McpServerService(version, c);
+      };
+    },
+  });
+
+  _initialized = true;
+  return container;
+}
+
+/**
+ * Check whether the DI container has been initialized.
+ * Useful for diagnostics and conditional initialization in instrumentation.ts.
+ */
+export function isContainerInitialized(): boolean {
+  return _initialized;
+}
+
+/**
+ * Get the configured container instance.
+ * Container must be initialized first via initializeContainer().
+ */
+export { container };
