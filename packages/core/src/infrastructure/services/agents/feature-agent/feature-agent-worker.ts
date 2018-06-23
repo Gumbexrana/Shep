@@ -1,0 +1,901 @@
+#!/usr/bin/env node
+/**
+ * Feature Agent Worker
+ *
+ * Background worker entry point that runs as a child process via fork().
+ * Initializes DI, creates the feature agent graph, and executes it.
+ * Sends periodic heartbeats so the CLI can detect stuck/crashed workers.
+ *
+ * CLI Args: --feature-id <id> --run-id <id> --repo <path> --spec-dir <path>
+ */
+
+import 'reflect-metadata';
+import { unlinkSync } from 'node:fs';
+import { Command } from '@langchain/langgraph';
+import { initializeContainer, container } from '@/infrastructure/di/container.js';
+import { createFeatureAgentGraph } from './feature-agent-graph.js';
+import type { FeatureAgentGraphDeps } from './feature-agent-graph.js';
+import { createFastFeatureAgentGraph } from './fast-feature-agent-graph.js';
+import type { FastFeatureAgentGraphDeps } from './fast-feature-agent-graph.js';
+import { createExplorationAgentGraph } from './exploration-agent-graph.js';
+import { createCheckpointRecorder } from './checkpoint-capture.js';
+import { CaptureFeatureCheckpointUseCase } from '@/application/use-cases/features/checkpoints/capture-feature-checkpoint.use-case.js';
+import type { ExplorationAgentGraphDeps } from './exploration-agent-graph.js';
+import { createCheckpointer } from '../common/checkpointer.js';
+import type { IAgentCheckpointService } from '@/application/ports/output/agents/agent-checkpoint-service.interface.js';
+import type { IAgentRunRepository } from '@/application/ports/output/agents/agent-run-repository.interface.js';
+import type { IAgentExecutorProvider } from '@/application/ports/output/agents/agent-executor-provider.interface.js';
+import type { IAgentExecutorFactory } from '@/application/ports/output/agents/agent-executor-factory.interface.js';
+import type { IFeatureRepository } from '@/application/ports/output/repositories/feature-repository.interface.js';
+import type { IGitPrService } from '@/application/ports/output/services/git-pr-service.interface.js';
+import { type GitRemoteListService } from '@/infrastructure/services/git/git-remote-list.service.js';
+import type { IGitForkService } from '@/application/ports/output/services/git-fork-service.interface.js';
+import {
+  AgentRunStatus,
+  TelemetryProcessKind,
+  SecurityMode,
+  type AgentEffort,
+  type AgentType,
+  type SecurityActionCategory,
+  type SecurityActionDisposition,
+} from '@/domain/generated/output.js';
+import { initializeSettings } from '@/infrastructure/services/settings.service.js';
+import { parseAgentEffort } from '@/domain/shared/agent-effort.js';
+import { InitializeSettingsUseCase } from '@/application/use-cases/settings/initialize-settings.use-case.js';
+import { setHeartbeatContext } from './heartbeat.js';
+import {
+  claimRunForWorker,
+  drainCapacityQueueAfterFailure,
+  finishRun,
+  recordRunFailure,
+  startRunHeartbeat,
+  WORKER_CLAIMABLE_STATUSES,
+} from './worker-run-status.js';
+import { setPhaseTimingContext, recordLifecycleEvent } from './phase-timing-context.js';
+import { createRunFinishedRecorder, type RunFinishedRecorder } from './worker-telemetry.js';
+import { setTelemetryProcessKind } from '../../telemetry/node-telemetry-runtime.js';
+import type { ITelemetry } from '../../../../application/ports/output/services/telemetry.interface.js';
+import { setLifecycleContext } from './lifecycle-context.js';
+import { setSdlcBoardContext } from './sdlc-board-context.js';
+import type { ISdlcBoardTracker } from '@/application/ports/output/agents/sdlc-board-tracker.interface.js';
+import { setLogPrefix, getLogPrefix } from './log-context.js';
+import { FeatureAgentLifecyclePublisher } from './feature-agent-lifecycle-publisher.js';
+import { FeatureAgentGateQuestionPublisher } from './feature-agent-gate-question-publisher.js';
+import { FeatureAgentSupervisorGateEvaluator } from './feature-agent-supervisor-gate-evaluator.js';
+import type { IPhaseTimingRepository } from '@/application/ports/output/agents/phase-timing-repository.interface.js';
+import type { IPluginRepository } from '@/application/ports/output/repositories/plugin-repository.interface.js';
+import type { IMcpServerManager } from '@/application/ports/output/services/mcp-server-manager.interface.js';
+import { UpdateFeatureLifecycleUseCase } from '@/application/use-cases/features/update/update-feature-lifecycle.use-case.js';
+import { AdmitQueuedFeaturesUseCase } from '@/application/use-cases/features/capacity/admit-queued-features.use-case.js';
+import { CleanupFeatureWorktreeUseCase } from '@/application/use-cases/features/cleanup-feature-worktree.use-case.js';
+import { startPluginServers, stopPluginServers } from './plugin-startup.js';
+import { startDecisionTool, stopDecisionTool } from './decision-tool-startup.js';
+import { SelectProjectMemoryUseCase } from '@/application/use-cases/project-memory/select-project-memory.use-case.js';
+import { CheckDocsGateUseCase } from '@/application/use-cases/docs-first/check-docs-gate.use-case.js';
+import { RecordProjectMemoryUseCase } from '@/application/use-cases/project-memory/record-project-memory.use-case.js';
+import { ResolveSpaceEnvironmentUseCase } from '@/application/use-cases/spaces/resolve-space-environment.use-case.js';
+import { applyRunSpaceEnvironment } from './apply-space-environment.js';
+
+import type { ApprovalGates } from '@/domain/generated/output.js';
+import { FEATURE_WORKER_HEARTBEAT_INTERVAL_MS } from '@/domain/shared/agent-run-liveness.js';
+import { createLearnedHarnessSession } from '../../harness-learning/learned-harness-session.factory.js';
+import { LearnedHarnessExecutorProxy } from '../../harness-learning/learned-harness-executor.proxy.js';
+import { learnFromRun } from './learn-from-run.js';
+import { createExploreDeps } from './explore/explore-deps.js';
+import { ReflectOnFeatureRunUseCase } from '@/application/use-cases/harness-learning/reflect-on-feature-run.use-case.js';
+import { RecordVersionOutcomeUseCase } from '@/application/use-cases/harness-learning/record-version-outcome.use-case.js';
+
+export interface WorkerArgs {
+  featureId: string;
+  runId: string;
+  repo: string;
+  specDir: string;
+  worktreePath?: string;
+  approvalGates?: ApprovalGates;
+  resume?: boolean;
+  threadId?: string;
+  resumeFromInterrupt?: boolean;
+  push?: boolean;
+  openPr?: boolean;
+  forkAndPr?: boolean;
+  commitSpecs?: boolean;
+  ciWatchEnabled?: boolean;
+  enableEvidence?: boolean;
+  commitEvidence?: boolean;
+  resumePayload?: string;
+  agentType?: AgentType;
+  fast?: boolean;
+  exploration?: boolean;
+  model?: string;
+  effort?: AgentEffort;
+  resumeReason?: string;
+  securityMode?: SecurityMode;
+  securityActionDispositions?: Partial<Record<SecurityActionCategory, SecurityActionDisposition>>;
+}
+
+/**
+ * Parse CLI arguments into a WorkerArgs object.
+ * Throws if any required argument is missing.
+ */
+export function parseWorkerArgs(args: string[]): WorkerArgs {
+  const getArg = (name: string): string => {
+    const index = args.indexOf(`--${name}`);
+    if (index === -1 || index + 1 >= args.length) {
+      throw new Error(`Missing required argument: --${name}`);
+    }
+    return args[index + 1];
+  };
+
+  const worktreeIdx = args.indexOf('--worktree-path');
+  const worktreePath =
+    worktreeIdx !== -1 && worktreeIdx + 1 < args.length ? args[worktreeIdx + 1] : undefined;
+
+  const approvalIdx = args.indexOf('--approval-gates');
+  let approvalGates: ApprovalGates | undefined;
+  if (approvalIdx !== -1 && approvalIdx + 1 < args.length) {
+    try {
+      approvalGates = JSON.parse(args[approvalIdx + 1]) as ApprovalGates;
+    } catch {
+      // Fall back to no gates if JSON parse fails
+      approvalGates = undefined;
+    }
+  }
+
+  const resume = args.includes('--resume');
+  const resumeFromInterrupt = args.includes('--resume-from-interrupt');
+  const push = args.includes('--push');
+  const openPr = args.includes('--open-pr');
+  const forkAndPr = args.includes('--fork-and-pr');
+  const commitSpecs = !args.includes('--no-commit-specs');
+  const ciWatchEnabled = !args.includes('--no-ci-watch');
+  const enableEvidence = args.includes('--enable-evidence');
+  const commitEvidence = args.includes('--commit-evidence');
+  const fast = args.includes('--fast');
+  const exploration = args.includes('--explore');
+  const threadIdx = args.indexOf('--thread-id');
+  const threadId =
+    threadIdx !== -1 && threadIdx + 1 < args.length ? args[threadIdx + 1] : undefined;
+
+  const agentTypeIdx = args.indexOf('--agent-type');
+  const agentType =
+    agentTypeIdx !== -1 && agentTypeIdx + 1 < args.length
+      ? (args[agentTypeIdx + 1] as AgentType)
+      : undefined;
+
+  const resumePayloadIdx = args.indexOf('--resume-payload');
+  const resumePayload =
+    resumePayloadIdx !== -1 && resumePayloadIdx + 1 < args.length
+      ? args[resumePayloadIdx + 1]
+      : undefined;
+
+  const modelIdx = args.indexOf('--model');
+  const model = modelIdx !== -1 && modelIdx + 1 < args.length ? args[modelIdx + 1] : undefined;
+
+  // Validated here so an unknown level never reaches the agent CLI's argv.
+  const effortIdx = args.indexOf('--effort');
+  const effort =
+    effortIdx !== -1 && effortIdx + 1 < args.length
+      ? parseAgentEffort(args[effortIdx + 1])
+      : undefined;
+
+  const resumeReasonIdx = args.indexOf('--resume-reason');
+  const resumeReason =
+    resumeReasonIdx !== -1 && resumeReasonIdx + 1 < args.length
+      ? args[resumeReasonIdx + 1]
+      : undefined;
+
+  const securityModeIdx = args.indexOf('--security-mode');
+  const securityModeRaw =
+    securityModeIdx !== -1 && securityModeIdx + 1 < args.length
+      ? args[securityModeIdx + 1]
+      : undefined;
+  const securityMode =
+    securityModeRaw && Object.values(SecurityMode).includes(securityModeRaw as SecurityMode)
+      ? (securityModeRaw as SecurityMode)
+      : undefined;
+
+  const securityDispositionsIdx = args.indexOf('--security-dispositions');
+  let securityActionDispositions:
+    | Partial<Record<SecurityActionCategory, SecurityActionDisposition>>
+    | undefined;
+  if (securityDispositionsIdx !== -1 && securityDispositionsIdx + 1 < args.length) {
+    try {
+      securityActionDispositions = JSON.parse(args[securityDispositionsIdx + 1]) as Partial<
+        Record<SecurityActionCategory, SecurityActionDisposition>
+      >;
+    } catch {
+      securityActionDispositions = undefined;
+    }
+  }
+
+  return {
+    featureId: getArg('feature-id'),
+    runId: getArg('run-id'),
+    repo: getArg('repo'),
+    specDir: getArg('spec-dir'),
+    worktreePath,
+    approvalGates,
+    resume,
+    threadId,
+    resumeFromInterrupt,
+    push,
+    openPr,
+    forkAndPr,
+    commitSpecs,
+    ciWatchEnabled,
+    enableEvidence,
+    commitEvidence,
+    resumePayload,
+    agentType,
+    fast,
+    exploration,
+    model,
+    effort,
+    resumeReason,
+    securityMode,
+    securityActionDispositions,
+  };
+}
+
+/** Simple worker logger — writes to stdout which is redirected to log file by the parent. */
+function log(message: string): void {
+  const ts = new Date().toISOString();
+  process.stdout.write(`[${ts}] ${getLogPrefix()}[WORKER] ${message}\n`);
+}
+
+/**
+ * Heartbeat interval. Owned by the domain because the run-liveness sweep's
+ * staleness thresholds are defined as multiples of it.
+ */
+const HEARTBEAT_INTERVAL_MS = FEATURE_WORKER_HEARTBEAT_INTERVAL_MS;
+
+/**
+ * Run the feature agent worker with the given arguments.
+ * Initializes DI, creates the graph, and executes it.
+ */
+export async function runWorker(args: WorkerArgs): Promise<void> {
+  // Set log prefix early so all subsequent log lines carry agent/model info
+  const agentLabel = args.agentType ?? 'default';
+  setLogPrefix(agentLabel, args.model);
+
+  // Log the full reconstructed spawn command for debugging
+  const cmdParts = [
+    'feature-agent-worker',
+    '--feature-id',
+    args.featureId,
+    '--run-id',
+    args.runId,
+    '--repo',
+    args.repo,
+    '--spec-dir',
+    args.specDir,
+    ...(args.worktreePath ? ['--worktree-path', args.worktreePath] : []),
+    ...(args.approvalGates ? ['--approval-gates', JSON.stringify(args.approvalGates)] : []),
+    ...(args.resume ? ['--resume'] : []),
+    ...(args.threadId ? ['--thread-id', args.threadId] : []),
+    ...(args.resumeFromInterrupt ? ['--resume-from-interrupt'] : []),
+    ...(args.push ? ['--push'] : []),
+    ...(args.openPr ? ['--open-pr'] : []),
+    ...(args.forkAndPr ? ['--fork-and-pr'] : []),
+    ...(args.commitSpecs === false ? ['--no-commit-specs'] : []),
+    ...(args.resumePayload ? ['--resume-payload', args.resumePayload] : []),
+    ...(args.agentType ? ['--agent-type', args.agentType] : []),
+    ...(args.fast ? ['--fast'] : []),
+    ...(args.exploration ? ['--explore'] : []),
+    ...(args.model ? ['--model', args.model] : []),
+    ...(args.effort ? ['--effort', args.effort] : []),
+    ...(args.securityMode ? ['--security-mode', args.securityMode] : []),
+    ...(args.securityActionDispositions
+      ? ['--security-dispositions', JSON.stringify(args.securityActionDispositions)]
+      : []),
+  ];
+  log(`Starting worker — full command:`);
+  log(`  ${cmdParts.join(' ')}`);
+
+  log('Initializing container...');
+  setTelemetryProcessKind(TelemetryProcessKind.Worker);
+  await initializeContainer();
+
+  // Initialize settings in the worker process
+  log('Loading settings...');
+  const initSettingsUseCase = container.resolve(InitializeSettingsUseCase);
+  const settings = await initSettingsUseCase.execute();
+  initializeSettings(settings);
+
+  const runRepository = container.resolve<IAgentRunRepository>('IAgentRunRepository');
+
+  // Claim the run with our PID before building anything. The claim only
+  // succeeds from pending/running, so a Stop that landed before we booted
+  // (Stop marks the run interrupted and, with no PID yet, signals nothing)
+  // is honoured instead of overwritten.
+  const bootedAt = new Date();
+  log(`Claiming run as running (PID ${process.pid})...`);
+  const claimed = await claimRunForWorker(runRepository, args.runId, process.pid, bootedAt);
+  const recordRunFinished = createRunFinishedRecorder(
+    container.resolve<ITelemetry>('ITelemetry'),
+    args.agentType ?? settings.agent.type,
+    bootedAt
+  );
+  recordRunFinishedForSignal = recordRunFinished;
+  if (!claimed) {
+    const current = await runRepository.findById(args.runId);
+    log(
+      `Run ${args.runId} is not claimable (status: ${current?.status ?? 'not found'}) — ` +
+        'it was stopped or finished before this worker booted. Exiting without running the graph.'
+    );
+    return;
+  }
+
+  // Spec 121: give this run its space's logins and identity before any agent,
+  // plugin server, gh or git process exists, and refuse an agent the space
+  // does not allow. Resolved from the repository, never the worktree path.
+  const spaceCheck = await applyRunSpaceEnvironment({
+    resolveEnvironment: (repositoryPath, agentType) =>
+      container.resolve(ResolveSpaceEnvironmentUseCase).execute(repositoryPath, agentType),
+    repositoryPath: args.repo,
+    agentType: args.agentType ?? settings.agent.type,
+    env: process.env,
+    log,
+  });
+  if (spaceCheck.refusal) {
+    log(`Refusing to run: ${spaceCheck.refusal}`);
+    await recordRunFailure(
+      {
+        runRepository,
+        featureRepository: container.resolve<IFeatureRepository>('IFeatureRepository'),
+        recordLifecycleEvent: (event) => recordLifecycleEvent(event),
+        drainCapacityQueue: () => container.resolve(AdmitQueuedFeaturesUseCase).execute(),
+        log,
+      },
+      {
+        runId: args.runId,
+        featureId: args.featureId,
+        message: spaceCheck.refusal,
+        failedAt: new Date(),
+      }
+    );
+    return;
+  }
+
+  const executorProvider = container.resolve<IAgentExecutorProvider>('IAgentExecutorProvider');
+
+  // Create executor — use pinned agentType when resuming, otherwise fall back to settings
+  let executor;
+  if (args.agentType) {
+    log(`Creating executor from pinned agent type: ${args.agentType}`);
+    const factory = container.resolve<IAgentExecutorFactory>('IAgentExecutorFactory');
+    executor = factory.createExecutor(args.agentType, settings.agent);
+  } else {
+    log('Creating executor from configured agent settings...');
+    executor = await executorProvider.getExecutor();
+  }
+
+  // Learned harness (spec 150): one pinned version per run, installed before every agent call.
+  const learnedHarness = createLearnedHarnessSession(container, args.repo, log);
+  const rawExecutor = executor;
+  executor = new LearnedHarnessExecutorProxy(executor, learnedHarness);
+
+  // Resolve plugin dependencies for MCP server lifecycle
+  const pluginRepository = container.resolve<IPluginRepository>('IPluginRepository');
+  const mcpServerManager = container.resolve<IMcpServerManager>('IMcpServerManager');
+
+  // Resolve merge node dependencies
+  const gitPrService = container.resolve<IGitPrService>('IGitPrService');
+  const gitRemoteListService = container.resolve<GitRemoteListService>('GitRemoteListService');
+  const featureRepository = container.resolve<IFeatureRepository>('IFeatureRepository');
+  const cleanupFeatureWorktreeUseCase = container.resolve(CleanupFeatureWorktreeUseCase);
+
+  // Per-phase/per-task memory selection ("Shep Brain"): each agent prompt
+  // receives only the entries relevant to its phase + task, ranked by the
+  // injected scorer and bounded by a token budget — not the whole store.
+  const selectProjectMemoryUseCase = container.resolve(SelectProjectMemoryUseCase);
+  const selectProjectMemory = (input: {
+    repositoryPath: string;
+    phase: string;
+    taskText: string;
+  }) => selectProjectMemoryUseCase.execute(input);
+
+  // Hidden-ref checkpoint after every file-changing node (spec 138).
+  const checkpoints = createCheckpointRecorder({
+    capture: container.resolve(CaptureFeatureCheckpointUseCase),
+    agentRunId: args.runId,
+    log,
+  });
+
+  const graphDeps: FeatureAgentGraphDeps = {
+    executor,
+    selectProjectMemory,
+    checkpoints,
+    mergeNodeDeps: {
+      selectMemory: selectProjectMemory,
+      getDiffSummary: (cwd: string, baseBranch: string) =>
+        gitPrService.getPrDiffSummary(cwd, baseBranch),
+      hasRemote: (cwd: string) => gitPrService.hasRemote(cwd),
+      getDefaultBranch: (cwd: string) => gitPrService.getDefaultBranch(cwd),
+      listRemotes: (cwd: string) => gitRemoteListService.listRemotes(cwd),
+      getForkParentInfo: (cwd: string) => gitRemoteListService.getForkParentInfo(cwd),
+      verifyMerge: (
+        cwd: string,
+        featureBranch: string,
+        baseBranch: string,
+        premergeBaseSha?: string
+      ) => gitPrService.verifyMerge(cwd, featureBranch, baseBranch, premergeBaseSha),
+      revParse: (cwd: string, ref: string) => gitPrService.revParse(cwd, ref),
+      localMergeSquash: (
+        cwd: string,
+        featureBranch: string,
+        baseBranch: string,
+        commitMessage: string,
+        hasRemote?: boolean
+      ) => gitPrService.localMergeSquash(cwd, featureBranch, baseBranch, commitMessage, hasRemote),
+      featureRepository,
+      gitPrService,
+      gitForkService: container.resolve<IGitForkService>('IGitForkService'),
+      cleanupFeatureWorktreeUseCase,
+      telemetry: container.resolve<ITelemetry>('ITelemetry'),
+      checkDocsGate: (repositoryPath: string, changedFiles: readonly string[]) =>
+        container.resolve(CheckDocsGateUseCase).execute(repositoryPath, changedFiles),
+    },
+    extractMemoryDeps: {
+      recordProjectMemory: container.resolve(RecordProjectMemoryUseCase),
+    },
+    explore: createExploreDeps(container, rawExecutor, args.runId, log),
+  };
+
+  // Use threadId for checkpoint path so resume runs share the same checkpoint DB.
+  // Falls back to runId for backwards compatibility with existing runs.
+  const checkpointId = args.threadId ?? args.runId;
+  const checkpointService = container.resolve<IAgentCheckpointService>('IAgentCheckpointService');
+  const checkpointPath = checkpointService.getFeatureCheckpointPath(checkpointId);
+  log(`Creating checkpointer at ${checkpointPath} (thread: ${checkpointId})`);
+  const checkpointer = createCheckpointer(checkpointPath);
+  // All graph factories return compiled graphs with identical FeatureAgentAnnotation
+  // state shape and invoke() interface. Cast through unknown because the compiled
+  // graphs have different node name types but share the same runtime contract.
+  let graph: ReturnType<typeof createFeatureAgentGraph>;
+  if (args.exploration) {
+    graph = createExplorationAgentGraph(
+      { executor, checkpoints } as ExplorationAgentGraphDeps,
+      checkpointer
+    ) as unknown as ReturnType<typeof createFeatureAgentGraph>;
+  } else if (args.fast) {
+    graph = createFastFeatureAgentGraph(
+      graphDeps as FastFeatureAgentGraphDeps,
+      checkpointer
+    ) as unknown as ReturnType<typeof createFeatureAgentGraph>;
+  } else {
+    graph = createFeatureAgentGraph(graphDeps, checkpointer);
+  }
+
+  // Start heartbeat so the CLI can detect if we're still alive
+  const stopHeartbeat = startRunHeartbeat(runRepository, args.runId, HEARTBEAT_INTERVAL_MS, log);
+
+  // Set heartbeat context so node-helpers can update current node
+  setHeartbeatContext(args.runId, runRepository);
+
+  // Set phase timing context so executeNode() records per-phase durations
+  const timingRepository = container.resolve<IPhaseTimingRepository>('IPhaseTimingRepository');
+  setPhaseTimingContext(args.runId, timingRepository);
+
+  // Capture repos for SIGTERM handler
+  runRepoForSignal = runRepository;
+  timingRepoForSignal = timingRepository;
+
+  // Set lifecycle context so nodes update the feature lifecycle as they execute.
+  // Route through UpdateFeatureLifecycleUseCase so CheckAndUnblockFeaturesUseCase
+  // fires on every transition, automatically unblocking eligible blocked children.
+  const updateLifecycleUseCase = container.resolve(UpdateFeatureLifecycleUseCase);
+  setLifecycleContext(args.featureId, updateLifecycleUseCase);
+
+  // A failed run releases its parallel-feature slot; admitting the next
+  // queued feature is part of recording the failure.
+  const admitQueuedFeatures = container.resolve(AdmitQueuedFeaturesUseCase);
+  const drainCapacityQueue = () => admitQueuedFeatures.execute();
+
+  // Set SDLC board context so the implement node can write task/sub-task progress
+  // to the board in real time. Best-effort: tracker errors are swallowed in the context.
+  const sdlcBoardTracker = container.resolve<ISdlcBoardTracker>('ISdlcBoardTracker');
+  setSdlcBoardContext(args.featureId, sdlcBoardTracker);
+
+  // Record lifecycle event
+  await recordLifecycleEvent(args.resume ? 'run:resumed' : 'run:started');
+
+  // Resolve the lifecycle publisher once. It is itself feature-flag-gated
+  // through SendAgentMessageUseCase, so when `featureFlags.collaboration`
+  // is off the calls below are no-ops and no rows are written.
+  const lifecyclePublisher = container.resolve(FeatureAgentLifecyclePublisher);
+  // Gate-question publisher: emits a parallel AgentQuestion of
+  // kind=blocking on every waiting_approval transition so the unified
+  // inbox covers background-mode gates (spec 093, task 20). Same flag
+  // gating — no-op when collaboration is off.
+  const gateQuestionPublisher = container.resolve(FeatureAgentGateQuestionPublisher);
+  // Supervisor gate evaluator: on every waiting_approval transition
+  // ask the configured supervisor (if any) to evaluate the gate
+  // (spec 093, task 29). In autonomous mode the supervisor may
+  // resolve the gate directly; in advisory / co-sign modes the
+  // decision is recorded for the user but the gate stays open.
+  const supervisorGateEvaluator = container.resolve(FeatureAgentSupervisorGateEvaluator);
+  const lifecycleScope = {
+    runId: args.runId,
+    featureId: args.featureId,
+    repositoryPath: args.repo,
+  };
+  await lifecyclePublisher.publishStarted(lifecycleScope);
+
+  // Start MCP servers for enabled plugins (degrades gracefully on failure)
+  const pluginMcpConfigPath = await startPluginServers(
+    args.featureId,
+    pluginRepository,
+    mcpServerManager,
+    log
+  );
+  // Spec 134: a run whose executor takes an MCP config may ask the user
+  // through ask_decision (recommended option + deadline) instead of guessing.
+  const decisionMcpConfigPath = startDecisionTool({
+    collaborationEnabled: settings.featureFlags?.collaboration === true,
+    executor,
+    runId: args.runId,
+    featureId: args.featureId,
+    pluginConfigPath: pluginMcpConfigPath,
+    env: process.env,
+    log,
+  });
+  const mcpConfigPath = decisionMcpConfigPath ?? pluginMcpConfigPath;
+  const decisionToolAvailable = decisionMcpConfigPath !== undefined;
+
+  // Spec 150: the graph instance that ran, and its final state once the run ends.
+  let activeGraph = graph;
+  let learning: { state?: Record<string, unknown>; thrownError?: string } | undefined;
+  const graphConfig = { configurable: { thread_id: checkpointId } };
+  try {
+    let result: Record<string, unknown>;
+    if (args.resume && args.resumeFromInterrupt) {
+      // Resume from an interrupt (human-in-the-loop approval)
+      let resumeValue: unknown = { approved: true }; // default backward-compatible
+      if (args.resumePayload) {
+        try {
+          resumeValue = JSON.parse(args.resumePayload);
+          log(`Resuming with typed payload: ${args.resumePayload.slice(0, 200)}`);
+        } catch (e) {
+          log(`Warning: Failed to parse --resume-payload, using default approval: ${e}`);
+        }
+      }
+
+      // Derive state updates from the resume payload so executeNode() can
+      // read _approvalAction from state instead of from interrupt() return
+      // value (fixes the dual-interrupt stale replay bug).
+      const stateUpdate: Record<string, unknown> = {};
+      if (
+        typeof resumeValue === 'object' &&
+        resumeValue !== null &&
+        'rejected' in resumeValue &&
+        (resumeValue as Record<string, unknown>).rejected === true
+      ) {
+        stateUpdate._approvalAction = 'rejected';
+        stateUpdate._rejectionFeedback = (resumeValue as Record<string, unknown>).feedback ?? null;
+      } else {
+        stateUpdate._approvalAction = 'approved';
+        stateUpdate._rejectionFeedback = null;
+      }
+
+      // The checkpoint holds the previous worker's (deleted) config path.
+      stateUpdate.mcpConfigPath = mcpConfigPath;
+      stateUpdate.decisionToolAvailable = decisionToolAvailable;
+
+      log('Resuming graph from interrupt checkpoint...');
+      result = await graph.invoke(
+        new Command({ resume: resumeValue, update: stateUpdate }),
+        graphConfig
+      );
+    } else if (args.resume) {
+      // Resume from error — delete the stale checkpoint and re-invoke from
+      // scratch. Each producer node checks its completedPhases entry and skips
+      // if already done, so completed phases replay instantly. The phase that
+      // failed has its completedPhases entry cleared by routeValidation (or was
+      // never marked complete if the executor threw), so it re-executes fully.
+      //
+      // Why delete the checkpoint instead of resuming from it:
+      // When a validate/repair loop exhausts retries and throws, the checkpoint
+      // captures the validation node with maxed-out retries. Resuming from that
+      // checkpoint would re-evaluate the same conditional edge and throw again
+      // immediately — the user's retry would be stuck in an infinite loop.
+      log('Deleting stale checkpoint for fresh resume...');
+      try {
+        unlinkSync(checkpointPath);
+        log('Checkpoint deleted successfully');
+      } catch {
+        log('No checkpoint to delete (first run or already cleaned)');
+      }
+
+      // Re-create checkpointer after deleting the old DB
+      const freshCheckpointer = createCheckpointer(checkpointPath);
+      const freshGraph = args.fast
+        ? (createFastFeatureAgentGraph(
+            graphDeps as FastFeatureAgentGraphDeps,
+            freshCheckpointer
+          ) as unknown as ReturnType<typeof createFeatureAgentGraph>)
+        : createFeatureAgentGraph(graphDeps, freshCheckpointer);
+      activeGraph = freshGraph;
+
+      log('Resuming graph with fresh checkpoint...');
+      result = await freshGraph.invoke(
+        {
+          featureId: args.featureId,
+          repositoryPath: args.repo,
+          worktreePath: args.worktreePath ?? args.repo,
+          specDir: args.specDir,
+          error: undefined, // Clear previous error state
+          ...(args.approvalGates ? { approvalGates: args.approvalGates } : {}),
+          ...(args.model ? { model: args.model } : {}),
+          ...(args.effort ? { effort: args.effort } : {}),
+          ...(args.resumeReason ? { resumeReason: args.resumeReason } : {}),
+          ...(mcpConfigPath ? { mcpConfigPath } : {}),
+          decisionToolAvailable,
+          push: args.push ?? false,
+          openPr: args.openPr ?? false,
+          forkAndPr: args.forkAndPr ?? false,
+          commitSpecs: args.commitSpecs ?? true,
+          ciWatchEnabled: args.ciWatchEnabled ?? true,
+          enableEvidence: args.enableEvidence ?? false,
+          commitEvidence: args.commitEvidence ?? false,
+          ...(args.securityMode ? { securityMode: args.securityMode } : {}),
+          ...(args.securityActionDispositions
+            ? { securityActionDispositions: args.securityActionDispositions }
+            : {}),
+        },
+        graphConfig
+      );
+    } else {
+      log('Starting graph invocation...');
+      await lifecyclePublisher.publishPhaseChanged({
+        ...lifecycleScope,
+        phase: 'graph-start',
+      });
+      result = await graph.invoke(
+        {
+          featureId: args.featureId,
+          repositoryPath: args.repo,
+          worktreePath: args.worktreePath ?? args.repo,
+          specDir: args.specDir,
+          ...(args.approvalGates ? { approvalGates: args.approvalGates } : {}),
+          ...(args.model ? { model: args.model } : {}),
+          ...(args.effort ? { effort: args.effort } : {}),
+          ...(mcpConfigPath ? { mcpConfigPath } : {}),
+          decisionToolAvailable,
+          push: args.push ?? false,
+          openPr: args.openPr ?? false,
+          forkAndPr: args.forkAndPr ?? false,
+          commitSpecs: args.commitSpecs ?? true,
+          ciWatchEnabled: args.ciWatchEnabled ?? true,
+          enableEvidence: args.enableEvidence ?? false,
+          commitEvidence: args.commitEvidence ?? false,
+          ...(args.securityMode ? { securityMode: args.securityMode } : {}),
+          ...(args.securityActionDispositions
+            ? { securityActionDispositions: args.securityActionDispositions }
+            : {}),
+        },
+        graphConfig
+      );
+    }
+    log(`Graph invocation completed. Error: ${(result.error as string) ?? 'none'}`);
+
+    stopHeartbeat();
+
+    // Check if graph was interrupted (human-in-the-loop approval needed)
+    const interruptPayload = result.__interrupt__ as { value: unknown }[] | undefined;
+    if (interruptPayload && interruptPayload.length > 0) {
+      const now = new Date();
+      // Extract the node name from the interrupt payload so the rejection
+      // use case can tag feedback with the correct phase (e.g. "merge").
+      const interruptValue = interruptPayload[0]?.value as Record<string, unknown> | undefined;
+      const interruptNode =
+        typeof interruptValue?.node === 'string' ? interruptValue.node : undefined;
+      const paused = await finishRun(runRepository, args.runId, AgentRunStatus.waitingApproval, {
+        updatedAt: now,
+        ...(interruptNode ? { result: `node:${interruptNode}` } : {}),
+      });
+      if (!paused) {
+        // Stopped while the graph ran: opening a gate (or letting a
+        // supervisor auto-approve it) would restart a run the user stopped.
+        log('Run is no longer running (stopped) — not opening the approval gate');
+        return;
+      }
+      await lifecyclePublisher.publishBlocked({
+        ...lifecycleScope,
+        reason: interruptNode ? `waiting_approval:${interruptNode}` : 'waiting_approval',
+      });
+      await gateQuestionPublisher.publishWaitingApproval({
+        ...lifecycleScope,
+        interruptNode,
+      });
+      // Consult the supervisor (no-op when none configured / flag off).
+      // In autonomous mode the supervisor may close the gate directly;
+      // in advisory / co-sign modes the decision is recorded but the
+      // gate stays in waiting_approval for the user.
+      const supervisorOutcome = await supervisorGateEvaluator.evaluateForGate({
+        ...lifecycleScope,
+        interruptNode,
+      });
+      if (supervisorOutcome.guardrailVerdict === 'auto_approved') {
+        log(
+          `Guardrails auto-approved gate (rule=${supervisorOutcome.guardrailRuleId ?? 'unknown'}); LLM evaluator skipped`
+        );
+      } else if (supervisorOutcome.guardrailVerdict === 'escalated') {
+        log('Guardrails escalated gate to human review; LLM evaluator skipped');
+      } else if (supervisorOutcome.autoResolved) {
+        log(
+          `Supervisor auto-resolved gate (verdict=${supervisorOutcome.verdict}, autonomy=${supervisorOutcome.effectiveAutonomy})`
+        );
+      } else if (supervisorOutcome.evaluated) {
+        log(
+          `Supervisor advised on gate (verdict=${supervisorOutcome.verdict}, autonomy=${supervisorOutcome.effectiveAutonomy}); user action still required`
+        );
+      }
+      log('Run paused — waiting for human approval');
+      return;
+    }
+
+    // Check if the graph itself reported an error in state
+    if (result.error) {
+      const failedAt = new Date();
+      const marked = await finishRun(runRepository, args.runId, AgentRunStatus.failed, {
+        error: result.error as string,
+        completedAt: failedAt,
+        updatedAt: failedAt,
+      });
+      if (!marked) {
+        log(
+          `Run is no longer running (stopped) — leaving its status; graph error: ${result.error}`
+        );
+        return;
+      }
+      await recordLifecycleEvent('run:failed');
+      recordRunFinished(AgentRunStatus.failed);
+      log(`Run marked as failed: ${result.error}`);
+      learning = { state: result };
+      await drainCapacityQueueAfterFailure(drainCapacityQueue, log);
+      return;
+    }
+
+    const completedAt = new Date();
+    const completed = await finishRun(runRepository, args.runId, AgentRunStatus.completed, {
+      result: (result.messages as string[])?.join('\n') ?? '',
+      completedAt,
+      updatedAt: completedAt,
+    });
+    if (!completed) {
+      log(
+        'Run is no longer running (stopped) — leaving its status instead of marking it completed'
+      );
+      return;
+    }
+    await recordLifecycleEvent('run:completed');
+    recordRunFinished(AgentRunStatus.completed);
+    await lifecyclePublisher.publishCompleted(lifecycleScope);
+    log('Run marked as completed');
+    learning = { state: result };
+  } catch (error: unknown) {
+    stopHeartbeat();
+    const failedAt = new Date();
+    const message = error instanceof Error ? error.message : String(error);
+    log(`Graph invocation error: ${message}`);
+    await recordRunFailure(
+      {
+        runRepository,
+        featureRepository,
+        recordLifecycleEvent: (event) => recordLifecycleEvent(event),
+        drainCapacityQueue,
+        log,
+      },
+      { runId: args.runId, featureId: args.featureId, message, failedAt }
+    );
+    recordRunFinished(AgentRunStatus.failed);
+    learning = { state: await readGraphState(activeGraph, graphConfig), thrownError: message };
+  } finally {
+    // Stop MCP plugin servers regardless of success/failure/interrupt
+    await stopPluginServers(args.featureId, mcpServerManager, log);
+    stopDecisionTool(decisionMcpConfigPath);
+    if (learning) {
+      const versionId = await learnedHarness.versionId();
+      await learnFromRun(
+        {
+          reflect: container.resolve(ReflectOnFeatureRunUseCase),
+          recordOutcome: container.resolve(RecordVersionOutcomeUseCase),
+          log,
+        },
+        {
+          featureId: args.featureId,
+          repositoryPath: args.repo,
+          worktreePath: args.worktreePath ?? args.repo,
+          agentType: executor.agentType,
+          agentRunId: args.runId,
+          ...(versionId ? { versionId } : {}),
+          ...learning,
+        }
+      );
+    }
+  }
+}
+
+/** The graph's last checkpointed state, for learning after a thrown run. */
+async function readGraphState(
+  graph: ReturnType<typeof createFeatureAgentGraph>,
+  config: { configurable: { thread_id: string } }
+): Promise<Record<string, unknown> | undefined> {
+  try {
+    return (await graph.getState(config)).values as Record<string, unknown>;
+  } catch {
+    return undefined;
+  }
+}
+
+// Catch unhandled errors globally so they always appear in the log file
+process.on('uncaughtException', (err) => {
+  log(`UNCAUGHT EXCEPTION: ${err.message}\n${err.stack}`);
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+  const msg = reason instanceof Error ? `${reason.message}\n${reason.stack}` : String(reason);
+  log(`UNHANDLED REJECTION: ${msg}`);
+  process.exit(1);
+});
+
+// Handle IPC disconnect (parent exited) gracefully — this is expected for detached workers
+process.on('disconnect', () => {
+  log('Parent disconnected (IPC channel closed) — continuing as detached worker');
+});
+
+// Handle SIGTERM for graceful shutdown
+let runIdForSignal: string | undefined;
+let runRepoForSignal: IAgentRunRepository | undefined;
+let timingRepoForSignal: IPhaseTimingRepository | undefined;
+let recordRunFinishedForSignal: RunFinishedRecorder | undefined;
+
+process.on('SIGTERM', async () => {
+  log('Received SIGTERM, shutting down...');
+  if (runIdForSignal && runRepoForSignal) {
+    const now = new Date();
+    // Guarded like every other worker write: a SIGTERM that arrives after the
+    // run already finished must not turn its real outcome into `interrupted`.
+    await runRepoForSignal.updateStatus(
+      runIdForSignal,
+      AgentRunStatus.interrupted,
+      { error: 'Process received SIGTERM', completedAt: now, updatedAt: now },
+      { allowedFrom: WORKER_CLAIMABLE_STATUSES }
+    );
+    await recordLifecycleEvent('run:stopped', runIdForSignal, timingRepoForSignal);
+    recordRunFinishedForSignal?.(AgentRunStatus.interrupted);
+  }
+  process.exit(0);
+});
+
+// Main execution when run as a script
+// When using fork(), the forked process runs the entire module, but we want to detect if we're the entrypoint
+const isMainModule =
+  typeof require !== 'undefined'
+    ? require.main === module
+    : process.argv[1]?.includes('feature-agent-worker');
+
+if (isMainModule) {
+  log('Worker process starting...');
+  try {
+    const args = parseWorkerArgs(process.argv.slice(2));
+    runIdForSignal = args.runId;
+
+    runWorker(args)
+      .then(() => {
+        runRepoForSignal = container.resolve<IAgentRunRepository>('IAgentRunRepository');
+        log('Worker completed successfully, exiting.');
+        process.exit(0);
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        log(`Worker fatal error: ${msg}`);
+        process.exit(1);
+      });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    log(`Worker setup error: ${msg}`);
+    process.exit(1);
+  }
+}
