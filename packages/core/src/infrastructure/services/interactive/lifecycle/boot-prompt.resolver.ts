@@ -1,0 +1,145 @@
+/**
+ * BootPromptResolver
+ *
+ * Pure collaborator that resolves the text to send as the agent's first turn.
+ * Encapsulates the three-case branch previously inlined in `completeBootAsync`:
+ *
+ * 1. `pendingUserContent` defined  → that content IS the boot prompt
+ *    (user-initiated boot: Application chat, or any scope that calls
+ *    `sendUserMessage` cold). The context is the system prompt override
+ *    if set, otherwise the built feature context. For a NEW agent session
+ *    with a built context, the context goes first in the same turn: the
+ *    Claude Agent SDK V2 session drops `systemPrompt`, so without this the
+ *    agent never sees the Shep context (identity, CLI, rich replies — spec
+ *    135). Application scopes are left alone; their kickoff carries its own
+ *    brief.
+ *
+ * 2. No pending content AND no `systemPromptOverride` → feature-chat path:
+ *    the feature context doubles as the boot prompt so the agent greets the
+ *    user based on the current feature state.
+ *
+ * 3. No pending content AND `systemPromptOverride` set → silent boot:
+ *    the scope (Application, Repository, Global) is self-describing; there
+ *    is no need for a chatty greeting. `bootPrompt` is an empty string.
+ *
+ * Extracted from `interactive-session.service.ts` in phase 5 of the
+ * strangler refactor documented at
+ * `docs/plans/2026-04-14-interactive-session-service-refactor.md`.
+ */
+
+import type { IFeatureRepository } from '../../../../application/ports/output/repositories/feature-repository.interface.js';
+import type { SelectProjectMemoryUseCase } from '../../../../application/use-cases/project-memory/select-project-memory.use-case.js';
+import type { FeatureContextBuilder } from '../feature-context.builder.js';
+import { isApplicationFeatureId } from '../../../../domain/shared/feature-id.js';
+
+/** Separates the Shep context from the user's first message in one turn. */
+const FIRST_MESSAGE_SEPARATOR = '\n\n---\n\nUser message:\n';
+
+export interface BootPromptResult {
+  /** System prompt / context string to pass to the agent SDK. */
+  context: string;
+  /** The first turn to send to the agent (may be empty for silent boot). */
+  bootPrompt: string;
+}
+
+/** Text of the learned harness for a session (spec 150); undefined when none applies. */
+export type LearnedHarnessText = (
+  repositoryPath: string,
+  worktreePath: string
+) => Promise<string | undefined>;
+
+export class BootPromptResolver {
+  constructor(
+    private readonly featureRepo: IFeatureRepository,
+    private readonly contextBuilder: FeatureContextBuilder,
+    private readonly selectProjectMemory: SelectProjectMemoryUseCase,
+    private readonly learnedHarnessText?: LearnedHarnessText
+  ) {}
+
+  /**
+   * Resolve the boot context and first-turn prompt for a new session.
+   *
+   * @param featureId           Polymorphic scope key (feature UUID, repo id, "global", etc.)
+   * @param worktreePath        Absolute path to the checked-out worktree.
+   * @param pendingUserContent  User message that triggered the boot, if any.
+   * @param systemPromptOverride Caller-supplied system prompt; overrides feature-context build.
+   * @param resuming            True when the agent's previous session is resumed (it already
+   *                            has the context).
+   */
+  async resolve(
+    featureId: string,
+    worktreePath: string,
+    pendingUserContent: string | undefined,
+    systemPromptOverride: string | undefined,
+    resuming = false
+  ): Promise<BootPromptResult> {
+    // Resolve the context string (= system prompt passed to the SDK session).
+    // When the caller supplied one, use it verbatim — no feature lookup needed.
+    let context: string;
+    if (systemPromptOverride !== undefined) {
+      context = systemPromptOverride;
+    } else {
+      const feature = await this.featureRepo.findById(featureId);
+      const openPRs: string[] = feature?.pr?.url ? [feature.pr.url] : [];
+
+      // Inject the project memory ("Shep Brain") most relevant to this feature
+      // so the interactive agent shares the same durable context as the SDLC
+      // agents. Best-effort: a load failure must never block the session boot.
+      // Memory is keyed by the feature's repository, never the worktree path: a
+      // worktree lives under ~/.shep/repos and would resolve into the wrong space.
+      let projectMemory: string | undefined;
+      const repositoryPath = feature?.repositoryPath;
+      if (repositoryPath) {
+        try {
+          const taskText = [feature?.name, feature?.description].filter(Boolean).join(' ');
+          const { blob } = await this.selectProjectMemory.execute({
+            repositoryPath,
+            phase: 'interactive',
+            taskText,
+          });
+          projectMemory = blob.length > 0 ? blob : undefined;
+        } catch {
+          projectMemory = undefined;
+        }
+      }
+
+      context = this.contextBuilder.buildContext(
+        feature ??
+          ({ id: featureId, name: featureId } as Parameters<
+            FeatureContextBuilder['buildContext']
+          >[0]),
+        worktreePath,
+        openPRs,
+        projectMemory
+      );
+
+      // The learned harness (spec 150), keyed by repository like memory.
+      // Best-effort: the hook never throws and never blocks the boot.
+      const learned =
+        repositoryPath && this.learnedHarnessText
+          ? await this.learnedHarnessText(repositoryPath, worktreePath)
+          : undefined;
+      if (learned) context = `${context}\n\n${learned}`;
+    }
+
+    // Decide what to send as the first turn (three cases — see file header).
+    let bootPrompt: string;
+    if (pendingUserContent !== undefined) {
+      // Case 1: user-initiated boot — send their message as the first turn,
+      // preceded by the built context when the agent has never seen it.
+      const deliverContext =
+        !resuming && systemPromptOverride === undefined && !isApplicationFeatureId(featureId);
+      bootPrompt = deliverContext
+        ? `${context}${FIRST_MESSAGE_SEPARATOR}${pendingUserContent}`
+        : pendingUserContent;
+    } else if (systemPromptOverride === undefined) {
+      // Case 2: classic feature-chat — context IS the greeting prompt.
+      bootPrompt = context;
+    } else {
+      // Case 3: self-describing scope — stay silent.
+      bootPrompt = '';
+    }
+
+    return { context, bootPrompt };
+  }
+}
