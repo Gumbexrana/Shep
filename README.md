@@ -239,4 +239,4 @@ Shep is open source and AI-native — one of its native abilities is helping its
 ## License
 
 MIT — see [LICENSE](./LICENSE).
-<!-- maintenance 2021 -->
+<!-- maintenance 2022 -->
