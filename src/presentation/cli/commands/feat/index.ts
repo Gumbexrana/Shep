@@ -1,0 +1,82 @@
+/**
+ * Feature Command Group
+ *
+ * Provides subcommands for managing features through the SDLC lifecycle.
+ *
+ * Usage:
+ *   shep feat new <description>  # Create a new feature
+ *   shep feat ls                 # List features
+ *   shep feat show <id>          # Show feature details
+ *   shep feat status <id>        # What its agent is doing, and why
+ *   shep feat wait <id>          # Wait until it needs someone or stops
+ *   shep feat del <id>           # Delete a feature
+ *   shep feat comments <id>      # PR review comments and what shep did about them
+ *   shep feat address-comments <id>  # Address pending PR review comments
+ */
+
+import { Command } from 'commander';
+import { getCliI18n } from '../../i18n.js';
+import { createNewCommand } from './new.command.js';
+import { createLsCommand } from './ls.command.js';
+import { createShowCommand } from './show.command.js';
+import { createDelCommand } from './del.command.js';
+import { createResumeCommand } from './resume.command.js';
+import { createStartCommand } from './start.command.js';
+import { createReviewCommand } from './review.command.js';
+import { createApproveCommand } from './approve.command.js';
+import { createRejectCommand } from './reject.command.js';
+import { createLogsCommand } from './logs.command.js';
+import { createAdoptCommand } from './adopt.command.js';
+import { createArchiveCommand } from './archive.command.js';
+import { createUnarchiveCommand } from './unarchive.command.js';
+import { createFeedbackCommand } from './feedback.command.js';
+import { createPromoteCommand } from './promote.command.js';
+import { createCommentsCommand } from './comments.command.js';
+import { createAddressCommentsCommand } from './address-comments.command.js';
+import { createCheckpointsCommand } from './checkpoints.command.js';
+import { createDiffCommand } from './diff.command.js';
+import { createRestoreCommand } from './restore.command.js';
+import { createStatusCommand } from './status.command.js';
+import { createWaitCommand } from './wait.command.js';
+
+/**
+ * Create the feat command group
+ */
+export function createFeatCommand(): Command {
+  return new Command('feat')
+    .description(getCliI18n().t('cli:commands.feat.description'))
+    .addHelpText(
+      'after',
+      `
+Examples:
+  $ shep feat new "Add user authentication"
+  $ shep feat new "Add login page" --push --pr
+  $ shep feat ls
+  $ shep feat show <id>
+  $ shep feat start <id>
+  $ shep feat resume <id>
+  $ shep feat logs <id>`
+    )
+    .addCommand(createNewCommand())
+    .addCommand(createLsCommand())
+    .addCommand(createShowCommand())
+    .addCommand(createStatusCommand())
+    .addCommand(createWaitCommand())
+    .addCommand(createDelCommand())
+    .addCommand(createResumeCommand())
+    .addCommand(createStartCommand())
+    .addCommand(createReviewCommand())
+    .addCommand(createApproveCommand())
+    .addCommand(createRejectCommand())
+    .addCommand(createLogsCommand())
+    .addCommand(createAdoptCommand())
+    .addCommand(createArchiveCommand())
+    .addCommand(createUnarchiveCommand())
+    .addCommand(createFeedbackCommand())
+    .addCommand(createPromoteCommand())
+    .addCommand(createCommentsCommand())
+    .addCommand(createAddressCommentsCommand())
+    .addCommand(createCheckpointsCommand())
+    .addCommand(createDiffCommand())
+    .addCommand(createRestoreCommand());
+}
