@@ -1,0 +1,109 @@
+'use client';
+
+import { DeploymentTargetType } from '@shepai/core/domain/generated/output';
+import { cn } from '@/lib/utils';
+import { TerminalTab } from '@/components/features/application-page/terminal-tab';
+import { IdeTab } from '@/components/features/application-page/ide-tab';
+import { WebPreviewTab } from '@/components/features/application-page/web-preview-tab';
+import { isDeploymentActive } from '@/hooks/deployment-status-store';
+import type { DeployActionState } from '@/hooks/use-deploy-action';
+
+import type { AppView } from './app-view-tabs';
+
+export interface ViewBodyProps {
+  activeView: AppView;
+  applicationId: string;
+  terminalCwd: string;
+  deploy: DeployActionState;
+  /** True while the agent / scaffolder is still producing the app. */
+  isBuilding?: boolean;
+}
+
+/**
+ * Right-pane view body.
+ *
+ * The Terminal tab is kept mounted (just hidden) when not active so its
+ * PTY session, scrollback, and running processes survive tab switches.
+ * Other views are placeholders until implemented.
+ */
+export function ViewBody({
+  activeView,
+  applicationId,
+  terminalCwd,
+  deploy,
+  isBuilding = false,
+}: ViewBodyProps) {
+  // Mount the Web iframe as soon as there's a URL — even if the user
+  // is currently on IDE / Terminal — so the preview session doesn't
+  // tear down when switching tabs. Once the app has been Previewed
+  // at least once, the iframe stays alive in the background.
+  //
+  // While the app is still being built we also want the WebPreviewTab
+  // mounted so its "Building your app…" stub renders — treat `isBuilding`
+  // as meaningful deploy state for mount purposes.
+  const hasWebContent =
+    isDeploymentActive(deploy.status) || deploy.deployLoading || !!deploy.deployError || isBuilding;
+
+  // The run plan is keyed by the repository the target resolves to, so the
+  // Web pane only needs to say WHICH target it is looking at.
+  const runPlanTarget = {
+    targetType: DeploymentTargetType.Application,
+    targetId: applicationId,
+  };
+
+  return (
+    <div className="relative flex min-h-0 flex-1">
+      {/* Terminal — always mounted to preserve the PTY session. */}
+      <div
+        className={cn(
+          'absolute inset-0 flex min-h-0 flex-col',
+          activeView === 'terminal' ? 'visible' : 'pointer-events-none invisible'
+        )}
+        id={`application-${applicationId}-view-terminal`}
+        role="tabpanel"
+        aria-label="Terminal"
+        tabIndex={0}
+        aria-hidden={activeView !== 'terminal'}
+      >
+        <TerminalTab cwd={terminalCwd} />
+      </div>
+
+      {/* IDE — also kept mounted so open tabs and scroll position survive
+          tab switches between IDE / Terminal / Web. */}
+      <div
+        className={cn(
+          'absolute inset-0 flex min-h-0 flex-col',
+          activeView === 'ide' ? 'visible' : 'pointer-events-none invisible'
+        )}
+        id={`application-${applicationId}-view-ide`}
+        role="tabpanel"
+        aria-label="IDE"
+        tabIndex={0}
+        aria-hidden={activeView !== 'ide'}
+      >
+        <IdeTab applicationId={applicationId} />
+      </div>
+
+      {/* Web — iframe the running dev server. Kept mounted once we
+          have meaningful deploy state so switching tabs doesn't tear
+          down the preview session. When there's no deploy activity
+          yet we still render the empty state (only while visible)
+          so the user sees the "Run" CTA. */}
+      <div
+        id={`application-${applicationId}-view-web`}
+        role="tabpanel"
+        aria-label="Web preview"
+        tabIndex={0}
+        className={cn(
+          'absolute inset-0 flex min-h-0 flex-col',
+          activeView === 'web' ? 'visible' : 'pointer-events-none invisible'
+        )}
+        aria-hidden={activeView !== 'web'}
+      >
+        {hasWebContent || activeView === 'web' ? (
+          <WebPreviewTab deploy={deploy} isBuilding={isBuilding} target={runPlanTarget} />
+        ) : null}
+      </div>
+    </div>
+  );
+}
