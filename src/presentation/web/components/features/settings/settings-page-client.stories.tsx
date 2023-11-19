@@ -1,0 +1,125 @@
+import type { Meta, StoryObj } from '@storybook/react';
+import { SettingsPageClient } from './settings-page-client';
+import { createDefaultSettings } from '@shepai/core/domain/factories/settings-defaults.factory';
+import { AgentType } from '@shepai/core/domain/generated/output';
+
+const defaultSettings = createDefaultSettings();
+
+const meta = {
+  title: 'Features/Settings/SettingsPageClient',
+  component: SettingsPageClient,
+  tags: ['autodocs'],
+  parameters: {
+    layout: 'padded',
+  },
+} satisfies Meta<typeof SettingsPageClient>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+export const Default: Story = {
+  args: {
+    settings: defaultSettings,
+    shepHome: '/home/user/.shep',
+    dbFileSize: '2.4 MB',
+  },
+};
+
+export const AllSections: Story = {
+  args: {
+    settings: {
+      ...defaultSettings,
+      agent: {
+        ...defaultSettings.agent,
+        type: AgentType.GeminiCli,
+      },
+      featureFlags: {
+        envDeploy: true,
+        debug: false,
+        reactFileManager: false,
+        projects: false,
+        codeReview: false,
+        collaboration: false,
+        bedrockIntegration: false,
+        whatsappDispatch: false,
+        aspm: false,
+        clusters: false,
+        scheduledWorkflows: false,
+        githubImport: true,
+        queryAwareHarness: false,
+        spaces: true,
+        trackers: true,
+        knowledge: true,
+        signals: true,
+        opportunities: true,
+        feedback: true,
+        discovery: true,
+        incidents: true,
+        outcomes: true,
+        docsFirst: true,
+        autopilot: true,
+        factory: true,
+        sdlcBoard: false,
+        agentCoordination: false,
+        selfLearning: false,
+      },
+    },
+    shepHome: '/opt/shep',
+    dbFileSize: '12.8 MB',
+  },
+};
+
+export const EvidenceEnabled: Story = {
+  args: {
+    settings: {
+      ...defaultSettings,
+      workflow: {
+        ...defaultSettings.workflow,
+        enableEvidence: true,
+        commitEvidence: true,
+      },
+    },
+    shepHome: '/home/user/.shep',
+    dbFileSize: '2.4 MB',
+  },
+};
+
+export const CustomTimeouts: Story = {
+  args: {
+    settings: {
+      ...defaultSettings,
+      workflow: {
+        ...defaultSettings.workflow,
+        stageTimeouts: {
+          analyzeMs: 300000,
+          requirementsMs: 600000,
+          researchMs: 900000,
+          planMs: 600000,
+          implementMs: 1800000,
+          fastImplementMs: 1800000,
+          mergeMs: 600000,
+        },
+        analyzeRepoTimeouts: {
+          analyzeMs: 300000,
+        },
+      },
+    },
+    shepHome: '/home/user/.shep',
+    dbFileSize: '2.4 MB',
+  },
+};
+
+/**
+ * Self-learning flag on: the Self-learning section and its nav entry appear.
+ * With the flag off (Default) both are absent.
+ */
+export const SelfLearningOn: Story = {
+  args: {
+    settings: {
+      ...defaultSettings,
+      featureFlags: { ...defaultSettings.featureFlags!, selfLearning: true },
+    },
+    shepHome: '/home/user/.shep',
+    dbFileSize: '2.4 MB',
+  },
+};
