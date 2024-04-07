@@ -1,0 +1,177 @@
+/**
+ * Deployment Status Store
+ *
+ * External store (useSyncExternalStore-compatible) that holds the shared
+ * deployment state keyed by targetId. Multiple components subscribed to
+ * the same targetId see the same state — fixes the node/drawer-out-of-sync
+ * bug and makes page-refresh hydration trivial.
+ *
+ * Mutation paths (deploy/stop/poll) go through server actions that wrap
+ * use cases — this module stores state only and never contains business
+ * logic.
+ */
+
+import { DeploymentState } from '@shepai/core/domain/generated/output';
+import type {
+  DeploymentStatus,
+  DeploymentStatusEntry,
+} from '@shepai/core/application/ports/output/services/deployment-service.interface';
+
+/**
+ * States in which a deployment is in flight or live — the agentic
+ * dev-server graph runs Analyzing → Installing → Booting before landing
+ * on Ready. Any component that previously treated `Booting | Ready` as
+ * "there is an active deployment" (poll for updates, show the stop
+ * button, show the log viewer, block a redundant deploy click) must
+ * treat all four of these the same way, or the new pre-Booting stages
+ * regress those behaviors back to looking idle.
+ *
+ * Single source of truth — reuse this instead of re-deriving the state
+ * set (or comparing against string literals) at each call site.
+ */
+export const ACTIVE_DEPLOYMENT_STATES: ReadonlySet<DeploymentState> = new Set([
+  DeploymentState.Analyzing,
+  DeploymentState.Installing,
+  DeploymentState.Booting,
+  DeploymentState.Ready,
+]);
+
+export function isDeploymentActive(state: DeploymentState | null | undefined): boolean {
+  return state != null && ACTIVE_DEPLOYMENT_STATES.has(state);
+}
+
+/**
+ * "Starting" states — the dev server is coming up but not yet serving
+ * traffic (excludes Ready). Drives busy/spinner UI and start-button
+ * disabling that must NOT fire again once the deployment reaches Ready.
+ */
+export const STARTING_DEPLOYMENT_STATES: ReadonlySet<DeploymentState> = new Set([
+  DeploymentState.Analyzing,
+  DeploymentState.Installing,
+  DeploymentState.Booting,
+]);
+
+export function isDeploymentStarting(state: DeploymentState | null | undefined): boolean {
+  return state != null && STARTING_DEPLOYMENT_STATES.has(state);
+}
+
+export interface DeploymentEntryState {
+  status: DeploymentState | null;
+  url: string | null;
+  targetType: string | null;
+  /** Whether mount-hydration (listDeployments / getDeploymentStatus) has completed for this targetId. */
+  hydrated: boolean;
+  deployLoading: boolean;
+  stopLoading: boolean;
+  deployError: string | null;
+}
+
+export const EMPTY_ENTRY: DeploymentEntryState = {
+  status: null,
+  url: null,
+  targetType: null,
+  hydrated: false,
+  deployLoading: false,
+  stopLoading: false,
+  deployError: null,
+};
+
+type Listener = () => void;
+
+export class DeploymentStatusStore {
+  private entries = new Map<string, DeploymentEntryState>();
+  private listeners = new Map<string, Set<Listener>>();
+  private globalListeners = new Set<Listener>();
+  /**
+   * Set true after the first SSR seed runs. Because `ListDeploymentsUseCase`
+   * returns the full universe of currently-tracked deployments, any
+   * targetId NOT present in that list is definitively idle — there is no
+   * need to fire a per-node `getDeploymentStatus` server action on mount.
+   * Without this flag, every canvas node (most of which have no
+   * deployment) was triggering one POST /control-center on initial render,
+   * producing the burst of 30+ server-action calls observed on dashboard
+   * load.
+   */
+  private fullyHydrated = false;
+
+  /** Has the store been seeded at least once from SSR? */
+  isFullyHydrated(): boolean {
+    return this.fullyHydrated;
+  }
+
+  /** Seed the store from SSR data (ListDeploymentsUseCase output). */
+  hydrate(entries: DeploymentStatusEntry[]): void {
+    // Mark every SSR entry as hydrated and merge into the map.
+    const seen = new Set<string>();
+    for (const entry of entries) {
+      seen.add(entry.targetId);
+      this.update(entry.targetId, {
+        status: entry.state,
+        url: entry.url,
+        targetType: entry.targetType,
+        hydrated: true,
+      });
+    }
+    // Any previously tracked entries missing from the SSR list are stale —
+    // mark them hydrated with null state so subscribers learn their
+    // deployment is gone.
+    for (const [targetId, existing] of this.entries) {
+      if (!seen.has(targetId) && existing.hydrated && existing.status !== null) {
+        this.update(targetId, { status: null, url: null });
+      } else if (!seen.has(targetId) && !existing.hydrated) {
+        this.update(targetId, { hydrated: true });
+      }
+    }
+    this.fullyHydrated = true;
+  }
+
+  getEntry(targetId: string): DeploymentEntryState {
+    return this.entries.get(targetId) ?? EMPTY_ENTRY;
+  }
+
+  update(targetId: string, patch: Partial<DeploymentEntryState>): void {
+    const current = this.entries.get(targetId) ?? EMPTY_ENTRY;
+    const next: DeploymentEntryState = { ...current, ...patch };
+    this.entries.set(targetId, next);
+    this.notify(targetId);
+  }
+
+  /** Apply a status snapshot (from a server action result) to a targetId. */
+  setStatus(targetId: string, status: DeploymentStatus | null): void {
+    if (status === null) {
+      this.update(targetId, { status: null, url: null, hydrated: true });
+      return;
+    }
+    this.update(targetId, {
+      status: status.state,
+      url: status.url,
+      hydrated: true,
+    });
+  }
+
+  subscribe(targetId: string, listener: Listener): () => void {
+    let set = this.listeners.get(targetId);
+    if (!set) {
+      set = new Set();
+      this.listeners.set(targetId, set);
+    }
+    set.add(listener);
+    return () => {
+      set?.delete(listener);
+      if (set?.size === 0) this.listeners.delete(targetId);
+    };
+  }
+
+  subscribeAll(listener: Listener): () => void {
+    this.globalListeners.add(listener);
+    return () => {
+      this.globalListeners.delete(listener);
+    };
+  }
+
+  private notify(targetId: string): void {
+    const set = this.listeners.get(targetId);
+    if (set) for (const l of set) l();
+    for (const l of this.globalListeners) l();
+  }
+}
