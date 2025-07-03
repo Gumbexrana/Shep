@@ -1,0 +1,179 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// Mock native/heavy dependencies that container.ts transitively imports
+vi.mock('node-notifier', () => ({ default: { notify: vi.fn() } }));
+vi.mock('which', () => ({ default: vi.fn().mockResolvedValue(null) }));
+vi.mock('better-sqlite3', () => ({
+  default: vi.fn().mockReturnValue({
+    pragma: vi.fn(),
+    exec: vi.fn(),
+    prepare: vi.fn().mockReturnValue({
+      run: vi.fn().mockReturnValue({ changes: 0, lastInsertRowid: 0 }),
+      get: vi.fn(),
+      all: vi.fn(),
+    }),
+  }),
+}));
+
+vi.mock('../../../../packages/core/src/infrastructure/persistence/sqlite/connection.js', () => ({
+  getSQLiteConnection: vi.fn().mockResolvedValue({
+    pragma: vi.fn(),
+    exec: vi.fn(),
+    prepare: vi.fn().mockReturnValue({
+      run: vi.fn().mockReturnValue({ changes: 0, lastInsertRowid: 0 }),
+      get: vi.fn(),
+      all: vi.fn(),
+    }),
+  }),
+}));
+
+vi.mock('../../../../packages/core/src/infrastructure/persistence/sqlite/migrations.js', () => ({
+  runSQLiteMigrations: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock(
+  '../../../../packages/core/src/infrastructure/services/notifications/notification-bus.js',
+  () => ({
+    getNotificationBus: vi.fn().mockReturnValue({}),
+  })
+);
+
+vi.mock(
+  '../../../../packages/core/src/infrastructure/services/agents/common/checkpointer.js',
+  () => ({
+    createCheckpointer: vi.fn().mockReturnValue({}),
+  })
+);
+
+describe('session DI registrations', () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it('resolves ListAgentSessionsUseCase after initialization', async () => {
+    const { initializeContainer } = await import(
+      '../../../../packages/core/src/infrastructure/di/container.js'
+    );
+    const { ListAgentSessionsUseCase } = await import(
+      '../../../../packages/core/src/application/use-cases/agents/list-agent-sessions.use-case.js'
+    );
+
+    const container = await initializeContainer();
+    expect(() => container.resolve(ListAgentSessionsUseCase)).not.toThrow();
+    expect(container.resolve(ListAgentSessionsUseCase)).toBeInstanceOf(ListAgentSessionsUseCase);
+  });
+
+  it('resolves GetAgentSessionUseCase after initialization', async () => {
+    const { initializeContainer } = await import(
+      '../../../../packages/core/src/infrastructure/di/container.js'
+    );
+    const { GetAgentSessionUseCase } = await import(
+      '../../../../packages/core/src/application/use-cases/agents/get-agent-session.use-case.js'
+    );
+
+    const container = await initializeContainer();
+    expect(() => container.resolve(GetAgentSessionUseCase)).not.toThrow();
+    expect(container.resolve(GetAgentSessionUseCase)).toBeInstanceOf(GetAgentSessionUseCase);
+  });
+
+  it('resolves IAgentSessionRepository:claude-code as ClaudeCodeSessionRepository', async () => {
+    const { initializeContainer } = await import(
+      '../../../../packages/core/src/infrastructure/di/container.js'
+    );
+    const { ClaudeCodeSessionRepository } = await import(
+      '../../../../packages/core/src/infrastructure/services/agents/sessions/claude-code-session.repository.js'
+    );
+    const { AgentType } = await import('../../../../packages/core/src/domain/generated/output.js');
+
+    const container = await initializeContainer();
+    const repo = container.resolve(`IAgentSessionRepository:${AgentType.ClaudeCode}`);
+    expect(repo).toBeInstanceOf(ClaudeCodeSessionRepository);
+  });
+
+  // Spec 116: the Claude Code repository remembers how far it scanned each
+  // transcript, so a poll reads only appended bytes. A fresh instance per
+  // resolve would throw that progress away on every list.
+  it('resolves one shared Claude Code session repository per container', async () => {
+    const { initializeContainer } = await import(
+      '../../../../packages/core/src/infrastructure/di/container.js'
+    );
+    const { AgentType } = await import('../../../../packages/core/src/domain/generated/output.js');
+
+    const container = await initializeContainer();
+    const token = `IAgentSessionRepository:${AgentType.ClaudeCode}`;
+    expect(container.resolve(token)).toBe(container.resolve(token));
+  });
+
+  it.each(['CodexCli', 'Cursor'] as const)(
+    'resolves one shared %s session repository per container (spec 116)',
+    async (agent) => {
+      const { initializeContainer } = await import(
+        '../../../../packages/core/src/infrastructure/di/container.js'
+      );
+      const { AgentType } = await import(
+        '../../../../packages/core/src/domain/generated/output.js'
+      );
+
+      const container = await initializeContainer();
+      const token = `IAgentSessionRepository:${AgentType[agent]}`;
+      expect(container.resolve(token)).toBe(container.resolve(token));
+    }
+  );
+
+  // Spec 105 replaced the Cursor stub with a real repository so the duplicated
+  // web session scanner could be deleted without losing Cursor coverage.
+  it('resolves IAgentSessionRepository:cursor as CursorSessionRepository', async () => {
+    const { initializeContainer } = await import(
+      '../../../../packages/core/src/infrastructure/di/container.js'
+    );
+    const { CursorSessionRepository } = await import(
+      '../../../../packages/core/src/infrastructure/services/agents/sessions/cursor-session.repository.js'
+    );
+    const { AgentType } = await import('../../../../packages/core/src/domain/generated/output.js');
+
+    const container = await initializeContainer();
+    const repo = container.resolve(`IAgentSessionRepository:${AgentType.Cursor}`);
+    expect(repo).toBeInstanceOf(CursorSessionRepository);
+  });
+
+  it('reports cursor sessions as supported', async () => {
+    const { initializeContainer } = await import(
+      '../../../../packages/core/src/infrastructure/di/container.js'
+    );
+    const { AgentType } = await import('../../../../packages/core/src/domain/generated/output.js');
+
+    const container = await initializeContainer();
+    const repo = container.resolve<{ isSupported(): boolean }>(
+      `IAgentSessionRepository:${AgentType.Cursor}`
+    );
+    expect(repo.isSupported()).toBe(true);
+  });
+
+  it('resolves IAgentSessionRepository:gemini-cli as StubSessionRepository', async () => {
+    const { initializeContainer } = await import(
+      '../../../../packages/core/src/infrastructure/di/container.js'
+    );
+    const { StubSessionRepository } = await import(
+      '../../../../packages/core/src/infrastructure/services/agents/sessions/stub-session.repository.js'
+    );
+    const { AgentType } = await import('../../../../packages/core/src/domain/generated/output.js');
+
+    const container = await initializeContainer();
+    const repo = container.resolve(`IAgentSessionRepository:${AgentType.GeminiCli}`);
+    expect(repo).toBeInstanceOf(StubSessionRepository);
+  });
+
+  it('resolves IAgentSessionRepository:codex-cli as CodexCliSessionRepository', async () => {
+    const { initializeContainer } = await import(
+      '../../../../packages/core/src/infrastructure/di/container.js'
+    );
+    const { CodexCliSessionRepository } = await import(
+      '../../../../packages/core/src/infrastructure/services/agents/sessions/codex-cli-session.repository.js'
+    );
+    const { AgentType } = await import('../../../../packages/core/src/domain/generated/output.js');
+
+    const container = await initializeContainer();
+    const repo = container.resolve(`IAgentSessionRepository:${AgentType.CodexCli}`);
+    expect(repo).toBeInstanceOf(CodexCliSessionRepository);
+  });
+});
