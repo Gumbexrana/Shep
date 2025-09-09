@@ -1,0 +1,1382 @@
+/**
+ * CopilotCliExecutorService Unit Tests
+ *
+ * Tests for the GitHub Copilot CLI subprocess executor service.
+ * Uses constructor-injected spawn function mock (NOT vi.mock of child_process).
+ *
+ * TDD Phase: RED-GREEN
+ */
+
+import 'reflect-metadata';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { EventEmitter } from 'node:events';
+import { PassThrough } from 'node:stream';
+import { existsSync, readFileSync } from 'node:fs';
+import { CopilotCliExecutorService } from '@/infrastructure/services/agents/common/executors/copilot-cli-executor.service.js';
+import type { SpawnFunction } from '@/infrastructure/services/agents/common/types.js';
+import { AgentType, AgentFeature, SecurityMode } from '@/domain/generated/output.js';
+import { SecurityViolationError } from '@/domain/errors/security-violation.error.js';
+import { strictConstraints } from './security-constraints.fixture.js';
+import { exitOnKill, KILLED_BY_TASKKILL, type ExitReport } from '@tests/helpers/exit-on-kill.js';
+import type { AgentConfig } from '@/domain/generated/output.js';
+
+/**
+ * Creates a mock ChildProcess-like object that can emit events and provide
+ * stdout/stderr streams for testing subprocess interactions.
+ */
+function createMockChildProcess() {
+  const stdin = new PassThrough();
+  const stdout = new PassThrough();
+  const stderr = new PassThrough();
+  const proc = new EventEmitter() as EventEmitter & {
+    stdin: PassThrough;
+    stdout: PassThrough;
+    stderr: PassThrough;
+    pid: number;
+    kill: ReturnType<typeof vi.fn>;
+  };
+  proc.stdin = stdin;
+  proc.stdout = stdout;
+  proc.stderr = stderr;
+  proc.pid = 12345;
+  proc.kill = vi.fn();
+  return proc;
+}
+
+/** Build a Copilot assistant.message_delta event */
+function messageDelta(delta: string): string {
+  return JSON.stringify({ type: 'assistant.message_delta', delta });
+}
+
+/** Build a Copilot assistant.message event (complete message) */
+function assistantMessage(content: string): string {
+  return JSON.stringify({ type: 'assistant.message', content });
+}
+
+/** Build a Copilot result event */
+function resultEvent(
+  sessionId: string,
+  usage?: { inputTokens: number; outputTokens: number }
+): string {
+  return JSON.stringify({
+    type: 'result',
+    sessionId,
+    ...(usage ? { usage } : {}),
+  });
+}
+
+/** Emit JSONL lines on stdout then close the process */
+function emitJsonlLines(
+  proc: ReturnType<typeof createMockChildProcess>,
+  lines: string[],
+  stderrData: string | null,
+  exitCode: number | null
+) {
+  process.nextTick(() => {
+    for (const line of lines) {
+      proc.stdout.write(`${line}\n`);
+    }
+    proc.stdout.end();
+    if (stderrData !== null) proc.stderr.write(stderrData);
+    proc.stderr.end();
+    proc.emit('close', exitCode);
+  });
+}
+
+/** The temp prompt file a one-line pointer argument names. */
+function pointedPromptFile(promptArg: string): string {
+  const match = /stored in this file: (.+?\.txt)\./.exec(promptArg);
+  if (!match) throw new Error(`no prompt file named in: ${promptArg}`);
+  return match[1];
+}
+
+describe('CopilotCliExecutorService', () => {
+  let mockSpawn: SpawnFunction;
+  let executor: CopilotCliExecutorService;
+
+  beforeEach(() => {
+    mockSpawn = vi.fn();
+    executor = new CopilotCliExecutorService(mockSpawn);
+  });
+
+  // A fake-timer test that fails before its own `useRealTimers()` must not
+  // leave every later test waiting on timers that never advance.
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // --- agentType and supportsFeature ---
+
+  describe('agentType', () => {
+    it('should have agentType of CopilotCli', () => {
+      expect(executor.agentType).toBe(AgentType.CopilotCli);
+    });
+  });
+
+  describe('supportsFeature', () => {
+    it('should support session-resume feature', () => {
+      expect(executor.supportsFeature(AgentFeature.sessionResume)).toBe(true);
+    });
+
+    it('should support streaming feature', () => {
+      expect(executor.supportsFeature(AgentFeature.streaming)).toBe(true);
+    });
+
+    it('should NOT support tool-scoping feature', () => {
+      expect(executor.supportsFeature(AgentFeature.toolScoping)).toBe(false);
+    });
+
+    it('should NOT support structured-output feature', () => {
+      expect(executor.supportsFeature(AgentFeature.structuredOutput)).toBe(false);
+    });
+
+    it('should NOT support system-prompt feature', () => {
+      expect(executor.supportsFeature(AgentFeature.systemPrompt)).toBe(false);
+    });
+
+    it('should NOT support session-listing feature', () => {
+      expect(executor.supportsFeature(AgentFeature.sessionListing)).toBe(false);
+    });
+  });
+
+  // --- execute() base invocation and arg construction ---
+
+  describe('execute', () => {
+    it('should spawn copilot with the prompt via -p flag', async () => {
+      // Off Windows the prompt is an argv value; on win32 it always goes through a file.
+      const originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform');
+      Object.defineProperty(process, 'platform', { value: 'linux' });
+      try {
+        const mockProc = createMockChildProcess();
+        vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+        const executePromise = executor.execute('Hello copilot', { silent: true });
+        emitJsonlLines(mockProc, [assistantMessage('Hi there'), resultEvent('session-1')], null, 0);
+
+        await executePromise;
+
+        const spawnArgs = vi.mocked(mockSpawn).mock.calls[0][1] as string[];
+        expect(spawnArgs[0]).toBe('-p');
+        expect(spawnArgs[1]).toBe('Hello copilot');
+      } finally {
+        if (originalPlatform) Object.defineProperty(process, 'platform', originalPlatform);
+      }
+    });
+
+    it('should include all base flags in every invocation', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Test', { silent: true });
+      emitJsonlLines(mockProc, [assistantMessage('OK'), resultEvent('session-1')], null, 0);
+
+      await executePromise;
+
+      const spawnArgs = vi.mocked(mockSpawn).mock.calls[0][1] as string[];
+      expect(spawnArgs).toContain('--allow-all');
+      expect(spawnArgs).toContain('--output-format');
+      expect(spawnArgs).toContain('json');
+      expect(spawnArgs).toContain('-s');
+      expect(spawnArgs).toContain('--no-custom-instructions');
+      expect(spawnArgs).toContain('--no-ask-user');
+    });
+
+    it('should NOT pipe prompt via stdin', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const stdinWriteSpy = vi.spyOn(mockProc.stdin, 'write');
+
+      const executePromise = executor.execute('My prompt', { silent: true });
+      emitJsonlLines(mockProc, [assistantMessage('Result'), resultEvent('s-1')], null, 0);
+
+      await executePromise;
+
+      expect(stdinWriteSpy).not.toHaveBeenCalled();
+    });
+
+    it('should use file indirection for very large prompts to avoid arg-length failures', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+      const largePrompt = 'x'.repeat(50_000);
+
+      const executePromise = executor.execute(largePrompt, { silent: true });
+      await vi.waitFor(() => {
+        expect(vi.mocked(mockSpawn)).toHaveBeenCalledTimes(1);
+      });
+      emitJsonlLines(mockProc, [assistantMessage('OK'), resultEvent('s-1')], null, 0);
+
+      await executePromise;
+
+      const spawnArgs = vi.mocked(mockSpawn).mock.calls[0][1] as string[];
+      expect(spawnArgs[0]).toBe('-p');
+      expect(spawnArgs[1]).not.toBe(largePrompt);
+      expect(spawnArgs[1]).toContain('The full original user prompt is stored in this file:');
+    });
+
+    it('should clean up temporary prompt file after large prompt execution', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+      const largePrompt = 'x'.repeat(50_000);
+
+      const executePromise = executor.execute(largePrompt, { silent: true });
+      await vi.waitFor(() => {
+        expect(vi.mocked(mockSpawn)).toHaveBeenCalledTimes(1);
+      });
+      emitJsonlLines(mockProc, [assistantMessage('OK'), resultEvent('s-1')], null, 0);
+
+      await executePromise;
+
+      const spawnArgs = vi.mocked(mockSpawn).mock.calls[0][1] as string[];
+      const wrapperPrompt = spawnArgs[1] ?? '';
+      const match = wrapperPrompt.match(
+        /stored in this file: (.+?\.txt)\. Read that file completely/
+      );
+
+      expect(match?.[1]).toBeDefined();
+      expect(existsSync(match![1])).toBe(false);
+    });
+
+    it('should spawn the copilot binary', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Test', { silent: true });
+      emitJsonlLines(mockProc, [assistantMessage('OK'), resultEvent('s-1')], null, 0);
+
+      await executePromise;
+
+      expect(vi.mocked(mockSpawn).mock.calls[0][0]).toBe('copilot');
+    });
+
+    // --- JSONL parsing ---
+
+    it('should extract response text from assistant.message events', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Prompt', { silent: true });
+      emitJsonlLines(
+        mockProc,
+        [assistantMessage('Hello '), assistantMessage('World'), resultEvent('s-1')],
+        null,
+        0
+      );
+
+      const result = await executePromise;
+      expect(result.result).toBe('Hello World');
+    });
+
+    it('should extract sessionId from the result event', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Prompt', { silent: true });
+      emitJsonlLines(
+        mockProc,
+        [assistantMessage('OK'), resultEvent('my-session-abc-123')],
+        null,
+        0
+      );
+
+      const result = await executePromise;
+      expect(result.sessionId).toBe('my-session-abc-123');
+    });
+
+    it('should return undefined sessionId when result event is missing sessionId', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Prompt', { silent: true });
+      // A result event WITHOUT a sessionId — the fixture used to omit the
+      // result event altogether, which is a cut stream, not this case.
+      emitJsonlLines(
+        mockProc,
+        [assistantMessage('OK'), JSON.stringify({ type: 'result' })],
+        null,
+        0
+      );
+
+      const result = await executePromise;
+      expect(result.sessionId).toBeUndefined();
+    });
+
+    it('should extract usage from the result event', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Prompt', { silent: true });
+      emitJsonlLines(
+        mockProc,
+        [assistantMessage('OK'), resultEvent('s-1', { inputTokens: 100, outputTokens: 50 })],
+        null,
+        0
+      );
+
+      const result = await executePromise;
+      expect(result.usage).toEqual({ inputTokens: 100, outputTokens: 50 });
+    });
+
+    it('should return undefined usage when result event has no usage', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Prompt', { silent: true });
+      emitJsonlLines(mockProc, [assistantMessage('OK'), resultEvent('s-1')], null, 0);
+
+      const result = await executePromise;
+      expect(result.usage).toBeUndefined();
+    });
+
+    it('should ignore assistant.message_delta events (progress only, not result)', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Prompt', { silent: true });
+      emitJsonlLines(
+        mockProc,
+        [messageDelta('Hel'), messageDelta('lo'), assistantMessage('Hello'), resultEvent('s-1')],
+        null,
+        0
+      );
+
+      const result = await executePromise;
+      // Result text should come from assistant.message, not deltas
+      expect(result.result).toBe('Hello');
+    });
+
+    // --- Model option ---
+
+    it('should pass --model flag when model option is provided', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Test', { model: 'claude-opus-4.5', silent: true });
+      emitJsonlLines(mockProc, [assistantMessage('OK'), resultEvent('s-1')], null, 0);
+
+      await executePromise;
+
+      const spawnArgs = vi.mocked(mockSpawn).mock.calls[0][1] as string[];
+      expect(spawnArgs).toContain('--model');
+      expect(spawnArgs).toContain('claude-opus-4.5');
+    });
+
+    it('should normalize legacy hyphenated Copilot model aliases', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Test', { model: 'claude-sonnet-4-5', silent: true });
+      emitJsonlLines(mockProc, [assistantMessage('OK'), resultEvent('s-1')], null, 0);
+
+      await executePromise;
+
+      const spawnArgs = vi.mocked(mockSpawn).mock.calls[0][1] as string[];
+      expect(spawnArgs).toContain('--model');
+      expect(spawnArgs).toContain('claude-sonnet-4.5');
+      expect(spawnArgs).not.toContain('claude-sonnet-4-5');
+    });
+
+    it('should normalize legacy hyphenated GPT model aliases', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Test', { model: 'gpt-5-4-mini', silent: true });
+      emitJsonlLines(mockProc, [assistantMessage('OK'), resultEvent('s-1')], null, 0);
+
+      await executePromise;
+
+      const spawnArgs = vi.mocked(mockSpawn).mock.calls[0][1] as string[];
+      expect(spawnArgs).toContain('--model');
+      expect(spawnArgs).toContain('gpt-5.4-mini');
+      expect(spawnArgs).not.toContain('gpt-5-4-mini');
+    });
+
+    it('should normalize generic legacy GPT model aliases', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Test', { model: 'gpt-6-1-custom', silent: true });
+      emitJsonlLines(mockProc, [assistantMessage('OK'), resultEvent('s-1')], null, 0);
+
+      await executePromise;
+
+      const spawnArgs = vi.mocked(mockSpawn).mock.calls[0][1] as string[];
+      expect(spawnArgs).toContain('--model');
+      expect(spawnArgs).toContain('gpt-6.1-custom');
+      expect(spawnArgs).not.toContain('gpt-6-1-custom');
+    });
+
+    it('should NOT include --model flag when model option is absent', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Test', { silent: true });
+      emitJsonlLines(mockProc, [assistantMessage('OK'), resultEvent('s-1')], null, 0);
+
+      await executePromise;
+
+      const spawnArgs = vi.mocked(mockSpawn).mock.calls[0][1] as string[];
+      expect(spawnArgs).not.toContain('--model');
+    });
+
+    // --- cwd option ---
+
+    it('should set cwd in spawn options when cwd is provided', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Test', {
+        cwd: '/some/project',
+        silent: true,
+      });
+      emitJsonlLines(mockProc, [assistantMessage('OK'), resultEvent('s-1')], null, 0);
+
+      await executePromise;
+
+      const spawnOpts = vi.mocked(mockSpawn).mock.calls[0][2] as Record<string, unknown>;
+      expect(spawnOpts.cwd).toBe('/some/project');
+    });
+
+    // --- Session resume ---
+
+    it('should append --resume=<sessionId> when resumeSession is provided', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Continue', {
+        resumeSession: 'session-abc-123',
+        silent: true,
+      });
+      emitJsonlLines(
+        mockProc,
+        [assistantMessage('Resumed'), resultEvent('session-abc-123')],
+        null,
+        0
+      );
+
+      await executePromise;
+
+      const spawnArgs = vi.mocked(mockSpawn).mock.calls[0][1] as string[];
+      expect(spawnArgs).toContain('--resume=session-abc-123');
+    });
+
+    it('should NOT include --resume when resumeSession is not provided', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Fresh start', { silent: true });
+      emitJsonlLines(mockProc, [assistantMessage('OK'), resultEvent('s-1')], null, 0);
+
+      await executePromise;
+
+      const spawnArgs = vi.mocked(mockSpawn).mock.calls[0][1] as string[];
+      expect(spawnArgs.some((a) => a.startsWith('--resume'))).toBe(false);
+    });
+
+    // --- Authentication ---
+
+    it('should throw when authConfig uses token auth method', async () => {
+      const authConfig: AgentConfig = {
+        type: AgentType.CopilotCli,
+        authMethod: 'token' as any,
+        token: 'some-token',
+      };
+      const tokenExecutor = new CopilotCliExecutorService(mockSpawn, authConfig);
+
+      await expect(tokenExecutor.execute('Test', { silent: true })).rejects.toThrow(
+        /does not support token-based authentication/i
+      );
+    });
+
+    it('should include copilot auth login instructions in token auth error', async () => {
+      const authConfig: AgentConfig = {
+        type: AgentType.CopilotCli,
+        authMethod: 'token' as any,
+        token: 'some-token',
+      };
+      const tokenExecutor = new CopilotCliExecutorService(mockSpawn, authConfig);
+
+      await expect(tokenExecutor.execute('Test', { silent: true })).rejects.toThrow(
+        /copilot auth login/i
+      );
+    });
+
+    it('should NOT inject any auth env variable for session auth', async () => {
+      // Test hermeticity: the executor forwards `process.env` untouched
+      // (minus CLAUDECODE), so this assertion can be polluted by whatever
+      // the developer/CI runner has in their shell. Save and clear the
+      // env vars we care about, then restore after the test so other
+      // suites running in the same worker aren't affected.
+      const originalGithubToken = process.env.GITHUB_TOKEN;
+      const originalCopilotKey = process.env.COPILOT_API_KEY;
+      delete process.env.GITHUB_TOKEN;
+      delete process.env.COPILOT_API_KEY;
+
+      try {
+        const authConfig: AgentConfig = {
+          type: AgentType.CopilotCli,
+          authMethod: 'session' as any,
+        };
+        const sessionExecutor = new CopilotCliExecutorService(mockSpawn, authConfig);
+        const mockProc = createMockChildProcess();
+        vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+        const executePromise = sessionExecutor.execute('Test', { silent: true });
+        emitJsonlLines(mockProc, [assistantMessage('OK'), resultEvent('s-1')], null, 0);
+
+        await executePromise;
+
+        const spawnOpts = vi.mocked(mockSpawn).mock.calls[0][2] as Record<string, unknown>;
+        const env = spawnOpts.env as Record<string, string>;
+        // No Copilot-specific auth env var should be injected
+        expect(env.COPILOT_API_KEY).toBeUndefined();
+        expect(env.GITHUB_TOKEN).toBeUndefined();
+      } finally {
+        if (originalGithubToken !== undefined) process.env.GITHUB_TOKEN = originalGithubToken;
+        if (originalCopilotKey !== undefined) process.env.COPILOT_API_KEY = originalCopilotKey;
+      }
+    });
+
+    it('should strip CLAUDECODE from spawn environment', async () => {
+      const originalEnv = process.env.CLAUDECODE;
+      process.env.CLAUDECODE = 'some-value';
+
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Test', { silent: true });
+      emitJsonlLines(mockProc, [assistantMessage('OK'), resultEvent('s-1')], null, 0);
+
+      await executePromise;
+
+      const spawnOpts = vi.mocked(mockSpawn).mock.calls[0][2] as Record<string, unknown>;
+      const env = spawnOpts.env as Record<string, string>;
+      expect(env.CLAUDECODE).toBeUndefined();
+
+      if (originalEnv !== undefined) process.env.CLAUDECODE = originalEnv;
+      else delete process.env.CLAUDECODE;
+    });
+
+    // --- Error handling ---
+
+    it('should reject with install instructions on ENOENT error', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Test', { silent: true });
+
+      process.nextTick(() => {
+        const error = new Error('spawn copilot ENOENT') as Error & { code: string };
+        error.code = 'ENOENT';
+        mockProc.emit('error', error);
+      });
+
+      await expect(executePromise).rejects.toThrow(/GitHub Copilot CLI.*not found/i);
+    });
+
+    it('should include npm install instructions in ENOENT error', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Test', { silent: true });
+
+      process.nextTick(() => {
+        const error = new Error('spawn copilot ENOENT') as Error & { code: string };
+        error.code = 'ENOENT';
+        mockProc.emit('error', error);
+      });
+
+      await expect(executePromise).rejects.toThrow(/npm install/i);
+    });
+
+    it('should reject with stderr content on non-zero exit code', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Bad prompt', { silent: true });
+      emitJsonlLines(mockProc, [], 'Something went wrong', 1);
+
+      await expect(executePromise).rejects.toThrow('Process exited with code 1');
+    });
+
+    it('should include stderr in error message on non-zero exit', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Bad prompt', { silent: true });
+      emitJsonlLines(mockProc, [], 'Unexpected failure', 1);
+
+      await expect(executePromise).rejects.toThrow('Unexpected failure');
+    });
+
+    it('should surface auth error instructions when stderr contains auth message', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Test', { silent: true });
+      emitJsonlLines(mockProc, [], 'Error: not logged in to GitHub Copilot', 1);
+
+      await expect(executePromise).rejects.toThrow(/copilot auth login/i);
+    });
+
+    it('should skip malformed JSON lines gracefully', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Prompt', { silent: true });
+      emitJsonlLines(
+        mockProc,
+        ['this is not valid json {{{', assistantMessage('Real result'), resultEvent('s-1')],
+        null,
+        0
+      );
+
+      const result = await executePromise;
+      expect(result.result).toBe('Real result');
+    });
+
+    it('should apply timeout and kill subprocess', async () => {
+      vi.useFakeTimers();
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Long running', { timeout: 5000, silent: true });
+
+      vi.advanceTimersByTime(5001);
+
+      mockProc.stdout.end();
+      mockProc.stderr.end();
+      mockProc.emit('close', null);
+
+      await expect(executePromise).rejects.toThrow('Agent execution timed out after 5s');
+      expect(mockProc.kill).toHaveBeenCalled();
+      vi.useRealTimers();
+    });
+
+    it('should resolve an empty answer when the completed turn carried no text', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Prompt', { silent: true });
+      // The turn completed (result event) with nothing to say. Exit 0 with no
+      // output at all is a cut stream and rejects — see 'turn completion'.
+      emitJsonlLines(mockProc, [resultEvent('sess-empty')], null, 0);
+
+      const result = await executePromise;
+      expect(result.result).toBe('');
+    });
+
+    it('should handle line buffering across chunk boundaries', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Prompt', { silent: true });
+
+      process.nextTick(() => {
+        // Simulate chunks that split across JSONL lines
+        const full = assistantMessage('Split response');
+        const half1 = full.slice(0, 10);
+        const half2 = `${full.slice(10)}\n${resultEvent('s-1')}\n`;
+
+        mockProc.stdout.write(half1);
+        mockProc.stdout.write(half2);
+        mockProc.stdout.end();
+        mockProc.stderr.end();
+        mockProc.emit('close', 0);
+      });
+
+      const result = await executePromise;
+      expect(result.result).toBe('Split response');
+    });
+
+    // --- Windows platform ---
+
+    it('should set windowsHide option on Windows', async () => {
+      const originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform');
+      Object.defineProperty(process, 'platform', { value: 'win32' });
+
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Test', { silent: true });
+      emitJsonlLines(mockProc, [assistantMessage('OK'), resultEvent('s-1')], null, 0);
+
+      await executePromise;
+
+      const spawnOpts = vi.mocked(mockSpawn).mock.calls[0][2] as Record<string, unknown>;
+      expect(spawnOpts.windowsHide).toBe(true);
+
+      if (originalPlatform) {
+        Object.defineProperty(process, 'platform', originalPlatform);
+      }
+    });
+
+    // copilot.cmd runs through cmd.exe, which cannot carry a line break —
+    // the prompt must reach Copilot through a file and a one-line pointer.
+    it('sends a multi-line prompt through a one-line file pointer on Windows', async () => {
+      const originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform');
+      Object.defineProperty(process, 'platform', { value: 'win32' });
+      try {
+        const mockProc = createMockChildProcess();
+        let promptFileAtSpawn: string | undefined;
+        vi.mocked(mockSpawn).mockImplementation(((_command: string, args: string[]) => {
+          promptFileAtSpawn = readFileSync(pointedPromptFile(args[1]), 'utf8');
+          return mockProc;
+        }) as unknown as SpawnFunction);
+
+        const executePromise = executor.execute('line one\nline "two" & 100%', { silent: true });
+        emitJsonlLines(mockProc, [assistantMessage('OK'), resultEvent('s-1')], null, 0);
+        await executePromise;
+
+        const args = vi.mocked(mockSpawn).mock.calls[0][1] as string[];
+        expect(args.filter((arg) => /[\r\n]/.test(arg))).toEqual([]);
+        expect(promptFileAtSpawn).toBe('line one\nline "two" & 100%');
+        expect(existsSync(pointedPromptFile(args[1]))).toBe(false);
+      } finally {
+        if (originalPlatform) Object.defineProperty(process, 'platform', originalPlatform);
+      }
+    });
+
+    it('removes the Windows prompt file when spawn throws', async () => {
+      const originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform');
+      Object.defineProperty(process, 'platform', { value: 'win32' });
+      try {
+        let pointer = '';
+        vi.mocked(mockSpawn).mockImplementation(((_command: string, args: string[]) => {
+          pointer = args[1];
+          throw new Error('spawn EINVAL');
+        }) as unknown as SpawnFunction);
+
+        await expect(executor.execute('line one\nline two', { silent: true })).rejects.toThrow(
+          'spawn EINVAL'
+        );
+        expect(existsSync(pointedPromptFile(pointer))).toBe(false);
+      } finally {
+        if (originalPlatform) Object.defineProperty(process, 'platform', originalPlatform);
+      }
+    });
+  });
+
+  // --- executeStream() ---
+
+  describe('executeStream', () => {
+    it('should yield progress events from assistant.message_delta', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const events: { type: string; content: string }[] = [];
+      const gen = executor.executeStream('Hello', { silent: true });
+
+      process.nextTick(() => {
+        mockProc.stdout.write(`${messageDelta('He')}\n`);
+        mockProc.stdout.write(`${messageDelta('llo')}\n`);
+        mockProc.stdout.write(`${assistantMessage('Hello')}\n`);
+        mockProc.stdout.write(`${resultEvent('s-1')}\n`);
+        mockProc.stdout.end();
+        mockProc.stderr.end();
+        mockProc.emit('close', 0);
+      });
+
+      for await (const event of gen) {
+        events.push({ type: event.type, content: event.content });
+      }
+
+      const progressEvents = events.filter((e) => e.type === 'progress');
+      expect(progressEvents).toContainEqual({ type: 'progress', content: 'He' });
+      expect(progressEvents).toContainEqual({ type: 'progress', content: 'llo' });
+    });
+
+    it('should yield a result event from the result JSONL event', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const events: { type: string; content: string }[] = [];
+      const gen = executor.executeStream('Prompt', { silent: true });
+
+      process.nextTick(() => {
+        mockProc.stdout.write(`${assistantMessage('Final response')}\n`);
+        mockProc.stdout.write(`${resultEvent('s-1')}\n`);
+        mockProc.stdout.end();
+        mockProc.stderr.end();
+        mockProc.emit('close', 0);
+      });
+
+      for await (const event of gen) {
+        events.push({ type: event.type, content: event.content });
+      }
+
+      const resultEvents = events.filter((e) => e.type === 'result');
+      expect(resultEvents).toHaveLength(1);
+      expect(resultEvents[0].content).toBe('Final response');
+    });
+
+    it('should yield an error event on non-zero exit code', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const events: { type: string }[] = [];
+      const gen = executor.executeStream('Prompt', { silent: true });
+
+      process.nextTick(() => {
+        mockProc.stdout.end();
+        mockProc.stderr.write('Internal server error');
+        mockProc.stderr.end();
+        mockProc.emit('close', 1);
+      });
+
+      for await (const event of gen) {
+        events.push({ type: event.type });
+      }
+
+      expect(events.some((e) => e.type === 'error')).toBe(true);
+    });
+
+    it('should yield an error event for token auth in streaming mode', async () => {
+      const authConfig: AgentConfig = {
+        type: AgentType.CopilotCli,
+        authMethod: 'token' as any,
+        token: 'some-token',
+      };
+      const tokenExecutor = new CopilotCliExecutorService(mockSpawn, authConfig);
+
+      const events: { type: string; content: string }[] = [];
+      for await (const event of tokenExecutor.executeStream('Test', { silent: true })) {
+        events.push({ type: event.type, content: event.content });
+      }
+
+      expect(events).toHaveLength(1);
+      expect(events[0].type).toBe('error');
+      expect(events[0].content).toMatch(/does not support token-based authentication/i);
+    });
+
+    it('should yield auth error event when copilot stderr contains auth message', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const events: { type: string; content: string }[] = [];
+      const gen = executor.executeStream('Prompt', { silent: true });
+
+      process.nextTick(() => {
+        mockProc.stdout.end();
+        mockProc.stderr.write('Error: not logged in to GitHub Copilot');
+        mockProc.stderr.end();
+        mockProc.emit('close', 1);
+      });
+
+      for await (const event of gen) {
+        events.push({ type: event.type, content: event.content });
+      }
+
+      const errorEvents = events.filter((e) => e.type === 'error');
+      expect(errorEvents.length).toBeGreaterThan(0);
+      expect(errorEvents[0].content).toMatch(/copilot auth login/i);
+    });
+
+    it('should apply timeout and kill subprocess in stream mode', async () => {
+      vi.useFakeTimers();
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const events: { type: string; content: string }[] = [];
+      const gen = executor.executeStream('Long running', { timeout: 3000, silent: true });
+
+      const collectPromise = (async () => {
+        for await (const event of gen) {
+          events.push({ type: event.type, content: event.content });
+        }
+      })();
+
+      vi.advanceTimersByTime(3001);
+
+      await collectPromise;
+
+      expect(mockProc.kill).toHaveBeenCalled();
+      expect(
+        events.some((e) => e.type === 'error' && e.content === 'Agent execution timed out after 3s')
+      ).toBe(true);
+
+      vi.useRealTimers();
+    });
+
+    it('should handle non-JSON lines as raw progress in stream mode', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const events: { type: string; content: string }[] = [];
+      const gen = executor.executeStream('Prompt', { silent: true });
+
+      process.nextTick(() => {
+        mockProc.stdout.write('not valid json\n');
+        mockProc.stdout.write(`${assistantMessage('OK')}\n`);
+        mockProc.stdout.write(`${resultEvent('s-1')}\n`);
+        mockProc.stdout.end();
+        mockProc.stderr.end();
+        mockProc.emit('close', 0);
+      });
+
+      for await (const event of gen) {
+        events.push({ type: event.type, content: event.content });
+      }
+
+      expect(events.some((e) => e.type === 'progress' && e.content === 'not valid json')).toBe(
+        true
+      );
+    });
+
+    it('should include all base flags in stream mode invocation', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const gen = executor.executeStream('Test', { silent: true });
+
+      process.nextTick(() => {
+        mockProc.stdout.write(`${assistantMessage('OK')}\n`);
+        mockProc.stdout.write(`${resultEvent('s-1')}\n`);
+        mockProc.stdout.end();
+        mockProc.stderr.end();
+        mockProc.emit('close', 0);
+      });
+
+      for await (const _ of gen) {
+        // consume
+      }
+
+      const spawnArgs = vi.mocked(mockSpawn).mock.calls[0][1] as string[];
+      expect(spawnArgs).toContain('--allow-all');
+      expect(spawnArgs).toContain('--output-format');
+      expect(spawnArgs).toContain('json');
+      expect(spawnArgs).toContain('-s');
+    });
+
+    it('should append --resume=<sessionId> in stream mode when resumeSession is provided', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const gen = executor.executeStream('Continue', {
+        resumeSession: 'resume-session-xyz',
+        silent: true,
+      });
+
+      process.nextTick(() => {
+        mockProc.stdout.write(`${assistantMessage('Continued')}\n`);
+        mockProc.stdout.write(`${resultEvent('resume-session-xyz')}\n`);
+        mockProc.stdout.end();
+        mockProc.stderr.end();
+        mockProc.emit('close', 0);
+      });
+
+      for await (const _ of gen) {
+        // consume
+      }
+
+      const spawnArgs = vi.mocked(mockSpawn).mock.calls[0][1] as string[];
+      expect(spawnArgs).toContain('--resume=resume-session-xyz');
+    });
+
+    it('should use file indirection for very large prompts in stream mode', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+      const largePrompt = 'x'.repeat(50_000);
+
+      const gen = executor.executeStream(largePrompt, { silent: true });
+
+      const collectPromise = (async () => {
+        for await (const _ of gen) {
+          // consume
+        }
+      })();
+
+      await vi.waitFor(() => {
+        expect(vi.mocked(mockSpawn)).toHaveBeenCalledTimes(1);
+      });
+
+      process.nextTick(() => {
+        mockProc.stdout.write(`${assistantMessage('OK')}\n`);
+        mockProc.stdout.write(`${resultEvent('s-1')}\n`);
+        mockProc.stdout.end();
+        mockProc.stderr.end();
+        mockProc.emit('close', 0);
+      });
+
+      await collectPromise;
+
+      const spawnArgs = vi.mocked(mockSpawn).mock.calls[0][1] as string[];
+      expect(spawnArgs[0]).toBe('-p');
+      expect(spawnArgs[1]).not.toBe(largePrompt);
+      expect(spawnArgs[1]).toContain('The full original user prompt is stored in this file:');
+    });
+  });
+  // --- defects proven by audit: UTF-8, structured content, signals, policy ---
+
+  describe('multi-byte output', () => {
+    it('should not corrupt a character split across two stdout chunks', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const answer = 'héllo — ✅ 日本語 🚀 done';
+      // A real run ends with its result event; only the message is split.
+      const payload = Buffer.from(`${assistantMessage(answer)}\n${resultEvent('s-1')}\n`, 'utf8');
+      const splitAt = payload.indexOf(Buffer.from('🚀', 'utf8')) + 2;
+
+      const executePromise = executor.execute('Prompt', { silent: true });
+      process.nextTick(() => {
+        mockProc.stdout.write(payload.subarray(0, splitAt));
+        mockProc.stdout.write(payload.subarray(splitAt));
+        mockProc.stdout.end();
+        mockProc.stderr.end();
+        mockProc.emit('close', 0);
+      });
+
+      expect((await executePromise).result).toBe(answer);
+    });
+  });
+
+  describe('structured message content', () => {
+    it('should read text out of content blocks instead of stringifying the object', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const blocks = JSON.stringify({
+        type: 'assistant.message',
+        content: [
+          { type: 'text', text: 'The fix is ' },
+          { type: 'text', text: 'in foo.ts' },
+        ],
+      });
+
+      const executePromise = executor.execute('Prompt', { silent: true });
+      emitJsonlLines(mockProc, [blocks, resultEvent('sess-1')], null, 0);
+
+      const result = await executePromise;
+      expect(result.result).not.toContain('[object Object]');
+      expect(result.result).toBe('The fix is in foo.ts');
+    });
+
+    it('should carry block text into the streamed result event too', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const events: { type: string; content: string }[] = [];
+      const gen = executor.executeStream('Prompt', { silent: true });
+
+      process.nextTick(() => {
+        mockProc.stdout.write(
+          `${JSON.stringify({
+            type: 'assistant.message',
+            content: [{ type: 'text', text: 'blocked answer' }],
+          })}\n`
+        );
+        mockProc.stdout.write(`${resultEvent('sess-1')}\n`);
+        mockProc.stdout.end();
+        mockProc.stderr.end();
+        mockProc.emit('close', 0);
+      });
+
+      for await (const event of gen) {
+        events.push({ type: event.type, content: event.content });
+      }
+
+      expect(events).toContainEqual({ type: 'result', content: 'blocked answer' });
+    });
+  });
+
+  describe('signal termination', () => {
+    it('should reject when the CLI is killed by a signal with nothing captured', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Prompt', { silent: true });
+      process.nextTick(() => {
+        mockProc.stdout.end();
+        mockProc.stderr.end();
+        mockProc.emit('close', null, 'SIGKILL');
+      });
+
+      await expect(executePromise).rejects.toThrow(/SIGKILL/);
+    });
+
+    // Partial text is not a finished turn: Copilot ends every turn with a
+    // `result` event, and a kill before it means the work was cut short.
+    it('should reject naming the signal when killed after partial text', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Prompt', { silent: true });
+      process.nextTick(() => {
+        for (const line of [assistantMessage('partial work')]) mockProc.stdout.write(`${line}\n`);
+        mockProc.stdout.end();
+        mockProc.stderr.end();
+        mockProc.emit('close', null, 'SIGKILL');
+      });
+
+      await expect(executePromise).rejects.toThrow(/SIGKILL/);
+    });
+
+    it('should keep the answer when the signal arrives after the result event', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Prompt', { silent: true });
+      process.nextTick(() => {
+        for (const line of [assistantMessage('all done'), resultEvent('sess-1')])
+          mockProc.stdout.write(`${line}\n`);
+        mockProc.stdout.end();
+        mockProc.stderr.end();
+        mockProc.emit('close', null, 'SIGTERM');
+      });
+
+      expect((await executePromise).result).toBe('all done');
+    });
+
+    it('should stream an error, not a result, when killed after partial text', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      process.nextTick(() => {
+        for (const line of [assistantMessage('partial work')]) mockProc.stdout.write(`${line}\n`);
+        mockProc.stdout.end();
+        mockProc.stderr.end();
+        mockProc.emit('close', null, 'SIGKILL');
+      });
+      const events: { type: string; content: string }[] = [];
+      for await (const event of executor.executeStream('Prompt', { silent: true })) {
+        events.push({ type: event.type, content: event.content });
+      }
+
+      expect(events.some((e) => e.type === 'error' && e.content.includes('SIGKILL'))).toBe(true);
+      expect(events.some((e) => e.type === 'result')).toBe(false);
+    });
+  });
+
+  describe('security constraints', () => {
+    it('should refuse execute() under an enforced strict sandbox', async () => {
+      await expect(
+        executor.execute('Prompt', {
+          silent: true,
+          securityConstraints: strictConstraints(SecurityMode.Enforce),
+        })
+      ).rejects.toBeInstanceOf(SecurityViolationError);
+
+      expect(mockSpawn).not.toHaveBeenCalled();
+    });
+
+    it('should refuse executeStream() under an enforced strict sandbox', async () => {
+      const iterate = async () => {
+        for await (const _event of executor.executeStream('Prompt', {
+          silent: true,
+          securityConstraints: strictConstraints(SecurityMode.Enforce),
+        })) {
+          // validation runs before the spawn
+        }
+      };
+
+      await expect(iterate()).rejects.toBeInstanceOf(SecurityViolationError);
+      expect(mockSpawn).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('turn completion', () => {
+    // Copilot ends every turn with a `result` event. A clean exit without one
+    // means stdout was cut short — the text captured so far is a fragment.
+    it('should reject an exit 0 that never emitted a result event, even with captured text', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const executePromise = executor.execute('Test', { silent: true });
+      emitJsonlLines(mockProc, [assistantMessage('Halfway through the refactor')], null, 0);
+
+      await expect(executePromise).rejects.toThrow(
+        'Copilot CLI exited without a result event — the turn was cut short before it finished'
+      );
+    });
+
+    it('should stream an error, not silence, for an exit 0 without a result event', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const events: { type: string; content: string }[] = [];
+      const stream = executor.executeStream('Test', { silent: true });
+      emitJsonlLines(mockProc, [assistantMessage('Halfway')], null, 0);
+      for await (const event of stream) events.push({ type: event.type, content: event.content });
+
+      expect(events).toContainEqual({
+        type: 'error',
+        content:
+          'Copilot CLI exited without a result event — the turn was cut short before it finished',
+      });
+    });
+  });
+
+  describe('executeStream lifetime', () => {
+    it('should kill the child when the consumer stops iterating early', async () => {
+      const mockProc = createMockChildProcess();
+      vi.mocked(mockSpawn).mockReturnValue(mockProc as any);
+
+      const gen = executor.executeStream('Prompt', { silent: true });
+      process.nextTick(() => {
+        mockProc.stdout.write(`${messageDelta('first')}\n`);
+      });
+
+      for await (const _event of gen) {
+        break;
+      }
+
+      expect(mockProc.kill).toHaveBeenCalled();
+    });
+  });
+});
+
+describe('CopilotCliExecutorService — idle timeout', () => {
+  // A stalled agent (hung API connection, wedged tool) used to sit out the
+  // whole total budget — 30 minutes by default, hours for a long implement
+  // stage. `idleTimeout` ends it after that long without any output.
+  const IDLE_MESSAGE = 'Agent execution timed out: no output for 60s';
+  let mockSpawn: SpawnFunction;
+  let executor: CopilotCliExecutorService;
+
+  beforeEach(() => {
+    mockSpawn = vi.fn();
+    executor = new CopilotCliExecutorService(mockSpawn);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('execute(): kills an agent silent for the idle budget, naming the budget', async () => {
+    vi.useFakeTimers();
+    const proc = createMockChildProcess();
+    vi.mocked(mockSpawn).mockReturnValue(proc as any);
+
+    const outcome = executor.execute('Prompt', { silent: true, idleTimeout: 60_000 }).then(
+      () => 'resolved',
+      (error: Error) => error.message
+    );
+    await vi.advanceTimersByTimeAsync(30_000);
+    proc.stderr.write('still working\n'); // any output restarts the budget
+    await vi.advanceTimersByTimeAsync(45_000);
+    expect(proc.kill).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(proc.kill).toHaveBeenCalled();
+    proc.emit('close', null, 'SIGTERM');
+
+    expect(await outcome).toBe(IDLE_MESSAGE);
+  });
+
+  it('executeStream(): ends a silent stream with an idle-timeout error event', async () => {
+    const proc = createMockChildProcess();
+    vi.mocked(mockSpawn).mockReturnValue(proc as any);
+
+    const events: { type: string; content: string }[] = [];
+    for await (const event of executor.executeStream('Prompt', {
+      silent: true,
+      idleTimeout: 20,
+    })) {
+      events.push({ type: event.type, content: event.content });
+    }
+
+    expect(events).toContainEqual({
+      type: 'error',
+      content: 'Agent execution timed out: no output for 0.02s',
+    });
+    expect(proc.kill).toHaveBeenCalled();
+  });
+});
+
+describe('CopilotCliExecutorService — post-result grace period', () => {
+  // Copilot routinely lingers after its terminal `result` event — MCP children
+  // and backgrounded dev servers keep it alive — and the idle guard stands down
+  // once the result is in. Without a bound on that teardown a finished run hung
+  // until the total timeout, or forever when none was set.
+  const GRACE_MS = 30_000;
+  let mockSpawn: SpawnFunction;
+  let executor: CopilotCliExecutorService;
+
+  beforeEach(() => {
+    mockSpawn = vi.fn();
+    executor = new CopilotCliExecutorService(mockSpawn);
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** A fake child that lingers after its result until it is killed. */
+  function lingeringProcess(report?: ExitReport) {
+    const proc = exitOnKill(createMockChildProcess(), report);
+    vi.mocked(mockSpawn).mockReturnValue(proc as any);
+    return proc;
+  }
+
+  it('execute(): kills a process that never exits after its result and resolves with it', async () => {
+    const proc = lingeringProcess();
+
+    const executePromise = executor.execute('Prompt', { silent: true });
+    proc.stdout.write(`${assistantMessage('Implementation complete')}\n`);
+    proc.stdout.write(`${resultEvent('sess-linger', { inputTokens: 10, outputTokens: 5 })}\n`);
+
+    await vi.advanceTimersByTimeAsync(GRACE_MS - 1);
+    expect(proc.kill).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(proc.kill).toHaveBeenCalled();
+
+    const result = await executePromise;
+    expect(result.result).toBe('Implementation complete');
+    expect(result.sessionId).toBe('sess-linger');
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('execute(): still resolves when the killed process reports a non-zero exit', async () => {
+    // A Windows taskkill exits the process with 1; a CLI trapping SIGTERM may
+    // too. Either is our own teardown, not the agent failing its turn.
+    const proc = lingeringProcess(KILLED_BY_TASKKILL);
+
+    const executePromise = executor.execute('Prompt', { silent: true });
+    proc.stdout.write(`${assistantMessage('done')}\n`);
+    proc.stdout.write(`${resultEvent('sess-1')}\n`);
+    await vi.advanceTimersByTimeAsync(GRACE_MS);
+
+    expect((await executePromise).result).toBe('done');
+  });
+
+  it('execute(): never kills a process that exits on its own after the result', async () => {
+    const proc = createMockChildProcess();
+    vi.mocked(mockSpawn).mockReturnValue(proc as any);
+
+    const executePromise = executor.execute('Prompt', { silent: true });
+    proc.stdout.write(`${assistantMessage('quick')}\n`);
+    proc.stdout.write(`${resultEvent('sess-2')}\n`);
+    proc.stdout.end();
+    proc.stderr.end();
+    proc.emit('close', 0, null);
+
+    expect((await executePromise).result).toBe('quick');
+    await vi.advanceTimersByTimeAsync(GRACE_MS * 2);
+    expect(proc.kill).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('executeStream(): kills a process lingering after its result and ends the stream cleanly', async () => {
+    const proc = lingeringProcess();
+
+    const events: { type: string; content: string }[] = [];
+    const collect = (async () => {
+      for await (const event of executor.executeStream('Prompt', { silent: true })) {
+        events.push({ type: event.type, content: event.content });
+      }
+    })();
+    await vi.advanceTimersByTimeAsync(0);
+    proc.stdout.write(`${assistantMessage('streamed answer')}\n`);
+    proc.stdout.write(`${resultEvent('sess-3')}\n`);
+
+    await vi.advanceTimersByTimeAsync(GRACE_MS - 1);
+    expect(proc.kill).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    await collect;
+
+    expect(proc.kill).toHaveBeenCalled();
+    expect(events).toEqual([{ type: 'result', content: 'streamed answer' }]);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
