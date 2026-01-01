@@ -1,0 +1,125 @@
+# =============================================================================
+# Dependencies
+# =============================================================================
+node_modules/
+.pnpm-store/
+
+# =============================================================================
+# Build outputs
+# =============================================================================
+dist/
+build/
+# Exception: this is a source directory (services/build/*), not a build output
+!packages/core/src/infrastructure/services/build/
+/web/
+.next/
+out/
+*.tsbuildinfo
+
+# =============================================================================
+# Generated files
+# =============================================================================
+# Note: src/domain/generated/ is TRACKED (TypeSpec-generated domain models)
+# Note: apis/ is TRACKED (JSON Schema files used at runtime for YAML validation)
+# These generated files are committed to ensure consistent types across environments
+*.generated.*
+coverage/
+
+# =============================================================================
+# Test outputs
+# =============================================================================
+test-results/
+playwright-report/
+playwright/.cache/
+.playwright-mcp/
+.test-artifacts/
+
+# =============================================================================
+# IDE & Editors
+# =============================================================================
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.code-workspace
+*.swp
+*.swo
+*~
+
+# Local agent-tool scratch dirs (not part of the project)
+.cline/
+.superpowers/
+.continue
+.continue.md
+.continue/
+**/.continue
+**/.continue.md
+**/.record-*.mjs
+
+# =============================================================================
+# OS files
+# =============================================================================
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# =============================================================================
+# Logs
+# =============================================================================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# =============================================================================
+# Environment & Secrets
+# =============================================================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# =============================================================================
+# Package manager locks (keep pnpm-lock.yaml)
+# =============================================================================
+package-lock.json
+yarn.lock
+
+# =============================================================================
+# Runtime artifacts (never commit)
+# =============================================================================
+.claude/scheduled_tasks.lock
+
+# =============================================================================
+# Misc
+# =============================================================================
+.cache/
+.eslintcache
+node_modules/.cache/prettier/
+.temp/
+.tmp/
+# Scratch dirs the documented test/storybook recipes create in the repo root
+# (`SHEP_HOME=.tmp-run`, `HOME=.tmp-sbhome`). Untracked noise, and `format:check`
+# walks them — a nested pnpm store brings hundreds of unformatted files with it.
+.tmp-run/
+.tmp-sbhome/
+.tmp-cli/
+.tmp-cli2/
+*.bak
+storybook-static/
+.worktrees/
+.plan/
+.superpowers/
+# =============================================================================
+# Marketing screenshot factory output (generated assets, not source)
+# =============================================================================
+scripts/marketing/output/
+.agents/
+.claude/skills/frontend-design/
+.claude/skills/remotion-best-practices/
+
+# Local agent-tooling run records (not project source)
+.coding-agent/
