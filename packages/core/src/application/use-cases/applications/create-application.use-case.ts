@@ -1,0 +1,232 @@
+/**
+ * Create Application Use Case
+ *
+ * End-to-end "user clicked Create": derives a unique slug, scaffolds the
+ * project folder via CreateProjectUseCase, persists a new Application
+ * entity, and (optionally) kicks off the interactive agent session by
+ * sending the application-creation prompt as the first chat message.
+ *
+ * Composing the prompt + first-message dispatch in this use case keeps
+ * the presentation layer free of orchestration logic and lets every
+ * surface (Web, CLI, TUI) get the same behavior from a single call.
+ */
+
+import { injectable, inject } from 'tsyringe';
+import { randomUUID } from 'node:crypto';
+import type { Application, InteractiveMessage } from '../../../domain/generated/output.js';
+import { ApplicationStatus, InteractiveMessageRole } from '../../../domain/generated/output.js';
+import type { IApplicationRepository } from '../../ports/output/repositories/application-repository.interface.js';
+import type { IInteractiveMessageRepository } from '../../ports/output/repositories/interactive-message-repository.interface.js';
+import type { ILogger } from '../../ports/output/services/logger.interface.js';
+import type { ISettingsProvider } from '../../ports/output/services/settings-provider.interface.js';
+import type { CreateProjectUseCase } from '../projects/create-project.use-case.js';
+import type { RunApplicationSetupUseCase } from './run-application-setup.use-case.js';
+import { featureIdForApplication } from '../../../domain/shared/feature-id.js';
+import { ApplicationProjectAllocator } from './application-project-allocator.js';
+
+export { buildKickoffDirective } from './run-application-setup.use-case.js';
+
+export interface CreateApplicationInput {
+  description: string;
+  agentType?: string;
+  modelOverride?: string;
+  /**
+   * When set, the use case ALSO sends this as the first message of the
+   * application's interactive chat session, wrapped with the full
+   * application-creation prompt (Shep persona, mission, tech stack,
+   * workflow, quality bar, definition of done). Pass the user's verbatim
+   * request — wrapping happens internally via the injected prompt builder.
+   */
+  initialPrompt?: string;
+}
+
+export interface CreateApplicationResult {
+  application: Application;
+  repositoryPath: string;
+}
+
+export { randomSlugTag } from './application-project-allocator.js';
+
+@injectable()
+export class CreateApplicationUseCase {
+  constructor(
+    @inject('IApplicationRepository')
+    private readonly appRepo: IApplicationRepository,
+    @inject('CreateProjectUseCase')
+    private readonly createProject: CreateProjectUseCase,
+    @inject('RunApplicationSetupUseCase')
+    private readonly runSetup: RunApplicationSetupUseCase,
+    @inject('IInteractiveMessageRepository')
+    private readonly messageRepo: IInteractiveMessageRepository,
+    @inject('ILogger')
+    private readonly logger: ILogger,
+    @inject('ISettingsProvider')
+    private readonly settingsProvider: ISettingsProvider
+  ) {}
+
+  /**
+   * Resolve the agent type + model that this Application should be
+   * pinned to. Resolution rules — settings is the SINGLE source of
+   * truth; explicit overrides win over it; nothing is hardcoded:
+   *
+   *   1. Explicit `input.agentType` / `input.modelOverride` win when set.
+   *   2. Otherwise the user's `settings.agent.type` and
+   *      `settings.models.default` are used.
+   *   3. If settings haven't been initialised yet (impossible in
+   *      practice once onboarding runs, but kept defensive for the
+   *      first run before the seed migration completes), the values
+   *      flow through as `undefined`. In that case the per-app
+   *      session resolver falls through to `AgentType.ClaudeCode` —
+   *      see `AgentConfigResolver.resolveAgentType`.
+   *
+   * Persisting the resolved values onto the Application row means
+   * downstream callers (`ChatTab`, `RunWorkflowUseCase`, the
+   * `AgentConfigResolver`) all see a stable per-app pin instead of
+   * silently falling back to settings on every message — which used
+   * to surface the demo `dev` agent in interactive boots and crash
+   * the session.
+   */
+  private resolveAgentAndModel(input: { agentType?: string; modelOverride?: string }): {
+    agentType: string | undefined;
+    modelOverride: string | undefined;
+  } {
+    if (input.agentType && input.modelOverride) {
+      return { agentType: input.agentType, modelOverride: input.modelOverride };
+    }
+    if (!this.settingsProvider.has()) {
+      return {
+        agentType: input.agentType,
+        modelOverride: input.modelOverride,
+      };
+    }
+    const settings = this.settingsProvider.get();
+    return {
+      agentType: input.agentType ?? settings.agent.type,
+      modelOverride: input.modelOverride ?? settings.models.default,
+    };
+  }
+
+  async execute(input: CreateApplicationInput): Promise<CreateApplicationResult> {
+    // 0. Resolve agent type + model FIRST so every downstream side
+    //    effect (DB row, scaffold log, workflow dispatch) sees the
+    //    same pinned values. See `resolveAgentAndModel` for the rule.
+    const resolved = this.resolveAgentAndModel({
+      agentType: input.agentType,
+      modelOverride: input.modelOverride,
+    });
+
+    // 1–3. Allocate a unique <stem>-<6hex> slug, create the empty project
+    //      folder, and derive the display name from the stem.
+    const { slug, name, projectPath } = await new ApplicationProjectAllocator(
+      this.appRepo,
+      this.createProject
+    ).allocate(input.description);
+
+    // 4. Persist the Application row IMMEDIATELY and return to the caller.
+    //
+    //    CRITICAL — DO NOT MOVE THE SCAFFOLD ABOVE THIS LINE.
+    //    The scaffold pipeline (`bun --version` → `npm install -g bun`
+    //    → `bunx shadcn init` → flatten → `bun add` → template overlay)
+    //    takes 30+ seconds on the first run and blocks whichever
+    //    runtime is calling us (Next.js server action, CLI, future
+    //    TUI). A previous regression awaited it inline and every
+    //    presentation layer froze for the duration. Every caller
+    //    MUST see a fast return here and navigate the user to the
+    //    application page while scaffolding runs in the background.
+    //
+    //    Row goes in with status = Idle / setupComplete = false. The
+    //    background dispatch below will:
+    //      1. Run the scaffold (deterministic, no agent).
+    //      2. On success, dispatch the orchestrator workflow if
+    //         there is an initialPrompt.
+    //      3. On any failure, flip status to Error so the
+    //         application card surfaces the problem on the page.
+    const now = new Date();
+    const application: Application = {
+      id: randomUUID(),
+      name,
+      slug,
+      description: input.description,
+      repositoryPath: projectPath,
+      additionalPaths: [],
+      status: ApplicationStatus.Idle,
+      setupComplete: false,
+      agentType: resolved.agentType,
+      modelOverride: resolved.modelOverride,
+      bedrockEnabled: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await this.appRepo.create(application);
+
+    // 4b. Persist the user's verbatim description as the first chat
+    //     message IMMEDIATELY, while we're still in the foreground.
+    //     The chat page SSR reads messages via
+    //     `InteractiveMessageRepository.findByFeatureId` on first
+    //     paint, so writing the row here means the user sees their
+    //     own bubble the instant they land on `/application/<id>` —
+    //     no waiting for the 30-second scaffold + session boot to
+    //     finish before the background workflow dispatch gets around
+    //     to calling `sendMessage.execute`.
+    //
+    //     The background workflow dispatch below passes
+    //     `firstUserMessageAlreadyPersisted: true` so `RunWorkflowUseCase`
+    //     skips the DB-persist side of its first `sendMessage.execute`
+    //     call — only the session boot + agent kickoff run, no
+    //     duplicate row.
+    if (input.initialPrompt?.trim()) {
+      const now2 = new Date();
+      const firstUserMessage: InteractiveMessage = {
+        id: randomUUID(),
+        featureId: featureIdForApplication(application.id),
+        role: InteractiveMessageRole.user,
+        content: input.initialPrompt.trim(),
+        createdAt: now2,
+        updatedAt: now2,
+      };
+      try {
+        await this.messageRepo.create(firstUserMessage);
+      } catch (err) {
+        // Non-fatal — the background dispatch will retry via
+        // sendMessage.execute if the row is missing. The user will
+        // still see their bubble a few seconds later instead of
+        // instantly. We log and continue so the application row
+        // and project path are still returned to the caller.
+        this.logger.error('[create-application] failed to pre-persist first user message', {
+          err: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    // 5. Kick off scaffold + (optional) workflow in the background.
+    //    The use case returns IMMEDIATELY after this fire-and-forget;
+    //    the HTTP / CLI caller is unblocked in milliseconds and the
+    //    user lands on the application page right away.
+    //
+    //    If initialPrompt is set, the workflow orchestrator runs
+    //    after the scaffold finishes. If initialPrompt is absent
+    //    (e.g. `shep app new` without a kickoff), only the scaffold
+    //    runs — the user still gets a ready-to-code project.
+    //
+    //    Prompt delivery strategy — CRITICAL (unchanged from before):
+    //    The Claude Agent SDK V2 session API does not accept a
+    //    systemPrompt, so we write the full brief to
+    //    `<SHEP_HOME>/application-briefs/<id>.md` via
+    //    IApplicationBriefStore and have the agent Read it on turn 1
+    //    via a kickoff directive. Building the brief and writing it
+    //    also runs in the background so the request handler stays
+    //    fast.
+    //
+    //    The pipeline itself lives in RunApplicationSetupUseCase so
+    //    "Try again" on a setup that failed before any workflow step
+    //    existed re-runs exactly this path. It never throws.
+    void this.runSetup.execute({
+      application,
+      initialPrompt: input.initialPrompt?.trim() ? input.initialPrompt.trim() : undefined,
+      // The folder was created moments ago for this scaffold.
+      keepExistingFiles: false,
+    });
+
+    return { application, repositoryPath: projectPath };
+  }
+}
