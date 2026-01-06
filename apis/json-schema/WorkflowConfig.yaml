@@ -1,0 +1,102 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: WorkflowConfig.yaml
+type: object
+properties:
+  openPrOnImplementationComplete:
+    type: boolean
+    default: false
+    description: "Create PR on implementation complete (default: false)"
+  approvalGateDefaults:
+    $ref: ApprovalGateDefaults.yaml
+    description: Default approval gate preferences for new features
+  ciWatchEnabled:
+    type: boolean
+    default: true
+    description: "Enable CI watch/fix loop after push (default: true)"
+  maxParallelFeatures:
+    type: integer
+    minimum: -2147483648
+    maximum: 2147483647
+    description: "Maximum concurrently running features (default: 0 = unlimited)"
+  queuePaused:
+    $ref: FleetQueuePause.yaml
+    description: Present while the fleet admission queue is paused (absent = draining)
+  breakerAcknowledgedAt:
+    type: string
+    format: date-time
+    description: When the user last acknowledged a breaker trip; failures before this do not re-trip
+  circuitBreakerAutoPauseQueue:
+    type: boolean
+    description: "Whether a tripped circuit breaker parks the admission queue (default: false)"
+  decisionDefaultTimeoutMinutes:
+    type: integer
+    minimum: -2147483648
+    maximum: 2147483647
+    description: "Minutes a background agent's question waits before the agent proceeds with its recommended option (spec 134; default: 30)"
+  ciMaxFixAttempts:
+    type: integer
+    minimum: -2147483648
+    maximum: 2147483647
+    description: "Maximum number of CI fix/push/watch iterations before giving up (default: 3)"
+  ciWatchTimeoutMs:
+    type: integer
+    minimum: -2147483648
+    maximum: 2147483647
+    description: "Timeout in milliseconds for watching a CI run (default: 600000 = 10 minutes)"
+  ciLogMaxChars:
+    type: integer
+    minimum: -2147483648
+    maximum: 2147483647
+    description: "Maximum characters of CI failure logs to pass to the executor (default: 50000)"
+  ciWatchPollIntervalSeconds:
+    type: integer
+    minimum: -2147483648
+    maximum: 2147483647
+    description: "Poll interval in seconds for gh run watch (default: 30)"
+  stageTimeouts:
+    $ref: StageTimeouts.yaml
+    description: "Per-stage timeout overrides for the feature agent (default: 600000 = 10 minutes per stage)"
+  analyzeRepoTimeouts:
+    $ref: AnalyzeRepoTimeouts.yaml
+    description: "Timeout overrides for the analyze-repository agent (default: 600000 = 10 minutes)"
+  enableEvidence:
+    type: boolean
+    default: false
+    description: "Enable evidence collection after implementation (default: false)"
+  commitEvidence:
+    type: boolean
+    default: false
+    description: "Commit evidence to PR (default: false, requires enableEvidence)"
+  evidenceRetries:
+    type: integer
+    minimum: -2147483648
+    maximum: 2147483647
+    description: "Maximum number of evidence collection retry attempts when validation fails (default: 3)"
+  hideCiStatus:
+    type: boolean
+    description: "Hide CI status badges from UI (default: true)"
+  defaultMode:
+    type: string
+    default: Fast
+    description: "Default feature mode for new features: 'Regular', 'Fast', or 'Exploration' (default: 'Fast')"
+  explorationMaxIterations:
+    type: integer
+    minimum: -2147483648
+    maximum: 2147483647
+    description: "Maximum exploration feedback iterations (default: 10, 0 = unlimited)"
+  autoArchiveDelayMinutes:
+    type: integer
+    minimum: -2147483648
+    maximum: 2147483647
+    description: "Minutes after completion before auto-archiving a feature (default: 10, 0 = disabled)"
+  skillInjection:
+    $ref: SkillInjectionConfig.yaml
+    description: Skill injection configuration (optional, disabled by default)
+required:
+  - openPrOnImplementationComplete
+  - approvalGateDefaults
+  - ciWatchEnabled
+  - enableEvidence
+  - commitEvidence
+  - defaultMode
+description: Global workflow configuration defaults
