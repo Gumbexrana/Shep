@@ -301,5 +301,3 @@ Update CONTRIBUTING.md when:
 - [docs/development/tdd-guide.md](./docs/development/tdd-guide.md) — TDD rhythm
 - [docs/development/contributing-with-shep.md](./docs/development/contributing-with-shep.md) — extended walk-through of the dogfooding loop
 - [docs/development/setup.md](./docs/development/setup.md) — detailed dev environment setup
-
-<!-- maintenance 2025 -->
