@@ -1,0 +1,251 @@
+/**
+ * Agent Executor Interface
+ *
+ * Output port for executing AI agent operations (prompts, streaming).
+ * Infrastructure layer provides concrete implementations for each agent type.
+ *
+ * Following Clean Architecture:
+ * - Domain and Application layers depend on this interface
+ * - Infrastructure layer provides concrete implementations
+ *
+ * @example
+ * ```typescript
+ * // Resolve an executor from the factory and run a prompt
+ * const executor = factory.createExecutor(AgentType.ClaudeCode, agentConfig);
+ * const result = await executor.execute('Analyze this codebase');
+ *
+ * // Stream results for real-time output
+ * for await (const event of executor.executeStream('Implement feature X')) {
+ *   console.log(event.content);
+ * }
+ * ```
+ */
+
+import type { SpaceEnvironment } from '../../../../domain/shared/space-environment.js';
+import type { PromptSection } from '../../../../domain/harness/prompt-sections.js';
+import type {
+  AgentEffort,
+  AgentType,
+  AgentFeature,
+  SecurityMode,
+  SecurityActionCategory,
+  SecurityActionDisposition,
+} from '../../../../domain/generated/output.js';
+
+/**
+ * Token usage and execution statistics returned by an agent.
+ */
+export interface AgentExecutionUsage {
+  inputTokens: number;
+  outputTokens: number;
+  /** Tokens used to populate the prompt cache (cache misses) */
+  cacheCreationInputTokens?: number;
+  /** Tokens served from the prompt cache (cache hits) */
+  cacheReadInputTokens?: number;
+  /** Estimated cost in USD */
+  costUsd?: number;
+  /** Number of agentic turns (tool-call round-trips) */
+  numTurns?: number;
+  /** Time spent waiting for the API in milliseconds */
+  durationApiMs?: number;
+}
+
+/**
+ * Result returned after an agent execution completes.
+ */
+export interface AgentExecutionResult {
+  /** The agent's output text */
+  result: string;
+  /** Session ID for resuming conversations */
+  sessionId?: string;
+  /** Token usage and execution statistics */
+  usage?: AgentExecutionUsage;
+  /** Additional metadata from the agent */
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Event emitted during streamed agent execution.
+ */
+export interface AgentExecutionStreamEvent {
+  /** Event type: progress updates, final result, or error */
+  type: 'progress' | 'result' | 'error';
+  /** Event content text */
+  content: string;
+  /** When the event was emitted */
+  timestamp: Date;
+  /**
+   * Session ID for resuming the conversation, when the agent reported one.
+   *
+   * `content` always carries text meant for a human or a downstream node, so an
+   * agent whose final event also identifies the session puts the identifier
+   * here — never in `content`, which callers treat as the answer.
+   */
+  sessionId?: string;
+}
+
+/**
+ * Security constraints derived from the effective security policy.
+ * Passed to executors so they can validate compatibility before launch.
+ */
+export interface SecurityConstraints {
+  /** Effective security mode for this execution */
+  mode: SecurityMode;
+  /** Per-action-category enforcement dispositions */
+  actionDispositions: Record<SecurityActionCategory, SecurityActionDisposition>;
+  /** Required sandbox level (e.g. 'strict' forbids --dangerously-skip-permissions) */
+  sandboxLevel: 'permissive' | 'strict';
+}
+
+/**
+ * Options for controlling agent execution behavior.
+ */
+export interface AgentExecutionOptions {
+  /** Working directory for the agent */
+  cwd?: string;
+  /** Tools the agent is allowed to use */
+  allowedTools?: string[];
+  /** Session ID to resume a previous conversation */
+  resumeSession?: string;
+  /** Maximum number of agent turns */
+  maxTurns?: number;
+  /** Model to use for execution */
+  model?: string;
+  /**
+   * Reasoning effort for this call. Executors that declare
+   * `AgentFeature.effort` pass it to their agent (Claude Code: `--effort`);
+   * others ignore it. Unset means the agent's own default.
+   */
+  effort?: AgentEffort;
+  /** System prompt to prepend */
+  systemPrompt?: string;
+  /** JSON schema for structured output */
+  outputSchema?: object;
+  /** Execution timeout in milliseconds */
+  timeout?: number;
+  /**
+   * Fail the run when the agent produces no output for this many
+   * milliseconds. Unset means no idle guard. Executors that cannot observe
+   * output progress ignore it and rely on `timeout` alone.
+   */
+  idleTimeout?: number;
+  /**
+   * Cancel the run. The executor terminates the agent (process tree, with
+   * SIGKILL escalation for a subprocess CLI) and fails the call as aborted —
+   * for a subprocess, only once the process has closed, so awaiting the call
+   * awaits the teardown. An already-aborted signal cancels at once.
+   */
+  abortSignal?: AbortSignal;
+  /** Suppress executor debug logging (e.g. for quick foreground calls) */
+  silent?: boolean;
+  /** When true, adds --strict-mcp-config to disable all MCP tools */
+  disableMcp?: boolean;
+  /**
+   * Restrict available built-in tools via --tools flag. An empty list means no
+   * tools at all; leave it unset for the agent's default tool set.
+   */
+  tools?: string[];
+  /**
+   * The space environment for this call (spec 123): subprocess executors apply
+   * it to the agent process they spawn. Calls made inside the long-lived web
+   * server or daemon use it, since they cannot change that process's
+   * environment; feature workers set their own process environment instead.
+   * Executors that call an HTTP API directly ignore it.
+   */
+  environment?: SpaceEnvironment;
+  /**
+   * When true, request per-token streaming deltas from the underlying agent
+   * (e.g. Claude CLI's --include-partial-messages). Only set this when the
+   * caller will actually consume `progress` events for live typing UX —
+   * deltas multiply stdout volume by ~10× and are pure overhead for
+   * non-streaming workers that only need the final result + tool-call log.
+   * Defaults to false; set true via StreamingExecutorProxy automatically.
+   */
+  streamProgress?: boolean;
+  /** Security policy constraints for this execution */
+  securityConstraints?: SecurityConstraints;
+  /**
+   * Path to a per-feature .mcp.json temp file containing MCP server definitions
+   * for plugin-provided tools. When set, the executor passes this to the agent
+   * (e.g., Claude Code --mcp-config <path>) so plugin MCP servers are available.
+   * Generated by McpServerManagerService.generateMcpConfigPath().
+   */
+  mcpConfigPath?: string;
+  /**
+   * A settings file carrying lifecycle hooks for this call (spec 150 learned
+   * harness). Claude Code receives it as `--settings <path>`; executors whose
+   * agent has no hooks ignore it.
+   */
+  settingsPath?: string;
+  /**
+   * Where this call comes from (spec 119). Executors that keep their own
+   * state per run (the Shep Harness) bind the call to a session by
+   * `agentRunId`; every other executor ignores it.
+   */
+  callContext?: AgentCallContext;
+  /**
+   * The prompt as addressable sections (spec 119). Rendering them yields
+   * `prompt` exactly; CLI executors ignore this and use the prompt string.
+   */
+  promptSections?: PromptSection[];
+}
+
+/** Identity of an executor call inside a feature run (spec 119). */
+export interface AgentCallContext {
+  agentRunId?: string;
+  featureId?: string;
+  /** SDLC node or sub-phase, e.g. `implement` or `implement:phase-2`. */
+  phase?: string;
+}
+
+/**
+ * Port interface for executing prompts against an AI agent.
+ *
+ * Implementations must:
+ * - Execute prompts and return structured results
+ * - Support streaming execution via async iterables
+ * - Report which agent features are supported
+ *
+ * @example
+ * ```typescript
+ * const executor: IAgentExecutor = container.resolve('IAgentExecutor');
+ * if (executor.supportsFeature(AgentFeature.Streaming)) {
+ *   for await (const event of executor.executeStream('Plan this feature')) {
+ *     process.stdout.write(event.content);
+ *   }
+ * }
+ * ```
+ */
+export interface IAgentExecutor {
+  /** The type of agent this executor handles */
+  readonly agentType: AgentType;
+
+  /**
+   * Execute a prompt and return the complete result.
+   *
+   * @param prompt - The prompt to send to the agent
+   * @param options - Optional execution configuration
+   * @returns The agent's execution result
+   */
+  execute(prompt: string, options?: AgentExecutionOptions): Promise<AgentExecutionResult>;
+
+  /**
+   * Execute a prompt and stream events as they arrive.
+   *
+   * @param prompt - The prompt to send to the agent
+   * @param options - Optional execution configuration
+   * @returns An async iterable of stream events
+   */
+  executeStream(
+    prompt: string,
+    options?: AgentExecutionOptions
+  ): AsyncIterable<AgentExecutionStreamEvent>;
+
+  /**
+   * Check if this executor supports a specific agent feature.
+   *
+   * @param feature - The feature to check
+   * @returns true if the feature is supported
+   */
+  supportsFeature(feature: AgentFeature): boolean;
+}
