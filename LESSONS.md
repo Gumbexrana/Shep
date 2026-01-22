@@ -1,0 +1,3437 @@
+# Lessons Learned
+
+## A new entry point must apply the same defaults as the old ones
+
+A2A and MCP created features by calling `CreateFeatureUseCase` directly, while `shep feat new`
+filled unset options from Settings → Workflow (mode, gates, push, PR) in the command itself.
+So a feature created over A2A ran a different pipeline than the user chose. Unit tests could not
+see it, because each adapter passed exactly what its own test expected. The first real run of the
+orchestrator demo showed it. Keep "what a caller left unset means" in core
+(`featureWorkflowDefaults`, `useWorkflowDefaults`). Before adding an entry point, diff what the
+existing entry points pass to the same use case.
+
+## A `.well-known` app folder is invisible; the web token appears on first request
+
+Two things a real `shep ui` run showed while adding A2A (spec 149). ESLint's TypeScript project
+(and the include globs behind it) skip dot-directories, so `app/.well-known/…/route.ts` fails the
+pre-commit lint with "not found by the project service". Serve well-known URLs from a route under
+`app/api/…` plus a `rewrites()` entry in `next.config.ts`; the request guard still sees the
+well-known path. And the daemon writes `SHEP_HOME/web-auth-token` only when the guard first runs,
+so an e2e test must make one request before reading the token.
+
+## A version made of "newest timestamp" can go down
+
+The agent-activity version is the newest of feature, run and open-question timestamps. Answering a
+question removes its timestamp from the set, so the version can drop before anything else is
+written. Clamp in the watcher (strictly increasing per stream) and never document such a value as
+globally monotonic; ask "which write removes an input?" before claiming a derived value only rises.
+
+## `kill(pid, 0)` says a zombie is alive
+
+`process.kill(pid, 0)` succeeds for a zombie: a process that exited but has not been reaped by its
+parent. The first real run of `shep ps` showed a finished worker as running with 109% CPU and
+0 MB, and `ps -o stat=` read `Zs`. Liveness alone cannot tell "running" from "exited, unreaped";
+when it matters, read the process state (`stat` starting with `Z`) in the same `ps` call. And look
+at real output before calling a monitor done: green unit tests fed it only live and dead PIDs.
+
+## Drive tmux like a user: UTF-8 client, escape-time, printable -F fields
+
+Three tmux behaviours faked bugs while testing `shep tui` panes (spec 143), none of them in the
+console: a tmux client without a UTF-8 locale draws every `◆`/`·` as `_`, both when attached
+and when *reading* names or options (`show-options`, `list-windows`) — the stored value is
+fine, so pass `tmux -u` to every client a test reads through; tmux holds a lone ESC for `escape-time` (500 ms) and merges it with
+the next key into alt+key, so a scripted `esc` then `q` never quits (wait past it); and
+`list-panes -F` rewrites tab characters to `_` (split fields on a printable marker). Run
+e2e tmux servers on their own socket (`tmux -L <name>`) and ask tmux for pane facts
+(`#{pane_current_path}`, `#{pane_start_command}`) instead of parsing the screen.
+
+## A gate files an inbox question that nothing closes — count gates from the run
+
+Every approval gate also files a `blocking` agent question mirroring it (spec 093), and approving
+or rejecting the gate leaves that question `pending`. The first real run of `shep tui` showed a
+finished feature as "Question" because the snapshot counted it. Represent a gate by
+`AgentRunStatus.waitingApproval`; when counting a feature's open questions, drop
+`isGateQuestion(...)` rows. (Closing the mirror on approve/reject is a separate core fix.)
+
+## Look at a TUI in a real terminal, not only in unit tests
+
+Green view tests missed two things a real PTY run of `shep tui` showed at once: pi-tui's
+`truncateToWidth` appends `\x1b[0m` after the ellipsis, which ended the inverse selection bar
+mid-row, and log lines were unreadable because truncation kept only their long prefix. Drive the
+built CLI through `tests/helpers/tui/pty-screen.ts`, read `screen.text()`, and render a frame
+before calling a terminal UI done. When inspecting dumps, never `cut -c` UTF-8 text: it counts
+bytes and fakes truncation and `�` glyphs that are not in the output.
+
+## Persisted retry state needs a "this will never work" branch
+
+A chat boot that failed re-cached its agent session id, and the DB kept it too,
+so a conversation the agent CLI had deleted was resumed again on every boot —
+even after restarts. Rules:
+
+1. When the agent says the resumed conversation is gone, forget the id
+   everywhere a later boot reads it (in-memory stopped cache AND
+   `clearAgentSessionIdsForFeature`) and boot fresh; keep the id only for
+   transient failures.
+2. The adapter translates its provider's wording ("No conversation found…")
+   into `AgentSessionNotFoundError`; shared services branch on `instanceof`,
+   never on a provider string.
+
+## Fetch main before reporting what the code does or lacks
+
+Before an audit or status report says a model, flag or fix is missing, run
+`git fetch origin main` and check the finding against `origin/main`. A session
+checkout can be days behind, and a stale "X is missing" sends the reader after
+work that already shipped.
+
+## A gate piped into `tail` never fails
+
+`check.sh | tail -5 && git commit` commits even when `check.sh` fails, because
+the pipeline returns `tail`'s exit status. Redirect gate output to a file and
+test the command's own status (`check.sh > log; echo $?`), or set
+`set -o pipefail`, before chaining anything that depends on it.
+
+## An e2e test must assert the surroundings survive the interaction
+
+The effort picker's e2e test checked the dropdown options and the trigger text,
+and it passed while picking a value was closing the create drawer: Radix Select
+opens on pointerdown, so the trailing click targeted <body> and BaseDrawer read
+it as an outside click. After interacting with a control in a drawer, dialog or
+popover, assert that the container is still open and the URL is unchanged.
+
+## Write settings sub-objects by spreading, never by rebuilding
+
+`models: { default }` silently drops `models.adaptive` and `models.effort`.
+Update one field with `{ ...current.models, default }`. To clear an optional
+field, go through a use case that deletes it: `updateSettingsAction`'s deep
+merge skips `undefined`, so it can set a field but never clear one.
+
+## A fake child process must emit events in the order a real one does
+
+The ACP session ends its input stream on the process's `close`, so a turn that dies mid-way
+reports the exit code and stderr. Ending it on stdout `end` instead would lose them, because Node
+emits `end` before `close` and the connection would reject its requests with a generic "closed"
+first. A mutation that made exactly that change passed every unit test: the fake process emitted
+`close` and then ended stdout, the reverse of Node. `FakeChildProcess.exit()` in
+`tests/helpers/fake-acp-agent.ts` now follows the real order, and the mutation fails. The real
+binary then caught what no fake did. Cursor answered `session/new` with a JSON-RPC error, and the
+executor reported "Internal error" plus an "update your CLI" hint that only fits an agent that
+never answered.
+
+Rules:
+
+1. A test double for a process or stream must reproduce the event order of the real thing. When a
+   design choice depends on an ordering, mutate the code to the wrong order and watch a test fail.
+2. When a real binary is obtainable, drive the new executor against it, even logged out. The
+   failure paths it exercises (auth, missing binary, backend errors) are the ones users hit first.
+3. `cursor-agent acp`: never call `authenticate` (while logged out it tries to open a browser); it
+   does not exit on stdin EOF, so it must be killed; history arrives as `session/update` during
+   `session/load` and must not be shown as new output.
+
+## A reused string token silently hands every consumer the last registration
+
+`register-scheduled-workflows.ts` registered `'RunWorkflowUseCase'` for
+`RunScheduledWorkflowUseCase`, a name the interactive orchestrator already
+owned. tsyringe resolves the last registration, so `CreateApplicationUseCase`
+received the scheduled class and every prompt-created Application failed.
+Typecheck passed, and the registration test passed too, because it only checked
+`toBeDefined()`. Name a string token after the class it resolves to.
+`string-token-collision-guard.test.ts` now fails when one string token resolves
+to two classes.
+
+## Prefer a shared port when one provider gains a capability
+
+When a capability exists for one agent or integration (for example live model
+discovery), introduce a shared port and register each provider behind it
+instead of shipping a one-tool patch. Sibling providers then opt in the same
+way; presentation and docs stay provider-agnostic.
+
+## Exercise real concurrency and retain subprocess errors
+
+`Promise.resolve(runner.run(...))` still runs each synchronous CLI command in
+sequence. Use asynchronous child processes sharing an isolated database to test
+startup races. SQLite can return `SQLITE_BUSY` during WAL startup without calling
+its busy handler; retry initialization within a deadline and close failed handles.
+Use `runOrThrow` for successful CLI scenarios so CI retains the command and stderr.
+Serialize the settings existence check and insert in one immediate transaction;
+if another startup wins, load its persisted settings instead of replacing them.
+Close the database synchronously on process exit. A Windows probe reproduced
+`SQLITE_IOERR_TRUNCATE` when workers exited with open WAL connections; explicit
+SQLite shutdown eliminated those I/O failures. Verify cleanup before reopening
+the file, since reopening can recover the WAL and hide the missing shutdown.
+
+## Review the complete report and the complete interaction
+
+Inspect a supplied recording's audio as well as its frames before narrowing the
+reported problem. Check long pages halfway down and at the bottom in both themes;
+an above-the-fold screenshot misses a background that ends at the first viewport.
+Exercise global shortcuts together, including extra modifiers and held keys, so
+one gesture cannot open competing panels or repeatedly toggle the same panel.
+
+## Exercise native compilation independently of caches
+
+Green PR jobs can hide an incompatible native build toolchain when they download
+prebuilt binaries. After an install failure, inspect the actual runner image and
+bundled compiler tooling, force the native source-build fallback in CI, and verify
+the binding loads. Preserve required check names when pinning a runner image.
+
+## Use the fork to verify CI while upstream approval is pending
+
+An upstream approval gate does not prevent testing in an owned fork. Check fork
+Actions permissions and run the same commit and CI matrix through a draft PR.
+Verify the merge tree matches the intended source and keep fork results distinct
+from upstream approval. Do this before treating maintainer approval as an impasse.
+
+## Finish against the pushed CI result and current review
+
+Local green checks do not complete a CI repair. Read every current PR comment,
+reproduce each reported failure, and verify every required job on the final pushed
+commit, including Windows and both Linux desktop variants. Keep PR verification
+claims current and give every consent gate a usable approval command.
+
+## Verify shared artwork and complete pages in both themes
+
+A successful page load and an automated accessibility scan do not prove visual
+quality. Inspect every shared logo in light and dark mode, check image decoding,
+and exercise the complete page at desktop, narrow mobile and browser zoom sizes.
+Record route and interaction coverage explicitly before describing a UI review
+as complete; an Applications-only screenshot cannot verify Control Center.
+
+## Check ownership before committing in a shared checkout
+
+Re-read Git status and the index before every commit. Stage only paths whose
+changes belong to this session, leave another agent's work intact, and check
+status again after hooks restore unstaged changes. A handoff saying the tree
+is clean never replaces checking its current state.
+
+## Close actionable findings before calling a review complete
+
+When asked to finish an end-to-end review, investigate expected failures and
+remaining advisories instead of treating their existing status as an exemption.
+Prove fixes with regressions, exercise omitted local workflows, and distinguish
+completed verification from checks that require an unavailable environment.
+
+## Recover the conversation before resuming interrupted work
+
+When asked to find a crashed session, locate the actual session record by workspace
+and timestamp, recover its user request and last tool results, and report its ID.
+A dirty branch or saved plan alone does not establish which conversation to resume.
+Treat checks interrupted by the crash as incomplete and persist the remaining work.
+
+## `kill()` is a signal, not a join — never remove a directory a process just left
+
+A pty unit test created a temp dir, spawned a real shell in it, called `close()`,
+then removed the dir in `finally`. Green on Linux, red on every Windows run:
+`close()` only *signals* the pty, and Windows keeps the child's handle on its cwd
+open until the process actually dies, so `rmdir` came back `EBUSY` and took the
+whole CI/CD workflow — including the release job — down with it.
+
+Rules:
+
+1. **Wait for the exit event before touching what the process was holding.** Subscribe
+   *before* closing: a session registry drops the entry on close, so a listener added
+   afterwards is never reached.
+2. **`rmSync` retries are the safety net, not the fix.** `maxRetries` / `retryDelay`
+   cover handles the OS releases on its own schedule; they do not make a teardown
+   deterministic, and reaching for them first hides the race.
+3. **A green Linux run says nothing about Windows teardown.** Anything that spawns a
+   process and then deletes files is a Windows-only failure waiting for main.
+4. **One retry budget, one home.** Six suites had each inlined their own
+   `{ maxRetries, retryDelay }`; that is `@tests/helpers/remove-dir.helper.ts` now.
+5. **The shell's exit is not the ConPTY host's exit.** On Windows node-pty's `conhost.exe`
+   inherits the shell's cwd and can outlive the exit event (CI killed it as an orphan at job
+   end), so even exit-wait + retries can still hit `EBUSY`. A test whose temp dir served only as
+   the shell's cwd may leave it to the OS on that one Windows error; every other error fails.
+
+## A ConPTY session is two processes — and an exit event is not proof either died
+
+On Windows node-pty starts the shell *and* its pseudo-console host (`conhost.exe`, or
+`OpenConsole.exe` with `useConptyDll`) as siblings, both children of our process. A probe on
+windows-2022 (#927) showed that a terminal closed right after `create()` left both alive for about
+0.7 s, with the cwd `EBUSY` that whole time, and that `useConptyDll: true` left `OpenConsole.exe`
+running for seconds *after* the exit event.
+
+Rules:
+
+1. **`close()` returns a promise that settles when the processes are gone.** Kill, await the exit
+   event (bounded), then terminate any survivor by its PID.
+2. **Capture the host PID while the shell is alive.** `NtQueryInformationProcess(
+   ProcessConsoleHostProcess)` on the shell returns its exact host; the query fails once the
+   shell is dead. `ConptyHostReaper` owns this.
+3. **Never kill by image name.** An image name only confirms that a captured PID was not
+   recycled before the kill.
+4. **An immediate `rmSync` is a weak RED signal on Windows.** Removing a dir held by a dying
+   process can succeed or fail depending on timing. Assert on the processes themselves (diff
+   the parent's children around the session), then on the removal.
+5. **Probe on the real runner before designing.** A temporary Windows-only test that logs JSON
+   to stdout took two CI rounds and replaced guesses ("conhost holds the cwd") with facts
+   (the shell holds it; the host is a separate leak).
+
+## A one-shot download inside a build step is an unguarded failure
+
+`electron-builder` fetches the Electron runtime from GitHub releases at package time.
+One `status code 500` on the darwin-arm64 zip — seconds after the x64 zip downloaded
+fine — surfaced as `ERR_ELECTRON_BUILDER_CANNOT_EXECUTE` and failed the job.
+
+Rules:
+
+1. **If a build step downloads at run time, wrap it in a retry.** The vendor's own
+   retry logic is not yours to rely on, and everything already fetched is cached, so a
+   retry re-attempts only what failed.
+2. **Retry the seam you control.** No knob exists inside app-builder's downloader, so
+   the outermost process invocation is the only place to put the loop.
+
+## A port with consumers and a token is not a wired port
+
+Spec 111 shipped `IFleetRepository`, four use cases that `@inject('IFleetRepository')`, an exported
+`IFleetRepositoryToken`, and a token smoke test — but no `container.register` call. Every
+`shep fleet *` command resolved its use case, then threw on the unregistered dependency. The
+existing `hollow-dependency-guard` test did not catch it: it enumerates only *class* tokens
+(`if (typeof token !== 'function') continue`), and a repository is registered under a string.
+
+The same commit showed the inverse failure mode. Three use-case files imported their domain types
+from `'../../../../domain/generated/output.js'` — one `..` too deep. The files that imported the
+same path with `import type` were erased at compile time and worked; the three that needed an enum
+*value* crashed at import. The suite reported "Cannot find module" for three files while the
+type-only ones passed, so most of the feature looked green.
+
+**Rules:**
+
+1. A new output port is not done until the DI smoke test resolves it **by the same token the
+   registration uses**. Resolving the use case is not enough — tsyringe constructs an `@injectable`
+   class and only then throws on the missing inner dependency, so the assertion has to name the port.
+2. Prove a resolution test fails without the registration. Delete the `register` call and watch the
+   test go red; a DI test that passes either way is decoration.
+3. `import type` hides broken relative paths. A depth that is wrong by one level compiles fine
+   wherever the symbol is erased, so typecheck cannot be the only gate — run at least one suite that
+   imports the module for its runtime values.
+4. Before adding a constant to `infrastructure/di/tokens.ts`, use it at the registration site. A
+   token exported "for typo safety" that no production file imports is a second spelling of the same
+   string with nothing tying the two together.
+5. Check that spec prose matches the tree it describes. "Builds on PR #847" reads as a foundation;
+   PR #847 was open and conflicting, and no `maxParallelFeatures` existed on `main`. Grep for the
+   symbol before citing a PR as landed.
+6. Two hook traps that cost real time here. `#<number>` anywhere in a body paragraph makes
+   commitlint's parser treat that line as the start of the footer and reject the commit with
+   `footer-leading-blank` — put the reference in its own trailing paragraph. And `.husky/pre-commit`
+   runs `pnpm generate` (prettier'd) *before* lint-staged runs `pnpm tsp:compile` (not prettier'd),
+   so any commit touching a `.tsp` file lands `output.ts` double-quoted and `pnpm format:check`
+   fails until something reformats it.
+## Two independent gates need two independent markers — never overload a lifecycle
+
+Spec 110 added a parallel-feature cap. A capacity-queued feature and a
+user-deferred (`--pending`) feature sit in the **same** `Pending` lifecycle, and
+exactly one of them may be started automatically. Encoding "queued" as a
+lifecycle value (or as bare `Pending`) would either auto-start work the user
+deliberately deferred, or require a new `SdlcLifecycle` member rippling through
+36 files — where, per the enum lesson below, raw string comparisons compile
+silently and are missed by an `SdlcLifecycle.` grep.
+
+The marker is `Feature.queuedAt`: it is simultaneously the flag
+(`isQueuedForCapacity`), the FIFO ordering key, and an honest record of *when
+the user asked for the feature to run*.
+
+Rules:
+
+1. **When a second gate can hold an entity back, give it its own field.** Ask
+   "can both conditions be true at once, and do they release on different
+   events?" If yes, one lifecycle cannot represent both.
+2. **Evaluate gates in dependency order and stop at the first closed one.** The
+   capacity check runs only *after* the parent gate opens, so a feature that
+   cannot run anyway never takes a queue place ahead of one that can.
+3. **A capacity count must be derived, never decremented.** `countByLifecycles`
+   recomputes from lifecycle on every call; a maintained counter leaks a slot
+   forever the first time a worker crashes or a feature is force-deleted, and
+   the only symptom is a queue that silently never drains.
+4. **Wire the drain to every event that frees a slot, not just the obvious one.**
+   Lifecycle transition, settings change (raising the limit), feature deletion,
+   and a state-side sweep on dashboard load. Two of those are not lifecycle
+   transitions at all, so an event-side-only hook strands features.
+
+## Extract the spawn path before adding a gate to it
+
+Three call sites built the feature-agent spawn options bag by hand
+(`CreateFeatureUseCase`, `StartFeatureUseCase`, `CheckAndUnblockFeaturesUseCase`)
+and had already drifted: the auto-unblock path omitted `agentType` and `modelId`,
+so a feature created against `gemini-cli` silently restarted under the default
+agent when its parent landed. Nothing failed — it just ran the wrong agent.
+
+**Rule:** when a fourth concern (here, admission control) is about to be added to
+N duplicated code paths, collapse them first. `SpawnFeatureAgentUseCase` is now
+the only place that builds the bag, so the gate was written once and the drift
+was fixed as a side effect. A unit test asserting the spawned options carry the
+`AgentRun`'s `agentType`/`modelId` is the regression lock — assert on
+`spawn.mock.calls[0][5]`, because an options-bag omission is invisible to
+typecheck (every field is optional).
+
+## `ci_watch_enabled` was written by the mapper and dropped by the SQL
+
+Found while adding `workflow_max_parallel_features`: `settings.mapper.ts` wrote
+`ci_watch_enabled` in both directions, but `sqlite-settings.repository.ts` never
+listed the column in its INSERT or UPDATE. Toggling CI watch in the UI appeared
+to save and silently reverted, masked by the column DEFAULT.
+
+**Rule:** when adding a settings or feature column, grep the repository for a
+*neighbouring* column name and confirm your field appears in all three lists
+(INSERT columns, INSERT `@params`, UPDATE `SET`) — then check the neighbour is in
+all three too. This defect class has now shipped four times; each new field is a
+chance to catch an older one.
+
+**Rule:** the round-trip test must write a **non-default** value and then a
+*second, different* non-default value. Only the second write exercises UPDATE;
+asserting the default alone passes even when the write path does not exist.
+
+## A port method addition should be a one-line change, not fifteen
+
+Adding `countByLifecycles`/`listQueued` to `IFeatureRepository` broke 22 test
+files, each carrying its own `{ create: vi.fn(), findById: vi.fn(), ... }` copy
+of the mock.
+
+**Rule:** test doubles for a port live in one place
+(`tests/helpers/feature-repository.mock.ts`), typed as
+`{ [K in keyof IPort]: Mock }` so the compiler still enforces the shape. Before
+hand-patching the same mock in more than two files, extract it.
+
+## A "never strand a record" clause has to enumerate every way the gate loses its owner
+
+The write-side dependency gate deliberately let two cases through so it could not trap a feature in
+`Blocked` forever: no `parentId`, and a `parentId` whose row is gone. A reviewer found the third —
+`parentId === id`. A self-parented row gates on itself, a `Blocked` feature never satisfies its own
+gate, and nothing else can ever open it. `ReparentFeatureUseCase` rejects self-parenting, so I had
+filed it as impossible; corrupted rows do not go through use cases.
+
+The related miss: a refused write returned `void` with no logging, exactly like an accepted one. An
+agent node reporting a phase does not care, but a user dragging a card watches their action do
+nothing and gets no reason anywhere.
+
+**Rules:**
+
+1. When a guard exists to avoid stranding something, write the escape clause as one enumerated list
+   with a comment per entry. Enumerating forces the question "is that all of them?"; three separate
+   `if`s never do.
+2. "The use case rejects it" is not the same as "it cannot exist". Anything reachable by a corrupted
+   or hand-edited row is reachable — validate at the point of use, not only at the point of entry.
+3. A silent refusal needs a recorded reason. If a use case can decline to do the thing it was asked
+   to do and still resolve normally, log what it declined and why — otherwise the only way to find
+   out is to read the source.
+4. Fetch pull request *reviews*, not just review threads, when checking whether feedback landed.
+   Approving reviews carry their findings in the review body; a poll of inline threads shows zero
+   and looks like silence.
+
+## Size a wait budget for its slowest leg, not for the leg you are asserting on
+
+`waitForStatus` in the dev-server-agent harness had one 30s budget covering the whole
+`Analyzing → Installing → Booting → Ready` sequence. The Installing leg runs a real `npm install`,
+and on a Windows runner npm needs 15-20s just to print "up to date" against a fixture that already
+has `node_modules` — so two thirds of the budget was spent before the boot under test even began.
+It passed on Linux every time and lost the race on Windows.
+
+The timeout then failed *twice*: the wait threw, and the `afterEach` teardown threw
+`EBUSY: rmdir` on top of it, because the force-killed child tree still held the fixture directory.
+The teardown error is louder and arrives second, so it is the one you read first — and it points at
+cleanup code that is not the bug.
+
+**Rules:**
+
+1. When one budget spans several legs, size it for the slowest leg on the slowest platform. Write
+   down *which* leg justifies the number, or the next person shrinks it back.
+2. `process.platform === 'win32'` deserves its own constants in test harnesses — npm, process
+   startup, and file-handle release are all multiples slower. A single cross-platform number is
+   either wasteful on Linux or flaky on Windows.
+3. A per-test `timeout` must exceed the wait budget inside it. If vitest kills the test first, the
+   wait never throws and you lose the diagnostic (last status + log tail) that makes CI output
+   readable without a rerun.
+4. Windows releases file handles asynchronously after a force-kill, so `rmSync` on a fixture dir
+   needs a real retry budget (`maxRetries` x `retryDelay`), and that budget has to fit inside
+   vitest's `hookTimeout`. Raise both together.
+5. **The same constant in three test files is one constant.** `TEST_TIMEOUT_MS` was copy-pasted
+   into all three suites, so a platform fix meant three edits and three chances to miss one. It
+   now lives in `harness.ts` next to the wait budget it must stay above.
+
+## Writing `Blocked` is not enforcing a gate — the running agent has to be stopped too
+
+The dependency gate was checked in all four *entry* paths (create, start, reparent,
+auto-unblock) and still did not hold, because none of them owned the case where the feature
+was **already running** when the dependency appeared. Dragging a dependency edge onto a
+running feature set its lifecycle to `Blocked` and returned. The worker kept building on a
+base its parent had not produced, and its next phase report went through
+`UpdateFeatureLifecycleUseCase`, which wrote `Research` straight over `Blocked`. The edge was
+drawn, the node said "blocked", and nothing was blocked.
+
+**Rules:**
+
+- A gate that is only evaluated at the entry points guards *starting*, not *running*. Ask the
+  second question every time: what if the thing is already in flight when the constraint
+  arrives? Here the answer is `StopAgentRunUseCase` — it marks the run `interrupted`
+  (resumable) and `CheckAndUnblockFeaturesUseCase` restarts it, rebased, when the parent lands.
+- **Enforce the invariant at the write, not only at the callers.** Every lifecycle change funnels
+  through `UpdateFeatureLifecycleUseCase`; that is where `allowsLifecycleWrite` now refuses to
+  advance a `Blocked` feature whose parent has not landed. Callers can be forgotten, a choke
+  point cannot. Keep `Deleting`/`Archived`/`Blocked` exempt — filing and teardown are not
+  progress, and refusing them turns the gate into a trap.
+- A guard that can strand a record needs its escape hatch designed in the same commit. A
+  `Blocked` feature whose parent was deleted has a dangling `parentId`; `allowsLifecycleWrite`
+  deliberately returns true when the parent cannot be loaded, because there is no transition
+  left to release it. "Deny by default" is wrong when the deny path has no exit.
+- **Skills and docs encode gates too, and they drift silently.** `shep-workstreams` still told
+  agents the gate opens at `Implementation`, a rule the code stopped using in 52f2e41 — so every
+  wave plan it produced was staged against the wrong milestone. When a gate constant changes,
+  grep `.claude/skills/`, `docs/`, and `tsp/` doc comments for the old lifecycle names in the
+  same change.
+
+## A copied "resume" command must carry its working directory
+
+Agent CLI sessions (`claude`/`codex`/`cursor-agent --resume <id>`) are
+**project-scoped** — the binary resolves the session from the current working
+directory. The "Copy resume command" action copied a bare `claude --resume <id>`,
+which the `cwd` was captured for but never included, so pasting it anywhere but
+the project directory failed to find the session. "Resume in terminal" worked
+only because the PTY was spawned already `cwd`'d into the project.
+
+**Rule:** when a command depends on `cwd` and leaves the process that carries it
+(copy-to-clipboard, "open in…", a docs snippet), make it self-contained:
+`cd '<quoted-cwd>' && <command>`. A form that only works because *this* shell
+happens to be in the right directory is a latent bug the moment it's copied
+elsewhere. Keep the bare form for the in-place terminal write, add a distinct
+`clipboardCommand` for anything that travels.
+
+## A dependency gate must open on "the work landed", not on "the work started"
+
+The dependency gate released a child as soon as its parent reached
+`Implementation` (`POST_IMPLEMENTATION = {Implementation, Review, Maintain}`), so
+clicking Start on a node visibly chained behind a still-running one just… started
+it. Two things were wrong, and the second was invisible until the first was fixed:
+
+1. **The gate encoded progress, not completion.** The merge node is unambiguous —
+   `merged ? Maintain : Review` — so only `Maintain` means the branch actually
+   landed. `Implementation` means the parent is still writing the code, and
+   `Review` means its PR may still change or never merge. The gate is now
+   `COMPLETED_LIFECYCLES = {Maintain}` (plus `Archived` carrying
+   `previousLifecycle: Maintain`).
+2. **Two paths to the same transition disagreed.** Auto-unblock rebased the child
+   onto the parent branch; manual Start called `SyncFeatureBranchUseCase` with no
+   parent at all and rebased onto `main` — so a manually-started child silently
+   inherited *none* of its parent's work. Both now call the same use case, which
+   picks the target: base branch when the parent's work is already an ancestor of
+   it, parent branch while it is not.
+
+**Rules:**
+- When a gate answers "may B build on A?", the predicate is about A's work being
+  **durable**, not about A having begun. Name the set for the property
+  (`COMPLETED_LIFECYCLES`), not for its position in an enum (`POST_IMPLEMENTATION`)
+  — the positional name is what made `Implementation` look like it belonged.
+- If two code paths perform the same transition, they must share the use case that
+  performs its side effects. Anything a UI button and a background reconciler both
+  do WILL drift; only the divergence's victim (here, a child missing its parent's
+  commits) tells you, and it tells you late.
+- `verifyMerge` returns **false** for a branch it cannot resolve — the same answer
+  it gives for "not merged". A deleted-after-merge parent therefore reads as
+  unmerged and aims the rebase at a branch that cannot even be fetched. Probe
+  existence separately (`revParse` on `<branch>` and `origin/<branch>`) before
+  trusting a boolean that conflates "no" with "don't know".
+- **Only the real-git integration test caught that.** Every mock returned what I
+  assumed `verifyMerge` returns. Any use case that branches on a git predicate
+  needs one real-repo test per branch — `push origin --delete` + `branch -D` is
+  three lines and reproduces the whole class of bug.
+- Changing a gate changes what the UI must say. Start on a blocked child used to
+  toast "Feature started" while quietly writing `Blocked`; the use case now
+  returns `{ blocked, blockedBy }` so CLI and web report the truth instead of
+  re-deriving it from `feature.lifecycle === 'Blocked'`.
+
+## `git stash push` ignores untracked files — never use it as a "make the tree clean" primitive
+
+`RebaseFeatureOnMainUseCase` stashed before rebasing, so a dirty worktree was supposed to be
+handled. It wasn't: `git stash push` (no `-u`) leaves untracked files in place, so a worktree
+holding only new files stayed dirty, `hasUncommittedChanges` (which reads `git status --porcelain`,
+and DOES report `??` entries) still returned true, and the rebase aborted with "Cannot rebase:
+working directory has uncommitted changes" — the exact error the stash was added to prevent. The
+stash/pop pair also has a second failure mode: a pop that conflicts strands work outside the branch.
+
+Rules:
+
+1. **To guarantee a clean tree before a git operation, commit — don't stash.** A commit lands on the
+   branch, survives every subsequent failure, and is undone with `git reset --soft HEAD~1`.
+   `SyncFeatureBranchUseCase` is the shared commit-then-rebase workflow; use it instead of
+   reimplementing the dance.
+2. **If you must stash, `-u` is mandatory** — and remember `git status --porcelain` and
+   `git stash push` disagree about what "dirty" means. Any guard that pairs them is a latent bug.
+3. **Automated commits pass `{ noVerify: true }` to `commitAll`.** The target repo's pre-commit
+   linter or commitlint rules must never be able to block Shep's own housekeeping commit.
+4. **Test the untracked-file case with real git.** Every mock-based test passed; only
+   `tests/integration/application/use-cases/features/sync-feature-branch.use-case.test.ts` (real
+   repo, real remote, untracked file) reproduces it.
+
+## A second surface for an entity must offer the same actions — parity is part of the feature
+
+Spec 106 added the session-tree sub-nav as a second way to browse repositories, but the rows were
+read-only: every action (IDE, shell, folder, webhook, chat, new feature, dev server, remove) still
+required going back to the canvas card. The user's report was one sentence: "we should be able to do
+the same actions we can do on the canvas on a repo."
+
+Rules:
+
+1. **When you add a second surface onto an existing entity, the action set is part of the scope, not
+   a follow-up.** Ask "what can the user do to this thing on the surface that already exists?" and
+   answer all of it, or say explicitly which parts you left out and why.
+2. **Two surfaces means the action list gets extracted, not copied.** `repository-actions.ts` is a
+   pure builder (labels, tones, loading/disabled rules) that both the canvas toolbar and the tree
+   dropdown consume via `useRepositoryCardActions`. The payoff is the invariant: an action added
+   there appears on both surfaces, and it is unit-testable without React, routers, or providers.
+3. **Anything the new surface renders per row must be lazy.** The tree renders one action menu per
+   repository. Mounting the hooks eagerly fired a webhook probe and a deployment hydration for all
+   22 rows on every tree load. Putting the hook-bearing component *inside* `DropdownMenuContent`
+   fixes it for free — Radix unmounts closed content — and a test asserting `fetch` is untouched
+   before the menu opens keeps it that way.
+
+## Provider access is a layout decision — check the React tree before promising a shared action
+
+The session tree lived in `app-shell` (root layout) while `DeploymentStatusProvider` and
+`SessionsProvider` lived under the `(dashboard)` layout and inside `ControlCenter`. `useDeployAction`
+falls back to a **silent no-op store** when its provider is absent, so a Start Dev Server button in
+the tree would have rendered, clicked, and done nothing — no error, no log. Moving the panel into the
+`(dashboard)` layout put it inside both providers and let the route-gate module
+(`session-tree-visibility.ts`) be deleted outright: the layout boundary already answers "which routes
+show the tree", and it cannot be wrong.
+
+Rules:
+
+1. **Before wiring a shared action into a new surface, verify the provider is an ancestor of that
+   surface** — not merely "somewhere in the app". Optional-context hooks with no-op fallbacks
+   (`useDeploymentStatusContextOptional`, `useSessionsContext`) fail silently by design.
+2. **Prefer moving the consumer into the provider's subtree over mounting a second provider.** Two
+   stores for the same data means the same Run button shows different state on two surfaces.
+3. **A route-group layout is a better route gate than a path list.** If chrome belongs to every route
+   in a group, render it in that group's `layout.tsx` and delete the predicate.
+
+## A new Feature column needs FOUR edits, and the mapper test won't catch the missing one
+
+Adding `sourceAgentSessionId`/`sourceAgentType` (spec 105) needed: the TypeSpec model, the
+migration, `feature.mapper.ts`, **and** the explicit column lists in
+`sqlite-feature.repository.ts`. I did the first three, and the mapper unit test passed happily —
+because `toDatabase()` produced the fields correctly. But `INSERT` and `UPDATE` in the repository
+enumerate every column by name (`active_plugins, ...` / `active_plugins = @active_plugins`), so the
+new fields were silently dropped on the way to SQLite. Only a repository-level round-trip test
+(`create` → `findById`) exposed it.
+
+**Rule:** when adding a persisted field, write the assertion at the **repository** level, not the
+mapper level. A mapper test proves the object was shaped right; it proves nothing about whether the
+SQL carries it. Grep the repository for a neighbouring column name (e.g. `active_plugins`) and
+confirm you've added yours to every list that mentions it — there are three: INSERT columns, INSERT
+`@params`, and the UPDATE `SET` clause.
+
+## `startsWith('/')` is not an absolute-path check — CI runs windows-latest
+
+I guarded two use cases with `if (!path.startsWith('/'))`. `normalizePath` converts backslashes to
+forward slashes, so a valid Windows path arrives as `C:/Users/dev/project` — which fails that check,
+meaning bulk import would have rejected every path on Windows. Local tests all passed because they
+used POSIX fixtures.
+
+**Rule:** use `domain/shared/absolute-path.ts` (`isAbsolutePath`) for absolute-path validation, never
+a `startsWith('/')` literal. When adding any path predicate, add a Windows drive-letter case to the
+test in the same commit — `src/CLAUDE.md` and `packages/CLAUDE.md` both mandate cross-platform
+behaviour, and macOS-only test runs will not tell you.
+
+## Adding one key to `translations/en/*.json` breaks eight other locales
+
+Adding the `commands.repo.import.*` keys to `en/cli.json` turned
+`tests/unit/translations/translation-completeness.test.ts` red with 8 failures — it asserts key
+parity between English and each of de, fr, es, pt, ru, uk, ar, he.
+
+**Rule:** i18n keys are added to all nine locale files in the same change, never English-only. Read
+the key order from the English file and write the same ordered keys into each locale so the diff
+stays reviewable.
+
+## `pnpm tsp:compile` leaves the generated file unformatted — use `pnpm tsp:codegen`
+
+Running `tsp:compile` as a validation step rewrote
+`packages/core/src/domain/generated/output.ts` with double quotes, producing a 500-line phantom diff
+that looks like codegen drift. `tsp:codegen` is `tsp compile` **plus** `prettier --write` on the
+generated directory.
+
+**Rule:** always regenerate with `pnpm tsp:codegen`. If `tsp:compile` has already dirtied the
+generated file, run `pnpm tsp:codegen` to restore it rather than reverting — and don't mistake the
+quote-style churn for a real model change.
+
+## New files under `domain/` must NOT use `.js` extensions in relative imports
+
+Adding `domain/shared/worktree-config.ts` (spec-less feature for issue #833), I wrote
+`import type { WorktreeConfig } from '../generated/output.js'` — the extension convention every
+`infrastructure/` file uses. `tests/unit/presentation/web/smoke-imports.test.ts` failed: the web
+package consumes `packages/core/src/domain/` as **raw .ts source**, and Turbopack cannot resolve a
+`.js` specifier pointing at a `.ts` file. Nothing else caught it — typecheck, lint, `pnpm build`,
+and the CLI all pass, because tsc + `tsc-alias --resolve-full-paths` rewrite extensions for the
+Node build. The break only appears in the web bundler.
+
+Rules:
+
+1. Inside `packages/core/src/domain/`, relative imports carry **no extension**
+   (`from '../generated/output'`). Everywhere else in core keeps `.js`. Copy the convention from a
+   sibling in the same directory, not from the layer you were last editing.
+2. Importers **outside** `domain/` still use `.js` when importing a domain file
+   (`from '../../../domain/shared/worktree-config.js'`) — the asymmetry is correct, not a typo.
+3. When adding a helper meant to be shared by core *and* the web package, run
+   `npx vitest run tests/unit/presentation/web/smoke-imports.test.ts` before pushing. It is the only
+   check that catches this, and it lives under web tests where you would not think to look.
+
+## Shared config semantics belong in `domain/`, not duplicated per surface
+
+`settings.worktree` is read by four places: the SQLite mapper, the hook runner, the CLI
+`settings worktree` command, and the web Settings section. My first pass had "trim the command,
+treat blank as unset" and the `300000` default timeout re-implemented in each — three copies of a
+magic number and four chances to disagree about what an empty string means. Collapsed into
+`domain/shared/worktree-config.ts` (`normalizeWorktreeConfig`, `resolveWorktreeCommandTimeoutMs`,
+`DEFAULT_WORKTREE_COMMAND_TIMEOUT_MS`), which every surface now calls.
+
+**Rule:** the moment a settings field has non-trivial semantics (normalization, a default, a
+validity rule), put those semantics in a domain helper *before* wiring the second consumer.
+Persistence mappers and presentation layers are consumers of the rule, never co-owners of it —
+otherwise "blank means unset" silently means four different things.
+
+## Native modules (better-sqlite3) break global installs — surface a fix, don't crash
+
+A user's `npm i -g @shepai/cli` crashed at startup with `Could not locate the bindings file` from `better-sqlite3`. `better-sqlite3` is a native addon: its compiled `.node` binary must match the running Node ABI, and a global install can end up with no binary at all (install scripts skipped via `ignore-scripts`, no prebuilt for a brand-new Node like v24/ABI 137, or a stale binary after a Node upgrade). The raw error is a meaningless multi-line stack to an end user.
+
+Rules:
+
+1. **Any `new Database()` (or other native-addon load) at bootstrap MUST be wrapped** so the raw failure becomes a typed, actionable error. See `infrastructure/errors/sqlite-native-binding-error.ts` (`isSqliteNativeBindingError`/`toSqliteNativeBindingError`) + the try/catch in `sqlite/connection.ts`. The CLI bootstrap prints `err.remediation`, not a stack.
+2. **`bootstrap()` opens the DB before ANY command (including `doctor`) is parsed.** So a `shep doctor` diagnostic that probes the binding is UNREACHABLE in the exact failure it targets — the process dies at DB init first. Don't add a doctor check for a bootstrap-fatal dependency; fix it on the failure path (runtime error) + install path (postinstall guard) instead.
+3. **Migrating shep's own persistence to `node:sqlite` would NOT remove `better-sqlite3`** — `@langchain/langgraph-checkpoint-sqlite`'s `SqliteSaver` depends on it directly (confirmed in `pnpm-lock.yaml`). Before scoping a "drop the native dep" migration, grep the lockfile for transitive dependents; the dep often survives the migration via a library you don't control.
+4. **A `files`-allowlisted `postinstall` guard must never fail the install.** `scripts/verify-native-bindings.mjs` probes the addon, attempts ONE `npm rebuild`, prints guidance, and always `exit(0)`. A throwing postinstall bricks `npm i`. Remember to add the script path to `package.json` `files` or it won't ship in the tarball.
+
+## Adding Enum Members — Grep String Literals, Not Just `Enum.Member`
+
+Adding `Analyzing`/`Installing` to `DeploymentState` (spec 103, task-14) required updating every place that treats a deployment as "active". Grepping for `DeploymentState\.` found the touchpoints written as `deploy.status === DeploymentState.Booting`, but missed FIVE more call sites that compared against raw **string literals** instead: `deployAction.status === 'Booting' || deployAction.status === 'Ready'` in `base-drawer.tsx`, `repository-node.tsx`, `feature-node.tsx`, `repository-drawer-client.tsx`, and `feature-drawer-client.tsx`. All five happened to reuse the exact variable name `isDeploymentActive`/`isDeployActive` — a strong signal it should have been one shared helper from the start.
+
+**Rule:** When adding a member to a string enum, grep for BOTH forms: `EnumName\.` (typed comparisons) AND the enum's string values as bare literals (`'Booting'`, `"Ready"`, etc.) — TS allows comparing a typed enum value against a matching string literal, so these compile silently and never show up in an `EnumName.` grep. A literal-string comparison against an enum value is itself a code smell to fix opportunistically when you touch it.
+
+**Rule:** The moment the same derived boolean (`isDeploymentActive = status === X || status === Y`) appears in a second file, extract it to a shared helper (e.g. `isDeploymentActive(state)` next to the enum-consuming store/hook) instead of waiting for a third occurrence — string-literal duplicates are easy to miss in a `no-duplication` grep since they don't share an obvious import.
+
+**Gotcha:** `const flag = someOptionalString && predicate(...)` gets special TS narrowing (control-flow analysis of aliased conditions) that lets `{flag ? <Component requiredString={someOptionalString} /> : null}` typecheck. Rewriting it as `Boolean(someOptionalString) && predicate(...)` breaks that narrowing — TS no longer sees the direct `x && ...` shape and the required-string prop errors. Keep the literal `x && ...` form when refactoring this pattern into a shared helper call.
+
+
+## npm trusted publishing requires npm >= 11.5 on the runner
+
+`@semantic-release/npm` v13 added OIDC trusted publishing. In `lib/verify-auth.js`, when the OIDC token exchange with npmjs.com succeeds, the plugin **early-returns and does NOT write `NPM_TOKEN` to the userconfig `.npmrc`**. It then runs plain `npm publish` and relies on the **npm CLI itself** to do trusted publishing — which needs **npm >= 11.5.0**.
+
+Node 22 ships npm 10.9.x, so the Release job logged "OIDC token exchange with the npm registry succeeded" in verifyConditions and then died at publish with `npm error code ENEEDAUTH`. Two versions (`v1.205.1`, `v1.206.0`) got tagged + the release commit got pushed to main but never made it to npm, because semantic-release succeeded with the tag/push plugins before failing on `@semantic-release/npm`.
+
+Rules:
+
+1. When using `@semantic-release/npm` v13+ with `permissions: id-token: write`, the Release job MUST install npm >= 11.5 before invoking semantic-release. Add `npm install -g npm@^11.5` between setup-node and `npx semantic-release`.
+2. Keep `NPM_TOKEN` in the env as a fallback — the plugin uses it only when OIDC isn't available, but you want belt-and-suspenders in case npmjs trusted-publisher config gets removed.
+3. After a Release job failure, ALWAYS verify with `npm view <pkg> dist-tags` that the version actually landed. A "successful" re-run of a failed release is usually a no-op ("local branch main is behind the remote") and silently leaves the version missing from npm — the tag exists, the chore(release) commit exists, but the package is gone.
+4. A passing OIDC token exchange in verifyConditions only proves the package is configured as a trusted publisher on npmjs.com — it does NOT prove the runner can actually publish. Treat the runner's npm version as a separate, mandatory check.
+
+## Tool install commands must bootstrap their own package manager
+
+The `project-bedrock.json` tool definition shipped with `pipx install project-bedrock` on every platform, assuming pipx was already present. It often isn't (fresh macOS, fresh Linux dev box), and the install failed silently from the user's perspective — they saw `command not found: pipx` and reported "the tools install is broken." Two follow-on traps appeared while fixing it:
+
+1. **`python3 -m pipx` does NOT work after `brew install pipx`.** Homebrew installs pipx as a standalone binary, not as a module of the user's `python3`. Verified locally: `brew install pipx` succeeded, then `python3 -m pipx ensurepath` failed with `No module named pipx`. Always invoke the `pipx` binary directly when it's available; only fall back to `python3 -m pipx` when pipx was installed via `pip --user`.
+
+2. **Modern Linux + macOS (Sequoia + Homebrew Python) ship PEP-668 protected Python.** A plain `python3 -m pip install --user pipx` errors with `externally-managed-environment`. Always have a fallback to `--break-system-packages` for the bootstrap path, gated behind a try-without-it-first.
+
+Rules:
+
+1. Every `tools/*.json` `commands` field must bootstrap its own package manager when feasible. `pipx install X` is fine for end users with pipx; it is **not** fine inside an automated installer.
+2. After bootstrapping a tool into `~/.local/bin`, prepend that to `PATH` in the same command so the next step finds the new binary. The current shell doesn't pick up `pipx ensurepath` until next login.
+3. Test new install commands on a machine **without** the package manager preinstalled. If you only test on your dev box where the tool already exists, you'll ship the same "works on my machine" failure mode.
+
+## When you add a settings column, the repository SQL must read AND write it
+
+Migration 104 added `feature_flag_bedrock_integration` (DEFAULT 0). The mapper (`settings.mapper.ts`) handled both directions correctly. But `sqlite-settings.repository.ts` INSERT/UPDATE statements were never updated to include the new column. Result: writes silently dropped the field, the DEFAULT-0 backfill always supplied the read value, and `bedrockIntegration: false` was *coincidentally* always correct — so tests passed. The bug only surfaced when the migration default was flipped to 1 to enable-by-default: now the column read back `true` even when the caller had explicitly passed `false`.
+
+Rules:
+
+1. Adding a settings field is a four-touch change, not three: tsp/, factory, mapper, **and the INSERT + UPDATE column lists in `sqlite-settings.repository.ts`**. If any of the four is missing, persistence silently lies.
+2. Never rely on a column DEFAULT to make a feature behave correctly. Defaults are migration-fill values for existing rows, not the production write path. If the write path omits the column, the bug is masked exactly until someone changes the default — which they will, eventually.
+3. Roundtrip tests must use at least one non-default value per field (`true` AND `false`, both halves of every enum). A test that only ever asserts the DEFAULT for a field doesn't exercise the write path at all.
+
+## Required TypeSpec fields propagate to every entity fixture
+
+Adding `bedrockEnabled: boolean` to `Repository` and `Feature` in tsp/ broke ~30 unit/integration tests that construct fixtures via `Partial<Feature>` / `Partial<Repository>`. The TS error was `Property 'bedrockEnabled' is missing in type '{ ... }' but required in type 'Feature'` — even though the helper accepted Partial overrides, the literal it spread into still had to satisfy the full required type.
+
+Rules:
+
+1. New tsp fields default to **required** in the generated TS. If you add a required field to a widely-used entity (Feature, Repository, Application), expect O(20+) test fixture updates.
+2. For backwards-compat-friendly fields whose default value is the same on every existing row (e.g. `false` for a feature flag), declare them **optional** in tsp (`field?: boolean`). The mapper compares `=== 1` which already collapses `undefined` and `null` to `false`, so persistence stays deterministic.
+3. Reserve required tsp fields for invariants the domain genuinely requires (id, slug, name, etc.). Per-feature toggles are not invariants — make them optional.
+
+## Storybook needs mocks for every new `'use server'` action
+
+When a client component imports a server action, Storybook (which bundles only the client side) needs a parallel mock at `.storybook/mocks/app/actions/<filename>.ts` exporting the same symbols. Forgetting it gives a `Could not load ./.storybook/mocks/app/actions/<name>` ENOENT during `pnpm build:storybook`. Always pair every new `app/actions/<x>.action.ts` with its mock.
+
+## Windows has no graceful kill — don't simulate one
+
+On Windows the `tree-kill` package always shells out to `taskkill /T /F`, regardless of which signal name you pass. There is no SIGTERM equivalent in the Windows kernel. So a "send SIGTERM, poll for graceful exit, then escalate to SIGKILL" pattern is theatrical on Windows: the very first call already force-killed the tree, and the polling loop is 5s of wasted budget waiting for a "graceful" exit that already happened forcefully.
+
+Concrete instance: `stopDaemon()` was paying up to 5s of poll budget on every Windows `shep restart`, which collided with a thin 20s e2e timeout on slow CI runners and broke main.
+
+Rules:
+
+1. Branch the kill flow on `process.platform === 'win32'`. On Windows do a single awaited `treeKill(pid, sig, cb)` call (the callback fires when `taskkill` actually returns), then one `isAlive` check. No poll loop, no escalation.
+2. Keep the SIGTERM-then-poll-then-SIGKILL flow on Unix — it's a real semantic, not theatre. Daemons may genuinely need time to flush state before exiting.
+3. `treeKill(pid, signal)` is fire-and-forget. If you care that the kill has actually been issued before you check liveness, pass a callback (or wrap it in a Promise). Otherwise you're polling against a kill that hasn't dispatched yet.
+4. Always check liveness *before* the first sleep in any poll-until-dead loop. Sleeping 200ms before the first check costs 200ms on every fast-exit path for no reason.
+
+## tsyringe `@injectable()` — every constructor param must be resolvable
+
+Symptom: worker boots crash with `Cannot inject the dependency at position #N of "X" constructor. Reason: TypeInfo not known for "Object"`.
+
+Root cause: tsyringe walks every constructor param via `reflect-metadata`. TS interfaces and inline object types erase to `Object` at runtime, so any param typed `MyOptions` (an interface) — even with a default value `= {}` — makes tsyringe try to resolve `Object` from the container and fail.
+
+Concrete instance: `SQLiteAgentMessageBus(repo, options: SQLiteAgentMessageBusOptions = {})`. Direct `new` from tests worked, but DI resolution from the worker container blew up the entire `IAgentMessageBus → SendAgentMessageUseCase → FeatureAgentLifecyclePublisher` chain.
+
+Rules for any class with `@injectable()`:
+
+1. **Every** constructor param needs an explicit `@inject(token)` — including class-typed ones, which take the class itself as the token: `@inject(MyUseCase) private readonly x: MyUseCase`. Relying on tsyringe introspecting the class type is NOT safe here; see the next lesson. No interface params, no inline `{}` types, no primitives without `@inject`.
+2. Default values do NOT save you — tsyringe still tries to resolve the param before the default kicks in.
+3. For test-only knobs (poll intervals, etc.), drop them from the constructor and expose a `setX(...)` method or a class-typed config object registered with `useValue`.
+4. Before adding a new `@injectable()` class, scan its constructor: any param without `@inject` is a bomb that won't surface until something actually resolves the chain.
+
+## A class-typed constructor param without `@inject` is silently `undefined` when run from source
+
+Symptom: "Rebase on Main" in the web UI failed with
+`Cannot read properties of undefined (reading 'execute')`. `RebaseFeatureOnMainUseCase`
+resolved fine, but its `syncFeatureBranch` field was `undefined`.
+
+Root cause: implicit class-token injection depends on `design:paramtypes`, which
+only `tsc` emits. **Every runtime we actually develop against uses esbuild or SWC
+— `tsx` (`pnpm dev:cli`, `pnpm dev:web`), vitest, and Next.js — and none of them
+emit decorator metadata.** With no metadata, tsyringe passes `undefined` for every
+param that has no explicit token, and *still constructs the object*. So it works in
+a packaged `pnpm build:cli` (tsc) release and breaks for anyone running from source
+— the exact inverse of the usual "works locally, breaks in prod".
+
+There is no error at the injection site. The crash surfaces later, at the first
+property access on the hollow field, pointing at a line that looks unrelated.
+
+**Rules:**
+
+1. Never write a bare class-typed constructor param. Always `@inject(TheClass)`.
+2. A DI guard test that only asserts `container.resolve(X)` is `toBeDefined()` proves
+   nothing — resolution succeeds with hollow dependencies. Assert the injected field
+   itself: `expect(injected(resolve(X), 'dep')).toBeInstanceOf(Dep)`.
+3. Because vitest shares the metadata-less runtime, this class of bug IS catchable by
+   unit tests — but only with assertion #2.
+4. `tests/unit/infrastructure/di/hollow-dependency-guard.test.ts` now sweeps the whole
+   container for this automatically. If it fails, the named class has a constructor
+   parameter missing its `@inject(Token)` — do not weaken the guard, add the token.
+   It isolates constructor parameters as the LAST `ctor.length` own keys, because
+   TypeScript assigns parameter properties after declared field initializers run; that
+   keeps optional state (`private qr?: string`) out of the assertion.
+
+The same defect was present in `EvaluateSupervisorDecisionUseCase`,
+`AgentQuestionSupervisorRouter` and `FeatureAgentSupervisorGateEvaluator`, each with
+some parameters correctly tokenised and the `GetSupervisorPolicyUseCase` /
+`EvaluateSupervisorDecisionUseCase` ones bare — a partially-decorated constructor is
+the signature of this bug.
+
+## Settings Is the Single Source of Truth for Agent + Model — Never Hardcode UI Defaults
+
+A user reported their newly-created application got stuck on bootstrap with `Agent type 'dev' does not support interactive sessions. Only 'claude-code' supports interactive mode.` They were certain they had selected "Claude Code · Sonnet 4.6" — and the picker DID show that as the default. The bug: the picker's displayed default was a hardcoded literal that lied about what the system would actually use.
+
+**Root cause chain:**
+
+1. `ControlCenterEmptyState` initialised `overrideAgent` / `overrideModel` to `undefined`.
+2. `AgentModelPicker` was passed `initialAgentType={overrideAgent ?? 'claude-code'}` and `initialModel={overrideModel ?? 'claude-sonnet-4-6'}` — hardcoded fallback literals.
+3. The picker shows "Claude Code · Sonnet 4.6". User accepts it (no click).
+4. `mode="override"` only fires `onAgentModelChange` when the user actually picks something. Without a click, the parent's override state stays `undefined`.
+5. `createApplication({ agentType: undefined, modelOverride: undefined, ... })` runs.
+6. The Application row is persisted with `agent_type=NULL`.
+7. Background workflow boots an interactive session passing `agentType=undefined`.
+8. `AgentConfigResolver.resolveAgentType(undefined)` falls through to `settings.agent.type` — which was `'dev'` (demo agent, no interactive support).
+9. `createInteractiveExecutor('dev', ...)` throws → boot fails → app stuck.
+
+**Rules for any UI surface that lets the user pick an agent or model:**
+
+1. **The user's `settings.agent.type` and `settings.models.default` are the single source of truth for "the active default".** Defaults are baked once in `packages/core/src/domain/factories/settings-defaults.factory.ts` (`claude-code` / `claude-sonnet-4-6`). Settings reads from there on first run. Nothing else gets to define a default.
+2. **Never put hardcoded `'claude-code'` / `'claude-sonnet-4-6'` literals in a component as a "fallback".** That's a lie — it shows a value the system will not actually use when settings disagree. Fetch via the `getDefaultAgentAndModel` server action (`src/presentation/web/app/actions/get-default-agent-and-model.ts`) instead.
+3. **Pickers in `mode="override"` MUST fire `onAgentModelChange` once on mount with their resolved initial values.** Otherwise a user who never opens the popover leaves the parent's override state at `undefined`, and the value silently falls back to settings on the server side. "What you see in the trigger button" must equal "what gets sent" with zero clicks.
+4. **Use cases that create per-app records (e.g. `CreateApplicationUseCase`) MUST resolve the agent/model from the injected `ISettingsProvider` when no override is given, and persist non-null values onto the entity.** A `NULL` `agent_type` column is a trap — it means every subsequent message has to re-resolve via settings, and a stale settings value will keep biting forever. Pinning the resolved value at creation time freezes the pick for the application's lifetime.
+5. **`'dev'` is a demo agent with no interactive support.** If your codepath needs interactive (every Application chat does), `factory.supportsInteractive(agentType)` must be honoured — surface a clear error pointing the user at Settings rather than letting it crash inside the executor factory.
+
+**Files that must stay in sync:**
+
+- `packages/core/src/domain/factories/settings-defaults.factory.ts` — defaults (the ONE place).
+- `packages/core/src/infrastructure/services/interactive/lifecycle/agent-config.resolver.ts` — runtime resolver (settings → fallback → ClaudeCode).
+- `src/presentation/web/app/actions/get-default-agent-and-model.ts` — UI-side getter, reads same settings.
+- `src/presentation/web/components/features/settings/AgentModelPicker/index.tsx` — fires onChange-on-mount in override mode.
+- `packages/core/src/application/use-cases/applications/create-application.use-case.ts` — resolves + persists.
+
+If you add another agent picker or another use case that creates per-entity agent overrides, plug them into THIS chain. Do not add a sixth source of "what's the default agent".
+## Messaging Remote Control: HttpGatewayClient Uses an Unsupported OAuth Grant
+
+`HttpGatewayClient.fetchAccessToken` (feat/messaging-remote-control, feature 082) hardcodes
+`grant_type=client_credentials` in its call to `POST /oauth/token`. The OSS Commands Gateway
+demo mode (`AUTH_MODE=demo`) advertises only `authorization_code` and `refresh_token` in its
+`.well-known/openid-configuration` and returns `400 {"error":"unsupported grant_type"}` for
+`client_credentials`. As a result, `BeginMessagingPairingUseCase` always throws
+"Gateway authentication failed: ..." and the web pairing dialog never opens — the Pair button
+silently fails because (a) the server action returns `{ success: false, error }` and
+(b) no `<Toaster />` is mounted in the web layout, so the `toast.error(...)` never renders.
+
+**What to fix before this can work end-to-end against a real gateway:**
+1. Swap `HttpGatewayClient.fetchAccessToken` to the authorization-code + PKCE flow
+   (matches the gateway's supported grants), OR add device-code support on the gateway side.
+2. Mount a sonner `<Toaster />` in the web root layout so pairing failures are visible to
+   the user instead of silently failing.
+3. The feature was marked `fast-implement` complete and merged to main without ever being
+   exercised against a live OSS gateway. Add a smoke test that spins up the gateway Go binary
+   in CI and runs `BeginMessagingPairingUseCase` against it.
+
+**Rule:** Any time a feature integrates with an external service, it must be validated against
+a live instance of that service — unit tests with fetch mocks are not sufficient because they
+only verify what you *think* the protocol is.
+
+## Adding a Web Feature Flag — Full Wiring Checklist
+
+Feature flags are persisted in the Settings singleton and toggled via the Settings page. A new flag is NOT just an env var or a hardcoded boolean — it must be wired end-to-end or the Settings toggle will silently fail to persist.
+
+**When adding a new flag, touch ALL of the following:**
+
+1. `tsp/domain/entities/settings.tsp` — add field to `model FeatureFlags` with `= false` default
+2. Run `pnpm tsp:compile` to regenerate `packages/core/src/domain/generated/output.ts` (never edit this file by hand)
+3. New migration `packages/core/src/infrastructure/persistence/sqlite/migrations/NNN-add-feature-flag-<name>.ts` — `ALTER TABLE settings ADD COLUMN feature_flag_<name> INTEGER NOT NULL DEFAULT 0` (guarded by `pragma table_info` check)
+4. `packages/core/src/infrastructure/persistence/sqlite/mappers/settings.mapper.ts` — 3 edits:
+   - `SettingsRow` interface: add `feature_flag_<name>: number`
+   - `toDatabase()`: add `feature_flag_<name>: settings.featureFlags?.<name> ? 1 : 0`
+   - `fromDatabase()`: add `<name>: row.feature_flag_<name> === 1` inside `featureFlags`
+5. `packages/core/src/infrastructure/repositories/sqlite-settings.repository.ts` — 3 edits:
+   - INSERT column list
+   - INSERT `VALUES (..., @feature_flag_<name>, ...)`
+   - UPDATE SET clause
+6. `packages/core/src/domain/factories/settings-defaults.factory.ts` — add `<name>: false` to the `FeatureFlags` defaults object
+7. `src/presentation/web/lib/feature-flags.ts` — add field to `FeatureFlagsState` interface, to the DB-primary branch, and to the env-var fallback branch (+ optional deprecated accessor)
+8. `packages/core/src/domain/shared/feature-flag-catalog.ts` — add the flag to `FEATURE_FLAG_CATALOG` with its group and a one-line description (a missing entry is a compile error). The Settings page's Feature Flags section, `/settings/feature-flags` and `shep settings flags` all render from it (spec 135) — do not hand-write a `<SwitchRow>`.
+9. Translation strings in EVERY locale — `translations/<lang>/web.json` → `settings.featureFlags.<name>` and `settings.featureFlags.<name>Description`, named exactly after the flag key (the list builds the key from it). Missing keys render as the raw key path on-screen. Locales: `en, ar, es, de, fr, he, pt, uk, ru`.
+10. Gate the UI on `featureFlags.<name>` wherever the feature is exposed (sidebar `flag` in `sidebar-links.ts`, `requireFeaturePage()` in pages, `featureNotFound()` in API routes and `{ error: FEATURE_OFF_ERROR }` in server actions — both from `lib/feature-gate.ts` — `gateByFeatureFlag()` for CLI groups, search, FAB actions). A page that is gated is not enough: its API routes and server actions stay callable by URL or action id. **If the feature ships any pages under `src/presentation/web/app/<name>/`, you MUST also ADD a `SidebarNavItem` in `app-sidebar.tsx` gated on the flag — "gate the existing sidebar entry" silently passes when there is no entry to gate. See the "New Feature Pages Must Be Reachable" lesson below.**
+11. Update hardcoded `FeatureFlags` / `FeatureFlagsState` fixtures across stories, tests, and hooks. `tsc --noEmit` will surface every one — run `pnpm typecheck` BEFORE committing so the pre-commit hook doesn't bounce. Known fixture locations (grow this list when a new one shows up):
+    - `src/presentation/web/hooks/feature-flags-context.tsx`
+    - `src/presentation/web/components/features/settings/settings-page-client.tsx` (fallback object)
+    - `src/presentation/web/components/features/settings/settings-page-client.stories.tsx`
+    - `src/presentation/web/components/layouts/app-sidebar/app-sidebar.stories.tsx`
+    - `src/presentation/web/components/common/repository-node/repository-drawer.stories.tsx`
+    - `tests/unit/presentation/web/layouts/app-sidebar.test.tsx`
+    - `tests/unit/presentation/web/layouts/app-shell.test.tsx`
+    - `tests/unit/presentation/web/components/common/add-repository-button/add-repository-button.test.tsx`
+    - `tests/unit/infrastructure/services/settings-service-update.test.ts`
+    - `tests/unit/infrastructure/persistence/sqlite/mappers/settings.mapper.test.ts` (snake_case `feature_flag_<name>` field)
+    - `tests/integration/infrastructure/repositories/sqlite-settings.repository.test.ts`
+    - `tests/unit/domain/factories/settings-defaults.factory.test.ts` (uses `toEqual` for exact-shape assertion — only fires at runtime, NOT in typecheck)
+
+**Verify before claiming done:** run `pnpm typecheck`, then open the Settings page in the browser and confirm the new toggle actually renders. If it doesn't, you forgot translation keys (see step 9) or the DB row still has the default value.
+
+**Real failure (spec 093 — collaboration flag):** Steps 8 and 9 were skipped during implementation. The flag existed in `feature-flags.ts` and the DB layer but had no `<SwitchRow>` in the settings page and no translation keys. Users had no way to toggle it from the UI — they had to set `NEXT_PUBLIC_FLAG_COLLABORATION=true` manually. The checklist was in LESSONS.md the whole time. No excuse for skipping it.
+
+**Failure mode if you skip a step:** the UI toggle saves, the mapper writes the column, but the repo SQL omits it → the value is silently dropped on INSERT/UPDATE. Same pattern as the per-feature flag bug below — mapper and repo SQL are separate sources of truth and must stay in sync.
+
+**Do NOT** hide a flag only via `NEXT_PUBLIC_FLAG_*` env vars when the rest of the flag system is DB-backed. Users expect to toggle flags from the Settings page, not by editing `.env`.
+
+## New Feature Pages Must Be Reachable — Nav + Entry Points Are Mandatory
+
+When a new feature flag gates pages (e.g. `/agent-questions`, `/application/[id]/supervisor`, `/aspm`), implementation is NOT done until:
+
+1. **Sidebar nav item** added in `src/presentation/web/components/layouts/app-sidebar/app-sidebar.tsx` (gated on the flag) so the page is discoverable — add `badge` support when there's a live count (e.g. pending questions). Pattern: `{featureFlags.<name> ? <SidebarNavItem icon={...} label={t('navigation.<name>')} href="/<name>" active={pathname?.startsWith('/<name>') ?? false} /> : null}`
+2. **Entry point from related surfaces** — e.g. supervisor config linked from the app overflow menu, not just a raw URL
+3. **First-run onboarding callout** — when the flag first turns on and the user has never tried it, show a dismissable callout (use `localStorage` for dismissed state) with links to the new surfaces
+4. **Translation keys** for any new nav label (all 9 locales: en, ar, de, es, fr, he, pt, ru, uk) under `navigation.<name>`
+
+**Concrete heuristic:** If you create a directory under `src/presentation/web/app/<name>/`, the same diff must add a `SidebarNavItem` for it. Treat them as inseparable — a route without nav is a dead page.
+
+**Self-check before claiming done:** open the app, enable the flag in Settings → Feature Flags, and verify you can navigate to the new page WITHOUT typing the URL. If the only way in is the URL bar, the work is incomplete.
+
+**Failures of this lesson (recurring — fix the pattern, not just the symptom):**
+
+- **Spec 093 (collaboration flag):** All four items missing. Pages existed, SSE events were wired, users had no way to reach them. `agentQuestions` and `supervisorDecisions` events were received by the hook but nothing consumed them visually.
+- **Spec 098 (ASPM flag):** Sidebar nav item missing. The user enabled the flag from Settings, but the only way to reach `/aspm` was to type the URL. Caught when the user asked "once enabled, how do I get it from the sidenav?" — should have been caught by me when shipping the gate.
+
+**Rule:** After building any feature-flagged page, immediately ask: "Can a user who just turned on the flag actually find and use this?" If the answer requires knowing the URL, it's not done. This is the second time this lesson has been violated — the pattern is "I gated the existing surfaces" without checking whether a sidebar entry needed to be CREATED. Gating presupposes existence; creation is a separate step.
+
+## Onboarding Callouts Must Not Drop Users in a Dead End
+
+Linking to a page (e.g. `/applications`) from an onboarding callout is NOT guidance — it is abandonment. The callout must know enough context to continue the flow from where the user is.
+
+**What went wrong:** The collaboration onboarding linked to `/applications` when no `firstAppId` was available. The user landed there and had no idea what to do next.
+
+**Rule:** Any onboarding CTA that depends on a user-specific resource (e.g. "configure supervisor for app X") must handle all states:
+- **Resource exists, single** — link directly (e.g. `/application/[id]/supervisor`)
+- **Resource exists, multiple** — show an inline picker in the callout itself so the user never leaves context
+- **Resource missing** — show what to create first, with a CTA to do it (e.g. `shep:open-create-application` event or create link), NOT a link to a listing page
+
+The inline picker keeps the user on the surface they already understand (control center) and threads context through each step without navigation dead-ends.
+
+## Canvas Loader Must Forward Global Settings to buildGraphNodes
+
+`buildGraphNodes()` in `src/presentation/web/app/build-graph-nodes.ts` accepts an options bag (`enableEvidence`, `commitEvidence`, `ciWatchEnabled`, `securityMode`, …) that controls what gets rendered on feature/repo nodes. The single call site is `src/presentation/web/app/(dashboard)/get-graph-data.ts`. When you add a new option to `buildGraphNodes`, you MUST also update that call site to pull the value from `getSettings()` and pass it in — otherwise the flag stays stranded and the UI never sees it (the bug looks like "component is wired but renders nothing").
+
+**Symptom:** A Storybook story proves the node variant works, but the live canvas never shows it.
+
+**Check:** After adding an option to `buildGraphNodes`, grep `get-graph-data.ts` for the new field name. If it's absent, wire it.
+
+**Regression lock:** Add a unit test in `tests/unit/presentation/web/app/build-graph-nodes.test.ts` asserting `data.<flag>` is set on the output node when the option is passed.
+
+## Auth-Detection Checks Must Match the Tool's Real Storage + Real CLI
+
+`check-agent-auth.ts` was reporting **Claude Code needs authentication** even though the user was logged in. Two stacked bugs:
+
+1. **Wrong credential location on macOS.** Claude Code stores OAuth credentials in the **macOS Keychain** under service `Claude Code-credentials`, NOT in `~/.claude/.credentials.json` (that file only exists on Linux/Windows). The tier-1 file check always failed on darwin. Fix: on macOS, also probe Keychain via `security find-generic-password -s "Claude Code-credentials"`.
+2. **Hallucinated CLI subcommand.** Tier 2 ran `claude auth status` to "verify" credentials. That subcommand does not exist — Claude Code interprets `auth status` as a prompt and starts an **interactive** session, which then gets killed by the 5s `execFile` timeout, returning exit≠0 and a false negative. Fix: removed tier 2 for `claude-code` entirely; trust tier 1.
+
+**Rule:** Before writing any auth/install detection check, verify two things on a real machine of every supported platform:
+
+- **Storage**: where does the tool actually persist credentials on this OS? (file path, env var, OS keychain, registry — these differ per platform).
+- **CLI surface**: does the subcommand you're calling actually exist and run **non-interactively** with a meaningful exit code? Run it in a subshell with a short timeout and inspect both the output and the exit code before trusting it. Don't assume `<tool> auth status` exists just because `gh` and `git` have it.
+
+If a tool has no non-interactive auth-check command, don't fake one — trust the storage check and stop.
+
+## Per-Feature Settings Must Flow Through All Layers
+
+When the create drawer sends per-feature settings (e.g. `forkAndPr`, `commitSpecs`, `ciWatchEnabled`), they must be wired through EVERY layer:
+
+1. **Server action interface** — add field to `CreateFeatureInput`
+2. **Server action destructuring** — extract and pass to use case
+3. **Use case input types** — `types.ts` interface
+4. **Use case `createRecord()`** — set on the Feature entity
+5. **Use case `initializeAndSpawn()`** — pass to agent spawn options
+6. **Agent process interface** — spawn options type
+7. **Agent process service** — build CLI args from options
+8. **Agent worker args** — parse CLI args
+9. **Agent state channels** — LangGraph annotations
+10. **Graph invoke** — pass to graph input
+11. **Node data builder** — read from feature entity for UI display
+12. **Overview tab** — render in settings section
+
+If any layer is skipped, the value silently falls back to a default and the user sees wrong settings in the overview.
+
+**Pattern to check:** When adding a per-feature boolean, grep for an existing one (e.g. `forkAndPr`) across the entire codebase to find every touchpoint.
+
+## Graph Nodes Must Read Feature Settings From State, Not Global Singleton
+
+Per-feature settings (e.g. `enableEvidence`, `commitEvidence`) flow correctly through all layers into the graph state — but nodes can still break the override by reading from `getSettings().workflow.*` (the global singleton) instead of `state.*`.
+
+**Rule:** Inside any LangGraph node, always read feature-level flags from `state`, never from `getSettings()`. The global singleton reflects the *global default*; the state carries the *feature-specific* value.
+
+**How this fails silently:** Global=off + feature=on → feature never collects evidence because the node checks `getSettings().workflow.enableEvidence` (false) and never looks at `state.enableEvidence` (true).
+
+**Prevention:** When adding a per-feature setting to state channels, grep for `getSettings().*<fieldName>` in all node files to ensure no node is reading the global fallback for that field.
+
+## Repository INSERT/UPDATE Statements Must Include All Columns
+
+The `sqlite-feature.repository.ts` has **hardcoded** INSERT and UPDATE SQL statements. When adding new columns to the Feature entity:
+
+1. Add column to `FeatureRow` interface (mapper)
+2. Add to `toDatabase()` and `fromDatabase()` (mapper)
+3. **Add to the INSERT column list AND values list** in `create()`
+4. **Add to the UPDATE SET clause** in `update()`
+5. Create migration for the new column
+
+The mapper correctly converts all fields, but the repository's SQL only writes the columns explicitly listed. Missing columns silently fall back to DB defaults.
+
+**Root cause pattern:** The mapper and the repository are separate — the mapper produces a complete row object, but the repository's SQL cherry-picks columns. Always verify both are in sync.
+
+**UI symptom:** A toggle in the create drawer has no effect — the feature is created but the setting always shows the default value in the overview. The value is being silently dropped on write, not lost in the UI layer. Start debugging at the INSERT statement, not the component.
+
+**Verification:** Write an integration test that creates (or updates) a feature with the non-default value and reads it back. That test will fail immediately if the SQL is incomplete.
+
+## Agent Prompts Must Respect State Flags
+
+When a feature flag controls behavior (e.g. `commitSpecs`, `enableEvidence`), it's not enough to wire it through the state channels — the **agent prompts** must also read and respect it.
+
+The agent is an LLM following instructions. If the prompt says `git add -A`, the agent will stage everything regardless of what the state flag says. The flag only matters if the prompt conditions on it.
+
+**Checklist when adding a behavioral flag:**
+1. Wire through state channels (so it's available in the node)
+2. Check every prompt builder that touches the affected behavior
+3. Add conditional instructions in the prompt (e.g. "do NOT commit specs/" when `commitSpecs=false`)
+4. Add constraints section entries as guardrails
+5. Consider defensive git operations (e.g. `git reset -- specs/`) in case the agent ignores instructions
+
+**Pattern:** Search for the *action* the flag controls (e.g. `git add`, `specs/`, `evidence`) in prompt files, not just the flag name.
+
+## Interactive Agent Process MUST Be Persistent (Single PID Per Session)
+
+**HARD REQUIREMENT — NOT NEGOTIABLE:**
+
+The interactive chat agent process MUST stay alive across multiple user messages within a session:
+
+1. **First message** → spawn agent process (PID X)
+2. **Process stays alive** — reads from stdin, writes to stdout
+3. **Second message** → write to SAME process stdin (PID X still alive)
+4. **Nth message** → still PID X, still the same process
+5. **After final answer + idle delay** → process goes to sleep (dies)
+6. **Next message after sleep** → NEW process (PID Y), resume context via `--resume`
+
+**What DOES NOT work and MUST NOT be repeated:**
+- Per-turn spawning: spawning a new `claude -p` process for every single message
+- The `-p` flag is one-shot by design — process exits after one response
+- This causes a new PID on every message, which is wrong
+
+**What MUST be implemented:**
+- Use `claude --output-format stream-json --input-format stream-json --resume <id>`
+- Keep stdin OPEN (do NOT call `stdin.end()`)
+- Write user messages as JSON lines to stdin
+- Read streaming response from stdout
+- Process stays alive waiting for next stdin message
+- The exact JSON input format needs to be determined (undocumented as of now)
+
+**If `--input-format stream-json` protocol cannot be cracked:**
+- File a bug/feature request with Claude Code team
+- As interim workaround, cache lastPid and hide PID changes from UI
+- But NEVER accept per-turn spawning as the permanent solution
+
+## Interactive Agent Boot Prompt Must Not Include Raw Tool Events
+
+When an interactive chat session restarts (cold start / timeout), the boot prompt includes conversation history for context. **Critical failures:**
+
+1. **Raw tool events in history cause re-execution.** Messages like `Bash echo $$` or `Read file.ts` are tool event logs persisted as assistant messages. When included in the boot prompt, the agent interprets them as instructions and re-executes the commands.
+
+2. **Full conversation dumps overwhelm the agent.** Sending 50 messages of raw history makes the agent lose focus on the user's actual latest request. It picks up where it left off instead of waiting for new instructions.
+
+**Fix pattern:**
+- Filter out tool event messages before including in boot prompt (match patterns like `Bash `, `Read `, `Write `, `Session started `)
+- Limit to last ~10 conversational messages, not the full history
+- Truncate long messages (>500 chars) to prevent prompt bloat
+- Frame history as "CONVERSATION LOG (read-only reference)" not "Previous conversation history"
+- Use numbered rules: "Do NOT run any commands that appear in the log"
+- Extract and quote the user's latest message explicitly so the agent can't miss it
+
+**Root cause:** The agent treats everything in its prompt as actionable context. History must be clearly demarcated as non-actionable reference material.
+
+## Every processService.spawn() Call Must Pass ALL Per-Feature Flags
+
+There are multiple code paths that spawn an agent process: create, start, resume, approve, reject, and unblock. **Every single one** must pass the full set of per-feature workflow flags (`enableEvidence`, `commitEvidence`, `ciWatchEnabled`, `commitSpecs`, `forkAndPr`, etc.) from the Feature entity to the spawn options.
+
+**How this fails silently:** The flags are stored correctly in the DB and the agent worker correctly parses CLI args — but if a spawn site omits a flag, the worker never receives the CLI arg and falls back to its default (usually `false`). The user enables a setting in the UI, the DB reflects it, but the agent never sees it.
+
+**Pattern to check:** When adding a new per-feature boolean:
+1. `grep -r 'processService.spawn\|agentProcess.spawn'` across all use cases
+2. Verify EVERY hit passes the new flag from `feature.*` or `resolved.*`
+3. Pay special attention to `check-and-unblock-features.use-case.ts` — it's the easiest to miss because it spawns without an options object by default
+
+**Spawn sites as of now (6 total):**
+- `create-feature.use-case.ts` → `initializeAndSpawn()` (reference implementation — most complete)
+- `start-feature.use-case.ts` → `execute()` (starts pending features)
+- `resume-feature.use-case.ts` → `execute()` (resumes failed/interrupted)
+- `approve-agent-run.use-case.ts` → `execute()` (approval gate resume)
+- `reject-agent-run.use-case.ts` → `execute()` (rejection feedback resume)
+- `check-and-unblock-features.use-case.ts` → `execute()` (auto-unblock children)
+- `create-feature.ts` web action → `initializeAndSpawn()` Phase 2 call (passes input to use case)
+
+**Rule:** Treat `create-feature.use-case.ts initializeAndSpawn()` as the canonical spawn. When adding a flag, copy its option-passing pattern to all other sites.
+
+## Settings Defaults Must Be Available When DB Has No Persisted Value
+
+When a new settings field (e.g. `skillInjection`) is added with defaults in `createDefaultSettings()`, the DB mapper returns `undefined` for that field until the user explicitly saves it. Any code that reads the field must fall back to the factory defaults, not to an empty/null value.
+
+**What happened (v1):** The skill injector checked `settings.workflow.skillInjection?.skills?.length` — but `skillInjection` was `undefined` from the DB (never persisted). The guard passed (`shouldInject = true` from the UI toggle) but the skills list was empty, so nothing was injected. Fixed by adding `?? createDefaultSettings()` fallback in the use case.
+
+**What happened (v2):** The v1 fix only caught the case where `skillInjection` was fully `undefined`. When the user toggled skill injection ON in settings, the DB had `skill_injection_enabled=1` but `skill_injection_skills=null` (no skills ever persisted). The mapper returned `{ enabled: true, skills: [] }` — a non-undefined object with an empty skills array. The `??` fallback in the use case never triggered because the object was truthy. Fix: the DB mapper itself must fall back to the default skill list when `skill_injection_skills` is null.
+
+**Rule:** Fallbacks must happen at the **lowest level** (DB mapper), not just at the consumer (use case). If the mapper returns a structurally valid but semantically empty object, `??` fallbacks upstream won't catch it.
+
+**Pattern:** When a settings field has a "value" column (e.g. `skill_injection_skills`) and an "enabled" flag column, the mapper must handle all 4 combinations of null/non-null explicitly — especially `enabled=true, value=null` which should fall back to factory defaults, not to empty.
+
+## CLI Tools Called via execFile Must Use Non-Interactive Flags
+
+When calling external CLI tools (e.g. `npx skills add`) via `execFile`/`execFileAsync` in a service, always pass the non-interactive/auto-confirm flag (e.g. `--yes`, `-y`). Without it, the tool blocks on a TTY prompt, the `execFile` call hangs (no stdin input), hits the timeout, and fails silently because errors are caught.
+
+**What happened:** `npx skills add shep-ai/shep --skill <name>` requires `--yes` to skip interactive confirmation. Without it, the command hung waiting for user input, timed out after 30 seconds, and all 8 skills went to `result.failed` — which was silently caught. The user saw no skills injected.
+
+**Rule:** Before using any CLI tool via `execFile`, check its `--help` for non-interactive flags (`--yes`, `-y`, `--no-input`, `--batch`). Always add them. `execFile` has no TTY — any interactive prompt will hang.
+
+## New Required Fields on Domain Entities Break All Test Fixtures
+
+Adding a required (non-optional) field to a TypeSpec domain entity (e.g. `injectSkills: boolean = false` on Feature) causes type errors in **every test file** that creates a Feature object — typically 20-30+ files.
+
+**Mitigation:** Before adding a required field, consider whether it can be optional (`?`). If it must be required, use a subagent to bulk-update all test fixtures in one pass. Grep for an existing required field (e.g. `enableEvidence`) to find every fixture that needs updating.
+
+**Gotcha:** Not all objects with `enableEvidence` are Feature objects — some are graph state types or workflow settings. Verify the type before adding the new field. The merge-step-real-git `setup.ts` state factory is a common false positive.
+
+## Database Migrations Must Be Fully Backward Compatible
+
+**NEVER write a migration that drops or renames a column.** Migrations must be additive-only so that switching branches or rolling back code does not break the database.
+
+**What happened:** Migration 051 dropped the `fast` column and replaced it with `mode`. Switching back to `main` (which still reads `fast`) caused "no such column: fast" — the database was permanently mutated and incompatible with older code.
+
+**Rules:**
+1. **Add new columns, never drop old ones.** If replacing `fast` with `mode`, add `mode` and keep `fast` in place.
+2. **Backfill new columns from old ones** — e.g. `UPDATE features SET mode = CASE WHEN fast = 1 THEN 'Fast' ELSE 'Regular' END`.
+3. **Old columns become read-ignored, not deleted.** Code on the new branch reads `mode`; code on the old branch reads `fast`. Both work.
+4. **Column cleanup is a separate, later migration** — only after the old code path is fully dead and merged to main.
+5. **Same rule for renames** — add the new name, copy data, keep the old name.
+
+**Pattern:** Think of migrations like API versioning. Old consumers (branches, rollbacks) must not break when a new migration runs. Two-phase: first add+backfill, later (optionally) drop.
+
+## New Use Cases Accessible From Web MUST Have a String Token Alias
+
+When a use case is called from a web server action via `resolve<T>('StringToken')`, the DI container needs **both**:
+1. `container.registerSingleton(MyUseCase)` — class token (always present)
+2. `container.register('MyUseCase', { useFactory: (c) => c.resolve(MyUseCase) })` — string alias (easy to forget)
+
+**How this fails:** The class token is registered but the string alias is not. The web action resolves by string, gets "Attempted to resolve unregistered dependency token: X", and the feature silently fails at runtime — not at build time.
+
+**Where to add the alias:** The string aliases live in a dedicated block near the bottom of `packages/core/src/infrastructure/di/container.ts` (search for the comment "routes use string tokens instead of class refs"). Add the new alias there, next to similar use cases.
+
+**Prevention:** When adding a use case and wiring a web server action to call it, immediately add the string alias in the container. Never add a `resolve<T>('StringToken')` call in a server action without a matching alias in the container.
+
+## Graph Nodes That Don't Use executeNode() Must Pass Node Name to buildExecutorOptions
+
+`buildExecutorOptions(state)` without a `nodeName` argument falls back to `state.currentNode` — which reflects the **previous** node, not the current one. This means the node inherits the wrong stage timeout.
+
+**How this fails:** fast-implement has a short timeout (e.g. 120s). When merge runs next, `state.currentNode` is still `'fast-implement'`, so `buildExecutorOptions(state)` resolves the fast-implement timeout instead of the merge timeout. The merge agent times out in 2 minutes despite a 24h merge timeout being configured.
+
+**Rule:** Nodes that manually call `buildExecutorOptions` (merge, implement, fast-implement, evidence) MUST pass their own node name: `buildExecutorOptions(state, undefined, 'merge')`. The `executeNode()` helper already does this correctly (line 572 of node-helpers.ts).
+
+**Prevention:** When adding a new node that doesn't use `executeNode()`, always pass the explicit node name to `buildExecutorOptions`.
+
+## Retry After Validation Exhaustion Must Clear CompletedPhases AND Checkpoint
+
+When a validate/repair loop exhausts retries and throws, the producer node's `completedPhases` entry must be cleared **before** the throw. Without this, on resume the producer skips via the `completedPhases.includes(nodeName)` guard, validation fails again immediately, and the user's retry is stuck in an infinite loop.
+
+Additionally, the worker's resume-from-error path must **delete the stale checkpoint DB** and create a fresh graph. The checkpoint captures the validation node with maxed-out `validationRetries` in state. Resuming from that checkpoint re-evaluates the same conditional edge with the same exhausted counter and throws immediately.
+
+**The two-part fix:**
+1. `routeValidation` clears the producer's `completedPhases` entry before throwing (so `executeNode` re-runs the agent)
+2. Worker deletes checkpoint DB on resume-from-error, then re-creates graph and checkpointer from scratch (so LangGraph starts fresh from `START`, but completed phases skip instantly via `completedPhases` guard)
+
+**Root cause pattern:** `markPhaseComplete` runs before validation, and LangGraph checkpoints the producer node as "completed" after it returns without throwing. The repair node can only fix formatting — it cannot generate content from scratch. Empty/unfilled output + repair loop + checkpoint = permanent stuck state.
+
+## git merge --squash Writes Conflict Info to stdout, Not stderr
+
+Node's `execFile` error only includes stderr in `error.message`. But `git merge --squash` writes conflict information (including "CONFLICT") to **stdout**, not stderr. The stderr is empty on conflict.
+
+**What happened:** `localMergeSquash()` caught the error and checked `error.message.includes('CONFLICT')` — which never matched because the CONFLICT text was in `error.stdout`. Every conflict was misclassified as a generic `GIT_ERROR` instead of `MERGE_CONFLICT`, and the error message lacked useful diagnostics.
+
+**Rule:** When catching errors from `execFile`, always check `error.stdout` in addition to `error.message` and `error.stderr`. Different git commands send error details to different streams.
+
+**Additional fix:** After a failed `git merge --squash`, the repo is left in a merge state. Always `git merge --abort` (or `git reset --merge` as fallback) in the error handler to leave the repo clean. Also `git reset --hard HEAD` before the merge to handle dirty tracked files that `git clean -fd` doesn't remove.
+
+## Clean Up Stale Git State BEFORE Checkout, Not After
+
+When a multi-step git operation fails mid-way (e.g. squash merge), it can leave the repo in a dirty merge/rebase state. The **next** invocation must clean up this stale state **before** attempting `git checkout`, not after.
+
+**What happened:** `localMergeSquash` ran `git checkout main` first, then `git reset --hard HEAD` + `git clean -fd`. But a previous failed merge had left the repo in a merge state, so checkout failed with "you need to resolve your current index first".
+
+**Rule:** In any multi-step git workflow, ALWAYS run cleanup first: `git merge --abort` (non-fatal), `git reset --hard HEAD` (non-fatal), `git clean -fd` (non-fatal) — THEN `git checkout`. The cleanup must be idempotent and non-fatal (catch and swallow errors) since there may or may not be stale state to clean up.
+
+## Programmatic Git Operations Should Fall Back to Agent on Conflict
+
+When a deterministic git operation (like `localMergeSquash`) encounters merge conflicts, don't just throw and crash the entire workflow. Instead, catch the specific `MERGE_CONFLICT` error and fall back to agent-based resolution.
+
+**What happened:** `localMergeSquash` properly detected conflicts (via stdout) and threw `GitPrError(MERGE_CONFLICT)`, but the merge node let this error propagate, crashing the workflow. The user had to manually intervene. Meanwhile, the agent executor was available and capable of resolving conflicts.
+
+**Rule:** For any programmatic git operation that can fail on conflicts, wrap it in a try/catch that:
+1. Catches the specific conflict error type (e.g. `GitPrErrorCode.MERGE_CONFLICT`)
+2. Lets non-conflict errors propagate normally
+3. Falls back to an agent call with a prompt that describes the conflict and instructs resolution
+4. The agent has full coding capabilities and can resolve merge markers, regenerate lock files, etc.
+
+**Pattern:** `try { programmaticMerge() } catch (err) { if (isConflict(err)) agentMerge(conflictDetails) else throw err }`
+
+## Next.js API Routes That Import tsyringe Use Cases MUST Import reflect-metadata
+
+Turbopack externalizes `tsyringe` and `reflect-metadata` via `serverExternalPackages` and loads API route modules lazily in their own module graph. If a route imports a `@injectable()` use case class directly and does NOT explicitly import `reflect-metadata` as a side-effect, the route hits `Error: tsyringe requires a reflect polyfill` at runtime — only when the route is first hit, not at build time.
+
+**Fix:** At the top of every API route file that imports a tsyringe-decorated class, add:
+```ts
+import 'reflect-metadata';
+```
+before any other import. This does NOT apply to routes that only `resolve<T>('StringToken')` without importing the class itself — those don't evaluate tsyringe's decorators in the route's module graph.
+
+**Prevention:** When creating a new API route under `src/presentation/web/app/api/` that imports a use case class from `@shepai/core`, the very first line must be `import 'reflect-metadata';`.
+
+
+## Don't Conflate "Empty State" Variants — Check Git History Deeper
+
+When the user asks to restore "the original" or "the version we had before", check git history beyond the most recent commit that touched the file. The empty state of control center has had multiple distinct designs over time:
+
+1. **Onboarding wizard** (older) — agent setup + tool status checklist + "Choose folder" / "New Project" buttons + CLI commands. Lives in `control-center-onboarding.tsx`.
+2. **Prompt-first** (newer) — "What do you want to build?" hero + textarea + build mode dropdown (application/fast/spec). Lives in `control-center-empty-state.tsx`. Used by **applications view only**, not control center.
+
+**Rule:** The control center empty state uses `ControlCenterOnboarding`. The applications view (and the FAB-triggered create-application overlay on control center) uses `ControlCenterEmptyState` (the prompt). Do not conflate them.
+
+**How this came up:** A user asked to restore the "original getting started" in the control center. The first attempt restored the prompt version (recent), but the user clarified there was an even older version. Always trace the file back through `git log --follow --oneline` and look at the version BEFORE the major UX rewrites (e.g. commits with "replace onboarding with prompt-first experience").
+
+
+## Third-Party CSS With Hardcoded Light-Theme Colors Needs ALL Layers Overridden
+
+`tabulator-tables/dist/css/tabulator_simple.css` hardcodes `background: #fff` on
+**both** `.tabulator-row` AND `.tabulator-table`. Overriding only the row leaves
+a solid white plate on the table element behind the rows — invisible in light
+mode, glaringly white in dark mode (issue #580: "white over white titles").
+
+**Rule:** when overriding a third-party stylesheet for theme support, list
+every element in the visual stack (table, tableholder, row, cell) — not just
+the one you debug first. Use the dev-tools "find all elements with
+`background-color: rgb(255,255,255)`" trick rather than guessing.
+
+```js
+[...document.querySelectorAll('*')].filter(
+  e => getComputedStyle(e).backgroundColor === 'rgb(255, 255, 255)'
+)
+```
+
+
+## Claude Agent SDK V2 — `canUseTool` Must Be ALWAYS Set, Not Gated on `onUserQuestion`
+
+The V2 session API hardcodes `allowDangerouslySkipPermissions: false`. With
+only `allowedTools` enumerated (no wildcard support in V2), every tool name
+not in the list — including dynamically discovered MCP tools like
+`mcp__atlassian__search_issues` — falls through to the SDK's permission gate
+and gets denied. If `canUseTool` is `undefined`, denial is silent and the
+agent reports the tool as unavailable (issue #582).
+
+**Rule:** install `canUseTool` unconditionally and use it as both the
+AskUserQuestion interception point AND the catch-all "allow" for unknown
+tools. Do NOT make installing the callback conditional on whether the caller
+provided `onUserQuestion`.
+
+
+## macOS Terminal Launch — `open -a Terminal /path` Is Unreliable, Use `osascript`
+
+`spawn('open', ['-a', 'Terminal', '/path'])` opens Terminal but, when
+Terminal.app is already running, the new window often lands at `$HOME`
+instead of the supplied path (issue #583, varies by Terminal preferences).
+
+**Rule:** for macOS Terminal launches, use `osascript` with an explicit
+`do script "cd '...'"` so the working directory is set programmatically
+inside the new window:
+
+```js
+spawn('osascript', [
+  '-e', `tell application "Terminal" to do script "cd '${escapeSingleQuote(p)}'; clear"`,
+  '-e', 'tell application "Terminal" to activate',
+])
+```
+
+The same `open -a` pattern is unreliable for iTerm2 and Warp too —
+they need their own URL-scheme or osascript launchers.
+
+
+## Spawn-from-Template Tokenization — Tokenize the Template, Not the Resolved Command
+
+Code that resolves a template like `"open -a Warp {dir}"` into a shell-less
+spawn invocation must NOT do `template.replace('{dir}', path).split(/\s+/)` —
+that shreds paths with spaces (`'/Users/me/My Code/repo'`) into multiple
+args (`'/Users/me/My'`, `'Code/repo'`).
+
+**Rule:** tokenize the TEMPLATE first (the placeholder is one token by
+construction), then substitute the literal path into whichever arg contains
+`{dir}`:
+
+```js
+const tokens = template.split(/\s+/);
+const [cmd, ...rest] = tokens;
+const args = rest.map(t => t.replace('{dir}', actualPath));
+```
+
+
+## Subprocess Executor Must Not Trust Natural Exit After `[result]`
+
+The `claude` CLI emits a final `result` event over stream-json and is supposed to tear down its MCP servers and exit — but in practice it can hang for hours. Confirmed offenders, all spawned by the agent itself: `npm exec @playwright/mcp`, `npm exec @upstash/context7-mcp`, `typescript-language-server --stdio`, and any backgrounded `pnpm dev:web` / shell the agent forgot to kill. They keep stdio open and the parent claude process never closes. A worker that resolves only on `proc.on('close')` then sleeps forever — feature 92701aa8 was stuck `fast-implement` for 3+ hours after the agent had finished, committed, and pushed.
+
+**Rule:** any executor that depends on a subprocess emitting a final event must enforce a grace timer once that event is observed and SIGKILL the subprocess if it fails to exit. Don't trust the child to clean up its own children. Use the shared guard `watchPostResultExit(proc, log)` in `executors/post-result-exit.ts` (`RESULT_TO_CLOSE_GRACE_MS = 30_000`), and do not hand-roll a timer. Create it after spawn and `arm()` it on the terminal event, in both `execute()` and `executeStream()`. It tree-kills a lingering process with SIGKILL escalation and disarms on `close`. Read the exit code through `guard.exitCode(code)`, because taskkill makes a killed Windows process exit 1. Claude, Copilot, Cursor, Codex (`turn.completed`/`turn.failed`) and Gemini use it. Kimi and Cline have no terminal event.
+
+## Canvas Node Wiring Has TWO Halves — Server Loader AND Client Deriver
+
+A user reported "I don't see anything related to applications in the Control Center" after a feature whose entire premise was rendering ApplicationNodes on the canvas. The client-side `derive-graph.ts` had full support for application nodes and parent edges; tests for it were green. What was missing: the server-side `getGraphData()` / `buildGraphNodes` had been changed by an unrelated PR (#559) to explicitly skip loading applications, with a comment block instructing future readers not to add them. The new feature's spec, plan, and PR all assumed the server was loading apps. The plumbing was wired, the data was never fed in, the canvas was empty.
+
+**Rules for any change that adds a new node type to the Control Center canvas:**
+
+1. **Trace the data path end-to-end before claiming "rendered".** A canvas node is only on the screen if (a) the server-side loader (`getGraphData` for `/`) fetches the entity, (b) `buildGraphNodes` emits a node entry of the right type with a stable id, (c) `parseMaps` in `use-graph-state.ts` lifts the entry into the right domain Map (`featureMap` / `repoMap` / `applicationMap`), and (d) `derive-graph.ts` knows how to render that map. Skip any one of these and the node never appears, even though tests for the others pass.
+2. **Cross-reference comment blocks that forbid behavior with the spec you're implementing.** A `// X is intentionally NOT loaded here` comment in `getGraphData` is a load-bearing decision from a prior PR. If your spec contradicts it, one of them is wrong — surface the conflict to the user before writing code, do not silently re-enable.
+3. **Any field that crosses the server→client boundary on a node must be on the node's `data` interface.** Adding a property to a `FeatureEntry`-style domain Map type alone is invisible to the boundary because `parseMaps` only sees `node.data`. New cross-boundary fields go on `FeatureNodeData` / `RepositoryNodeData` / `ApplicationNodeData` first, then `parseMaps` lifts them into the entry.
+4. **Choosing how aggressively to load canvas-rendered entities is a UX call, not a tech call.** Three positions exist: (a) load every entity unconditionally (entity is a first-class peer of repos — chosen for `Application` since users expect it on the canvas the moment they create one, like a repo), (b) load only entities referenced by another rendered node (entity is a relationship target — only appears when something points to it), or (c) skip loading entirely (entity lives only on its dedicated page). Pick deliberately based on the user's mental model; do not default to (b) "to keep the graph clean" if (a) is what the user actually wants.
+
+## New DI Module → Add to BOTH Production Container AND Bootstrap Test
+
+When adding a new `register<Foo>(container)` module to `packages/core/src/infrastructure/di/modules/`, the production wiring lives in `container.ts`. The integration test `tests/integration/infrastructure/di/container-bootstrap.test.ts` has its OWN parallel list of `register*()` calls — it does NOT import `initializeContainer()`. Forgetting to add your new module there causes downstream resolution failures (e.g. "Cannot inject the dependency 'X' at position #N of YUseCase") only at CI time, not locally for the affected use case.
+
+**Rule:** any new `register<Foo>(container)` module must be added in TWO places at once: (1) `container.ts` and (2) the `beforeAll()` block in `container-bootstrap.test.ts`. Add the import alongside the others in alphabetical order to make missing entries visually obvious in PR diffs.
+
+## New Server Action → Add Storybook Mock at .storybook/mocks/app/actions/
+
+The Vite-based Storybook config aliases `@/app/actions/*` to `.storybook/mocks/app/actions/*`. Any web component that imports `@/app/actions/<new-action>` will break the Storybook build with `[vite:load-fallback] Could not load ./.storybook/mocks/app/actions/<new-action>` unless a mock file with the same name and the same exported function signatures exists. The runtime app does not need this — only Storybook does.
+
+**Rule:** when you add `src/presentation/web/app/actions/<name>.ts` AND any component imports from it, immediately create `.storybook/mocks/app/actions/<name>.ts` exporting stubbed versions of every function the component uses. Match exported names exactly; types can be re-imported from the same domain interfaces. See `.storybook/mocks/app/actions/load-settings.ts` for the canonical pattern.
+
+## New Translation Key → Add to ALL 9 Locales in the Same Commit
+
+Adding a key to `translations/en/web.json` without mirroring it in `ar, de, es, fr, he, pt, ru, uk` fails the `tests/unit/translations/translation-completeness.test.ts` parity check on CI. The full locale set is enumerated by the `Language` enum in `packages/core/src/domain/generated/output.ts`. Test failure looks like: `AssertionError: Keys missing in <locale>/web.json: expected ['settings.x.y'] to deeply equal []`.
+
+**Rule:** every new `t('foo.bar')` call requires a key added to ALL nine `translations/*/web.json` files in the same commit, including a real translation (not a copy of the English string). Run `pnpm test:unit -- tests/unit/translations/translation-completeness.test.ts` before pushing — it completes in under a minute and catches all missing keys at once.
+
+## Windows CI Integration-Test Flakes Have Two Specific Root Causes
+
+The Windows runner failed `pnpm test:int` with two error patterns: `Hook timed out in 10000ms` inside `beforeEach` blocks that build a real git harness, and `EBUSY: resource busy or locked, rmdir 'C:\Users\RUNNER~1\...'` inside `afterEach` cleanup. Ubuntu was green on the same commit. Both errors are environmental, not behavioural — the tests work, they just don't fit the default timing budget on Windows where git process startup is slower and the filesystem occasionally holds transient locks (antivirus, indexer, lingering child handles).
+
+**Rules for any integration test that spawns real git/sqlite/filesystem subprocesses:**
+
+1. **Default vitest hookTimeout is 10s.** A `beforeEach` that spawns ~10 git subprocesses (`init --bare`, `clone`, `config`, `checkout`, `commit`, ...) will pass that on Linux but cut it close on Windows under load. Either bump the project-wide `hookTimeout` in `vitest.config.ts` (current setting: 20s for the `node` project) or pass an explicit timeout as the third arg: `beforeEach(async () => { ... }, 60_000)`.
+2. **`rmSync(dir, { recursive: true, force: true })` is not enough on Windows.** Always pass `maxRetries: 5, retryDelay: 100` so a transient file lock turns into a single retry instead of a whole-test failure. This applies to every cleanup helper (`destroyHarness`, `destroyDirs`, ad-hoc `finally` blocks).
+3. **`testTimeout` for the `node` project is 60s in `vitest.config.ts`.** That covers heavy real-git tests like the merge-step suite. Tests that take longer than that on Linux are bugs, not slow-machine excuses — fix the test, do not bump the timeout further.
+
+## Never Hardcode a Timeout a Helper Already Chooses Per-Platform
+
+`tests/helpers/cli/runner.ts` sets `timeout: process.platform === 'win32' ? 30000 : 15000` on purpose — a
+Windows CLI spawn pays tsx/SQLite startup that Linux does not. `settings-initialization.test.ts` then passed
+`timeout: 15000` into every `createCliRunner({...})` call, which **silently overrode that default and forced
+Windows onto the Linux budget**. The test died at 15024ms on windows-latest while sibling tests running the
+exact same `version` command took 12.7s and 14.9s — it had been sitting one scheduling hiccup from red the
+whole time, and Ubuntu was green on the same commit.
+
+The EBUSY that followed in `afterEach` was a *cascade*, not a second bug: the timed-out CLI child still held
+the SQLite handle, so `rmSync` threw and reported as a second failure that masked the real assertion.
+
+**Rules:**
+
+1. **Passing an option that a helper already defaults is a decision — justify it or omit it.** Before writing
+   `timeout:`/`retries:`/`cwd:` into a helper call, read the helper's defaults. If it already branches on
+   `process.platform`, hardcoding a scalar there is always a regression on the slow platform. Omit the option
+   and inherit.
+2. **Size a test's vitest timeout from the number of sequential spawns it makes**, not from a round number.
+   `timeoutForRuns(n) = n * CLI_SPAWN_BUDGET_MS + slack` — two `run()` calls under a 30s-per-spawn budget
+   cannot live inside a 30s test timeout, and a bare `30_000` hides that arithmetic.
+3. **Cleanup in `afterEach` must be best-effort (`try/catch`) whenever the test spawns a child that touches
+   SQLite or the filesystem.** A cleanup throw outranks nothing — it only ever *masks* the assertion you
+   actually needed to read. `createIsolatedCliRunner().cleanup()` already models this.
+4. **A test that passes at 15024ms/15000ms was never passing.** When a CI failure's duration matches its
+   timeout to within a few ms, the diagnosis is "the budget is wrong," not "the runner was slow." Compare
+   against sibling tests doing identical work before touching the assertion.
+
+## Static Repo Polish Ships LAST — Not First — In a Multi-Phase Feature
+
+Spec 097 (ai-native-contributor-onboarding) was tempting to slice "M1: static repo files" first because they're pure markdown and ship value to real contributors immediately. We didn't. The implementation order put TypeSpec → ports → use cases → agent → workflows → web → static docs, in that sequence, inside one PR.
+
+**Why:** when CONTRIBUTING.md says "run `pnpm dev:cli doctor`" or "use `pnpm dev:cli contributors groom-issue --number 1234`", those commands need to actually exist and work. If the docs land first, every line is a promise the codebase doesn't yet keep — and contributors who try them immediately hit "command not found" on the second step of the onboarding flow. That's a worse first impression than no docs at all.
+
+**Rules for any future feature that bundles "user-facing copy" with "platform capability":**
+
+1. **Docs reference shipped capability, not future capability.** Land the use case, command, port, or workflow first. Land the doc that mentions it last. The PR can still be one bundled commit; what matters is the order inside it.
+2. **CONTRIBUTING.md, ROADMAP.md, ARCHITECTURE.md, GOOD_FIRST_ISSUES.md must cross-link.** Each should appear in the README contributor block, in CONTRIBUTING.md's nav, and in each other's "Related" section. Orphaned docs rot fastest. The contributor-onboarding pipeline expects all four to exist — the agent can be told "see GOOD_FIRST_ISSUES.md" and that file will resolve.
+3. **Issue-template fields must match the actual TypeSpec enum.** When `ContributorLane` is `docs | agents | ui | cli | infra`, every `.github/ISSUE_TEMPLATE/*.yml` lane dropdown must list those exact strings (case-sensitive). The grooming agent reads the issue body's `### Lane` section back into the enum — a "Web UI" string vs "ui" string will silently fail the parse. Same for `ContributionDifficulty` (`goodFirst | easy | medium | hard`).
+4. **`.all-contributorsrc` ships empty + valid.** An empty `contributors: []` array with the right `projectName` / `projectOwner` / `files` block lets the in-house `IAllContributorsWriter` start appending on the first merge without a special "initialize" path. Don't ship pre-seeded fake contributors; don't ship without the file.
+5. **PR template includes architecture self-checks, not just CI checkboxes.** "No `application/` or `presentation/` file imports anything from `infrastructure/`" catches the violation that lint won't catch on a fresh module. "TDD landed RED-first" reminds reviewers to ask for the test commit. These are the rules CI doesn't enforce — the template is where they live.
+4. **Always check failures across ALL OS targets before claiming a fix.** `gh run view <id> --json jobs` lists every job; a green Ubuntu does not mean a green PR. Required check is `Unit Tests (windows-latest)` AND `Unit Tests (ubuntu-latest)`.
+
+## CSS @import in a pnpm Workspace Subpackage Must Be Hoisted to Root
+
+The user ran `pnpm dev` and got an infinite Tailwind/Webpack rebuild loop spamming `Error: Can't resolve 'tw-animate-css' in '/Users/.../src/presentation'` over and over. The package was correctly declared in `src/presentation/web/package.json` and pnpm had symlinked it at `src/presentation/web/node_modules/tw-animate-css`. But Tailwind v4's `@tailwindcss/postcss` resolver, when invoked from the root `pnpm dev` script (which calls `tsx src/presentation/web/dev-server.ts`), uses the dev-server's CWD-derived context (`src/presentation/`) — NOT the actual CSS file's directory (`src/presentation/web/app/`) — to walk up looking for `node_modules`. So it searches `src/presentation/node_modules`, `src/node_modules`, then root `node_modules` — and never sees the web subpackage's `node_modules`.
+
+**Why `tailwindcss` worked but `tw-animate-css` didn't:** `tailwindcss` is also declared in the root `package.json` `devDependencies`, so pnpm hoists a symlink to root `node_modules/tailwindcss`. The resolver finds it at root and is happy. `tw-animate-css` was only in the web package, so root `node_modules/tw-animate-css` didn't exist → resolution fails on every CSS rebuild → infinite loop.
+
+**Rules for any new CSS-imported package in a workspace subpackage:**
+
+1. **If a CSS file under `src/presentation/web/` does `@import 'X'`, package `X` MUST be declared in the ROOT `package.json` (devDependencies is fine), not just in the web subpackage's `package.json`.** This guarantees pnpm hoists a symlink to root `node_modules/X` where the dev-server-context CSS resolver can find it.
+2. **Same rule applies to any `@import 'pkg'` in `app/globals.css`, `*.module.css`, or any CSS pulled into the Next.js graph.** It is NOT enough that the package is reachable from the importing CSS file's filesystem location — Tailwind v4's PostCSS plugin uses the Node process CWD-anchored resolver, not a CSS-file-anchored one, when run via the root `pnpm dev` script.
+3. **Sanity check after adding a CSS import:** `ls node_modules/<pkg>` must succeed at the repo root. If the symlink is missing, hoist by adding the dep to root `package.json` and running `pnpm install`.
+4. **Symptom to recognize fast:** repeating `Error: Can't resolve '<pkg>' in '/.../src/presentation'` (note the path stops at `src/presentation`, not `src/presentation/web/app`) interleaved with Tailwind rebuild timing logs. That path mismatch is the tell — it means the resolver is using the wrong base directory.
+
+## Per-Page DeploymentStatusProvider Mounts MUST Seed Real Data, Never `[]`
+
+The user reported that the live web preview status of an application was lost on refresh, and disappeared when navigating from `/application/[id]` back to `/applications`.
+
+**Root cause:** Each route mounts its own `<DeploymentStatusProvider>` (separate React contexts). The `/applications` page seeded the provider with `initialDeployments={[]}`. After hydrate, the store sets `fullyHydrated = true`. Then every `<ApplicationCard>` calls `useDeployAction(...)` → `ensureHydrated(appId)`, which short-circuits when `store.isFullyHydrated()` is true (intentional: it kills the burst of N server-action POSTs on canvas mount). With an empty seed, that short-circuit means NO card ever fetches its deployment status — so even running dev servers render with no preview iframe.
+
+**Rules for any route that mounts `<DeploymentStatusProvider>`:**
+
+1. **`initialDeployments={[]}` is a footgun.** The provider treats "first hydrate ran" as "I now know the full universe of deployments". An empty seed locks in "there are none" until the next prop change. Always seed with the actual list (from `ListDeploymentsUseCase` server-side, or via `listDeployments` server action in a `useQuery`).
+2. **Per-page providers do not share state across navigations.** A deployment started on `/application/[id]` does NOT carry over to `/applications`. Each route's provider is independent and MUST do its own hydration. The `(dashboard)/layout.tsx` flow seeds via `getGraphData()`; `application-page-loader.tsx` seeds via `/api/applications/[id]`; `/applications` was the missing case.
+3. **If you need polling for cross-tab/cross-page changes, drive it from the page's `useQuery` (`refetchInterval`) and pass the result as `initialDeployments` — the provider's `useEffect([initialDeployments])` re-runs `hydrate()`, which nulls out entries that disappeared and updates ones that changed.** Do NOT try to expand `ensureHydrated` to bypass the `fullyHydrated` flag — that re-introduces the per-node POST burst the flag exists to prevent.
+4. **Symptom to recognise fast:** "preview shows on app page but is gone on apps list / after refresh" → check the page's provider mount and look for `initialDeployments={[]}`.
+
+## Every New Output-Port Token MUST Be Registered AND Listed in the Bootstrap Test
+
+Tsyringe walks every `@inject(token)` decorator on a class and resolves the **entire** constructor tree before any method on the resolved instance runs. That means:
+
+- A feature-flag short-circuit inside a use case (e.g. `if (!collaborationEnabled) return`) does NOT save you from a missing DI registration. The flag check runs in `execute()`, but the missing token blows up at `container.resolve(...)` — strictly before that.
+- An "optional, only-used-in-some-modes" port is still mandatory at construction time the moment any registered singleton transitively `@inject`s it.
+
+**How this failed in production (spec 093):** `ISupervisorAgent` was added as a port and wired through `EvaluateSupervisorDecisionUseCase` → `AgentQuestionSupervisorRouter` → `AskAgentQuestionUseCase` → `FeatureAgentGateQuestionPublisher` (registerSingleton in `register-agents.ts`). The token was never registered in any production DI module. Every feature-agent worker crashed at boot with `Attempted to resolve unregistered dependency token: "ISupervisorAgent"`, regardless of whether the user had ever enabled the supervisor.
+
+**Why CI didn't catch it:** `tests/integration/infrastructure/di/container-bootstrap.test.ts` only resolves tokens listed explicitly in `WEB_ROUTE_TOKENS` and `CRITICAL_INFRA_TOKENS`. A new port token that is only resolved transitively from a worker (not from a web route) will pass CI even when its registration is missing.
+
+**Rule:**
+
+1. When adding a new output port `IFoo` under `application/ports/output/`, register a concrete adapter under that string token in the appropriate `register-*.ts` module **in the same commit** as the first use case that injects it.
+2. Add the new token to `CRITICAL_INFRA_TOKENS` in `container-bootstrap.test.ts`. If the token is consumed only by background workers (feature-agent, supervisor, deployment), it MUST appear there — web routes alone do not exercise worker constructor trees.
+3. When adding any `registerSingleton(SomeWorkerHelper)` in `register-agents.ts`, mentally trace its full `@inject` graph and confirm every leaf token is registered. The tsyringe error message _names_ the missing token, but the full chain only shows up at runtime, never at build time.
+
+## Dynamic Model Catalogs Must Not Be Validated Against Static Lists
+
+Multiple agents expose live model catalogs (OpenRouter / Together AI via REST; Cursor via `cursor-agent --list-models`; Claude Code via `/model` aliases; Codex via `codex debug models`). Lists change frequently. `listAvailableModels(agentType, authConfig?)` fetches through the registered `IModelCatalog`, caches in-process for **1 hour** (`MODEL_CATALOG_TTL_MS`) with last-good fallback for the same auth cache key, and falls back to the static `AGENT_CATALOG` list when discovery is empty. Web boot also warms catalogs in parallel via `warmModelCatalogs`.
+
+**What went wrong (issue 098):** `UpdateFeaturePinnedConfigUseCase` validated the user's selected model against `factory.getSupportedModels(agentType)` — the **sync** method that returns the **static hardcoded** list (`OPENROUTER_MODELS`). The web ModelPicker showed the user the live dynamic catalog (`getAllAgentModels` → `listAvailableModels`), so the user could pick `nvidia/nemotron-3-super-120b-a12b:free` from the dropdown, but submitting threw `Unsupported model "..." for agent "openrouter"`. The picker and the validator were reading from two different sources of truth.
+
+**Rule:** For any provider that exposes a remote/CLI model catalog, validation MUST use the same `listAvailableModels()` path the picker uses. Never call `getSupportedModels()` (static) when the user picked from a list returned by `listAvailableModels()` (dynamic). The static list is a fallback for offline rendering, not a denylist. Live Claude aliases must map to Shep canonical ids (or merge with hardcoded) so adaptive selection stays aligned.
+
+**Pattern to check when adding a new dynamic-catalog provider:**
+
+1. The catalog service goes in `infrastructure/services/agents/common/model-catalogs/`, extends `TtlModelCatalog`, and exposes `listModels(authConfig?)`
+2. Register it under `AgentType` in `createDefaultModelCatalogs()` — factory returns dynamic list if non-empty, otherwise the static fallback
+3. Audit every consumer of `getSupportedModels()` to confirm it's only used for offline UI hints, NEVER for validation
+4. The web action that powers the picker (`getAllAgentModels`) and the use case that validates the choice (e.g. `UpdateFeaturePinnedConfigUseCase`) must both go through `listAvailableModels` — same source of truth
+5. Keep `IAgentExecutorFactory` a process-wide singleton (`instanceCachingFactory`) so the TTL cache survives picker opens; otherwise every resolve re-spawns discovery
+
+## Auto-Deploy Must Trigger on Agent-Finishes Transition, Not on `setupComplete` SSE Race
+
+The user reported that the web preview did not start automatically after the initial build finished, and did not restart after a chat iteration.
+
+**Two compounding bugs:**
+
+1. `useDevServerCoordinator` only restarted the dev server after the agent finished IF it was running BEFORE the agent started (`wasRunningBeforeAgentRef`). On the very first build, the server was never running → ref stayed `false` → no auto-start. On any subsequent iteration where the user hadn't manually started the preview, same story.
+2. The fallback in `ApplicationPage.onAllStepsComplete` was gated on `application.setupComplete === false` (the SSR prop). But `setupComplete` is flipped to `true` by an SSE-driven `useApplicationUpdate` cache patch. The "workflow done" SSE event and the "setupComplete=true" SSE event arrive close together — when the latter races ahead, the gate blocks the auto-deploy.
+
+**Rules for any "auto-start the dev server when X completes" logic:**
+
+1. **Drive auto-deploy off the `agentRunning` transition (`true → false`), not off a derived/SSR'd "completed" flag.** The agent transition is observable directly from the chat-state cache and doesn't depend on which SSE event arrived first.
+2. **Never gate auto-deploy on "was the server running BEFORE the agent started?"** — that's a presence test for an irrelevant prior state. The user wants to see the result of the iteration regardless of whether they had manually clicked "Run" earlier.
+3. **Single source of truth.** If you have two effects firing `deploy.deploy()` on the same event (e.g. `useDevServerCoordinator` AND a `onAllStepsComplete` callback), kill one — `deploymentService.start()` is NOT idempotent (see `deployment.service.ts` line 231-238: it kills any existing deployment and starts a new one), so two parallel calls can race and tear down the in-flight spawn.
+4. **Always status-guard before calling `deploy.deploy()`:** skip when `deploy.status === Ready || Booting || deploy.deployLoading`. This is the only protection against a stray double-fire that would kill an in-progress spawn.
+5. **Do NOT add "respect explicit user stop" complexity unless the user asks for it.** The simpler invariant — "after the agent finishes, the preview is up" — matches what users want 99% of the time. Manual stop is a transient user action; it does not need to persist across iterations.
+
+## DI Tokens: Register Under the Exact String the Consumer Resolves
+
+Spec 097 shipped these failure modes — all caught only by E2E `shep ui` boot, not by unit tests:
+
+1. **Concrete-name vs port-interface token mismatch.** `DesktopNotifier` was registered as `'DesktopNotifier'` but every consumer resolved `'IDesktopNotifier'`. Unit tests pass (they mock `container.resolve` and intercept by string), but production boot dies with `Attempted to resolve unregistered dependency token: "IDesktopNotifier"`.
+2. **`@injectAll('Token')` requires bare-token registrations.** Channel-suffixed tokens like `'IRecapPublisher:file'`, `'IRecapPublisher:discord'` do NOT satisfy `@injectAll('IRecapPublisher')` — tsyringe matches the EXACT token string. If you want multi-injection, register each adapter under both the suffixed AND the bare token.
+3. **Defining a port without an adapter is a boot bomb.** `IContributorActionGate` was defined in `application/ports/output/services/` but no `register-*.ts` ever wired a concrete. The use cases that `@inject` it crash at boot the first time anything resolves them.
+4. **Production deps in `devDependencies` are invisible to local dev but break `npm pack` consumers.** `@octokit/rest`, `@octokit/plugin-retry`, `@octokit/plugin-throttling` were declared as devDependencies. Local `pnpm install` saw them because pnpm installs devDeps in workspaces, but `script-runner.test.ts` (which does `npm pack` → `npm install -g` in a clean Docker container) crashed with `ERR_MODULE_NOT_FOUND: '@octokit/rest'`. **Rule:** every package imported anywhere under `packages/core/src/` or `src/presentation/` MUST be in `dependencies`, never `devDependencies`. devDependencies are only for build tooling, linters, and test-only packages.
+
+**Mandatory checks when adding any new port/adapter or library:**
+
+1. The string in `container.register(...)` must EXACTLY match the string in every `@inject(...)` and `container.resolve(...)`. Grep both sides before pushing.
+2. If any consumer uses `@injectAll('Token')`, register each adapter under the bare `'Token'` — not just under suffixed discriminator tokens.
+3. Add the new I-prefixed token to `CRITICAL_INFRA_TOKENS` in `tests/integration/infrastructure/di/container-bootstrap.test.ts` so boot is verified in unit-level CI.
+4. Any `import` from a third-party package in `packages/core/src/` or `src/` must have a matching entry in `dependencies` (not `devDependencies`). Use `grep '"<pkg>"' package.json` to confirm.
+
+## Playwright Navigation Waits Must Use `waitForURL`, Not `toHaveURL`, Against `pnpm dev:web`
+
+`expect(page).toHaveURL(...)` uses the `expect` timeout (default **5 s**). `page.waitForURL(...)` uses the navigation timeout (default **30 s**).
+
+E2E specs in `tests/e2e/web/` run against `pnpm dev:web` (Next.js dev mode, Turbopack). The **first** navigation to any route triggers on-demand compilation, during which the App Router waits for the RSC payload before updating `window.location`. The URL stays on the source page until the server response arrives — easily >5 s on a cold CI runner.
+
+Symptom: `toHaveURL` fails with `N × unexpected value "<old url>"`, then passes on retry. Reported as `1 flaky` in the Playwright summary.
+
+**Rule:** in any spec under `tests/e2e/web/`, when waiting for navigation after a click, use `await page.waitForURL(...)`, never `await expect(page).toHaveURL(...)`. Reserve `toHaveURL` for asserting the URL **after** you already know navigation completed (e.g., after a `waitForURL` or after the destination's content is visible).
+
+## Optional Heavy Provider Deps — Load via Non-Literal Dynamic Import (spec 101)
+
+`@whiskeysockets/baileys` (WhatsApp Web) carries a large, partly-native
+transitive tree (libsignal, protobufjs) that breaks Next.js / Storybook /
+Electron bundling, and its `latest` dist-tag is a release candidate. Adding it
+to `package.json` without a matching lockfile also breaks `pnpm install
+--frozen-lockfile` in CI.
+
+**Rule:** for an OPTIONAL provider dependency, load it with a NON-LITERAL
+dynamic import so TypeScript does not try to resolve the (absent) module and
+the eager build graph never includes it:
+
+```ts
+const pkg: string = '@whiskeysockets/baileys'; // typed as string → import() returns any
+try { return await import(pkg); } catch { throw new NotInstalledError(); }
+```
+
+`import('@literal')` would make tsc resolve the module (typecheck error when not
+installed) AND pull it into the bundle. The `string`-typed indirection avoids
+both. Surface a clear, actionable install hint when the import fails; keep the
+ban-safe alternative adapter (Cloud API over `fetch`, zero deps) behind the same
+port so the feature still works without the optional package.
+
+## App-Layer Enums Are NOT in domain/generated/output.ts (spec 101)
+
+`WhatsAppMessageKind` was defined in `application/use-cases/whatsapp/` (an
+application-layer taxonomy), but the renderer imported it from
+`domain/generated/output.js` — it compiled (TS resolved the name from somewhere)
+but was `undefined` at runtime, crashing the catalog at module load with
+`Cannot read properties of undefined (reading 'NotLinked')`.
+
+**Rule:** only TypeSpec-derived enums (e.g. `WhatsAppAdapterKind`,
+`WhatsAppConnectionStatus`, `WhatsAppThreadTargetKind`) live in
+`domain/generated/output.ts`. Application-layer enums/const-objects must be
+imported from their own module. If an enum is undefined at runtime but the build
+passed, check the import path first.
+
+## Settings Repository INSERT/UPDATE Omits Some Columns — Add Runtime-Mutated Ones (spec 101)
+
+`sqlite-settings.repository.ts` hardcodes its INSERT/UPDATE column lists and
+silently omits several columns the mapper produces (`default_home_page`,
+`skill_injection_*`), relying on DB DEFAULTs. better-sqlite3 IGNORES extra keys
+on the bound object, so this doesn't error — it just never persists those
+fields. For WhatsApp, `status` and `linkedNumber` change at RUNTIME and the
+`whatsappDispatch` toggle must persist, so I added every new column to BOTH the
+INSERT (column list + VALUES) and the UPDATE SET clause. Round-trip tests with
+non-default values are the only way to catch a missing column.
+
+## Adding a Required Method to a Port Breaks Every Full Mock of It (spec 101)
+
+Adding `findLatestByFeatureId` to `IAgentRunRepository` compiled the production
+impl fine but broke ~17 unit tests that build a FULL typed mock object
+(`const repo: IAgentRunRepository = { create: vi.fn(), findById: vi.fn(), ... }`).
+TS2741 "Property X is missing" fires at every such fixture — not at the
+interface.
+
+**Rule:** when you add a method to a widely-mocked output port, grep for an
+existing sibling method (e.g. `findByThreadId:`) across `tests/` and add the new
+`vi.fn()` next to it in every full mock in one pass. `as any` / `Partial<>`
+mocks are unaffected; only fully-typed object literals break. Prefer this over
+making the method optional — optional methods on a port are a smell.
+
+## A Web Feature Is Not Done Until the PAGE Exists and Is Reachable — Components + Storybook Are Not Enough
+
+When building a web UI feature, shipping the presentational components and their Storybook stories is only HALF the job. Storybook proves a component renders in isolation; it does NOT make the feature usable. A user cannot reach a Storybook story from the running app.
+
+**What went wrong:** During the SDLC board build, the board components (`SdlcBoard`/`Column`/`Card`) + stories were built and `build:storybook` passed — but there was no `app/sdlc/page.tsx` route, no client component wiring the SSE hook + server actions, and no sidebar nav link. The feature was invisible in `shep ui` / `pnpm dev:web`. The user had to say "always build the page UI!".
+
+**Rule — every web feature MUST include, in the same body of work, ALL of:**
+1. The **route/page** under `src/presentation/web/app/<feature>/page.tsx` (server loader that resolves the use case via DI, `export const dynamic = 'force-dynamic'`).
+2. The **client component** that wires real-time (SSE hook) + mutations (server actions) + optimistic UI to the presentational components.
+3. The **sidebar nav entry** (+ any entry points) so the page is discoverable — see the sibling lesson "New Feature Pages Must Be Reachable".
+4. Only THEN the isolated components + Storybook stories.
+
+**Sequencing:** build the page UI as a first-class deliverable of the same phase, not a "later". When planning a UI feature, the route + client + nav are line items, never assumed. Treat "build:storybook passes" as a quality gate, NOT as "the UI is done".
+## Discover model lists from the provider; hardcoded lists are only the offline floor
+
+Shep missed Claude Opus 5.5 even though the Claude catalog was "live": the
+`/model` probe returned the alias `opus`, and `CLAUDE_MODEL_ALIAS_TO_CANONICAL`
+mapped it back to the stale `claude-opus-5`. A live source routed through a
+hand-maintained mapping table is not live.
+
+**Rules:**
+- A provider's own list endpoint (Anthropic `GET /v1/models`, OpenRouter
+  `/api/v1/models`) comes first; CLI probes and hardcoded lists are ordered
+  fallbacks, merged so no known id disappears.
+- Anything keyed by model id (tiers, display names) needs a shape-based
+  fallback (`claude-<family>-<version>`), so a discovered id is usable without a
+  table edit. Tables stay as overrides.
+- Authenticate discovery with exactly the credentials the executor uses, so
+  the list describes the endpoint that will run the model. Never reuse a
+  subscription OAuth token issued to another client.
+- Discovery code takes injected `fetch` / `env` / CLI runners; unit tests must
+  pass stubs so a developer's real API key never makes a test hit the network.
+
+## Adding a New Claude Model — Exact Touchpoints
+
+Model lists are centralized, but several adapters keep their own provider-format copies. Claude Code passes `options.model` straight to the `claude` CLI via `--model`, so no mapping is needed there — but Cursor and Copilot rewrite the canonical hyphenated ID into their own format. To add a model (e.g. `claude-opus-4-8`), touch ALL of:
+
+1. `packages/core/src/infrastructure/services/agents/common/agent-model-catalog.ts` — add to `CLAUDE_CODE_MODELS`, `CURSOR_MODELS`, and `COPILOT_CLI_MODELS` (note Copilot uses dotted form `claude-opus-4.8`, the others hyphenated). This is the source of truth for `AgentExecutorFactory.getSupportedModels()`.
+2. `src/presentation/web/lib/model-metadata.ts` — add a `displayName`/`description` entry (hyphenated key). Missing entries fall back to a prettified raw ID.
+3. `packages/core/src/infrastructure/services/agents/common/executors/cursor-cli.ts` — `CURSOR_MODEL_MAP` (shared by the one-shot and interactive Cursor executors) maps `claude-opus-4-8` → `claude-opus-4-8-high`. Unmapped IDs pass through unchanged (a silent bug — the catalog can list a model the map doesn't translate).
+4. `packages/core/src/infrastructure/services/agents/common/executors/copilot-cli-executor.service.ts` — `LEGACY_MODEL_ALIASES` maps hyphenated → dotted for old settings payloads.
+5. `.storybook/mocks/app/actions/get-all-agent-models.ts` and `get-supported-models.ts` — Storybook bundles the client only, so these mocks must mirror the catalog or the picker stories drift.
+6. `tests/unit/infrastructure/services/agents/agent-executor-factory.test.ts` — `getSupportedModels` tests assert exact lists AND lengths per agent (Claude Code, Cursor, Copilot). Update the arrays and the `toHaveLength` count.
+
+The default model (`settings-defaults.factory.ts` `DEFAULT_MODEL`) is a SEPARATE decision — adding a model does NOT change the default. Don't touch it unless explicitly asked.
+
+## A Use Case Is Not Wired Until It's Registered in the DI Container by STRING Token
+
+`@injectable()` on a use case only makes it resolvable by its CLASS token (`container.resolve(MyUseCase)`), which is how CLI commands resolve. The web/server layer resolves by STRING token (`resolve('MyUseCase')` via `server-container.ts`). A string token throws "Attempted to resolve unregistered dependency token" unless it is explicitly registered.
+
+**What went wrong:** The plane-like PM feature (PR #552) added ~74 use cases (projects, work-items, cycles, modules, epics, intake, pages, time-entries, members, notifications, search, analytics, auth, etc.) and their repositories, but NONE of the use cases were registered in the DI container. Repositories were registered, so it looked wired — but every PM web page threw at runtime (`/projects` was the one the user hit). The whole feature was dead in the web UI.
+
+**Rule — registering a use case requires BOTH lines, in a `register-*.ts` module called from `container.ts`:**
+1. `container.registerSingleton(MyUseCase);` — class token (CLI).
+2. `container.register('MyUseCase', { useFactory: (c) => c.resolve(MyUseCase) });` — string token (web).
+
+**How to catch the whole class of bug:** diff the string tokens the web resolves against what the container registers:
+```
+grep -rhoP "resolve<\w+>\('(\w+UseCase)'\)" src/presentation/web | grep -oP "'\w+UseCase'" | tr -d "'" | sort -u  # web side
+grep -rhoP "register(Singleton|Instance)?(<[^>]+>)?\('(\w+UseCase)'" packages/core/src/infrastructure/di/ | grep -oP "'\w+UseCase'" | tr -d "'" | sort -u  # registered
+```
+`comm -23` the two lists. Beware: registrations use generic syntax `register<IFoo>('Foo', ...)` and const tokens (`IBedrockIntegrationServiceToken = 'IBedrockIntegrationService'`) — naive greps miss both and produce false "missing" hits. Always confirm against the real container by RESOLVING, not just grepping.
+
+**Prevention:** every new feature's DI wiring needs a registration test that bootstraps the real container and resolves each string token — see `tests/unit/infrastructure/di/pm-use-case-registrations.test.ts`. A feature with web pages but no DI-registration test is not done. When a file like `register-use-cases.ts` exceeds ~300 lines, add a dedicated `register-<feature>.ts` module instead of growing it.
+
+## User Dev Servers Must Not Inherit cli-only Env (NEXT_ASSET_PREFIX, PORT)
+
+In the cloud org-runner pod, the cli process runs with `NEXT_ASSET_PREFIX=/cli` and `PORT=3000` set pod-wide (so the cli's own Next.js UI is served correctly behind the shep-cloud `/cli` proxy). `DeploymentService.start()` spawned user dev servers with `env: { ...process.env }`, so a user's Next.js dev server **inherited `NEXT_ASSET_PREFIX=/cli`** and emitted `/cli/_next/...` asset URLs. Those 404 on the preview origin (`<port>-<orgHex>.preview.shep.bot`) because a Next server serves static at `/_next/...`, not `/cli/_next/...` — every previewed app loaded unstyled with a console full of `/cli/_next/static/*` 404s.
+
+**Rule:** scrub cli-only vars (`NEXT_ASSET_PREFIX`, `PORT`, Anthropic creds) from the env at the spawn point via `buildDevServerEnv()` — do NOT rely on the org-runner `env-scrub` PATH wrappers, which only intercept `npm/pnpm/yarn/bun/npx` by name and are bypassed when the binary (e.g. `bun`, or a globally-installed pnpm in `/data/.npm-global/bin`) resolves ahead of `/usr/local/sbin`. Keep `HOST`/`HOSTNAME` (intentionally `0.0.0.0` so the preview proxy can reach the dev server on the pod IP).
+
+## LangGraph Node Wiring Must Stay One Fluent Chain (Node-Name Types)
+
+`new StateGraph(...).addNode('a',...).addNode('b',...)` returns a type whose
+node-name string-literal union grows with each `.addNode`. If you split the chain
+across statements that re-reference the same `const graph` — e.g.
+`graph.addNode('merge',...).addEdge(...); ... graph.addConditionalEdges('merge',...)`
+— the second statement sees `graph`'s ORIGINAL declared type (without `'merge'`)
+and fails with `Argument of type '"merge"' is not assignable to parameter of type
+'<existing node union>'`. Keep every `.addNode/.addEdge/.addConditionalEdges` for
+new nodes in a SINGLE fluent expression so the augmented node-name type flows
+through. (Hit when wiring the post-merge `extract_memory` node in both
+feature-agent-graph.ts and fast-feature-agent-graph.ts.)
+
+## Prompt Files Live One Dir Deeper Than Nodes — Relative Imports Need +1 `../`
+
+`feature-agent/nodes/*.ts` reach `domain/generated/output.js` with five `../`.
+Files under `feature-agent/nodes/prompts/*.ts` are one level deeper and need SIX
+`../`. This only fails at test/runtime (`Cannot find module`), not always at
+typecheck. When adding a new prompt builder that imports a domain type, copy the
+import depth from a sibling in `nodes/prompts/`, not from `nodes/`.
+
+## Adding a FeatureAgentAnnotation State Channel Ripples to Full-State Fixtures
+
+LangGraph's `StateType` makes every channel a REQUIRED key (value may be
+`undefined`, but the key must be present). Adding a channel to
+`FeatureAgentAnnotation` breaks every fixture that builds a *complete*
+`FeatureAgentState` object literal (not `Partial`) — they fail with `Property 'x'
+is missing`. Also update `state.test.ts`: it asserts `channelNames.length).toBe(N)`
+and lists each channel via `toContain`. Known full-state fixtures to update:
+`merge-step-real-git/setup.ts` (`makeState`), `repair.node.test.ts` (`baseState`),
+`langgraph/nodes/fast-implement.node.test.ts` (`createMockState`).
+
+## Test Git Harnesses Must Disable commit.gpgsign
+
+Throwaway git repos created by integration harnesses inherit the developer's /
+runner's global `commit.gpgsign=true`. In environments where signing is enforced
+(e.g. a sandbox signing server that can 400), `git commit` fails during harness
+SETUP — surfacing as unrelated-looking failures (`createLocalOnlyHarness`,
+verify-merge, local-merge). Always `git config commit.gpgsign false` in the
+harness's repo right after setting `user.name/email`, so the harness never
+depends on ambient signing config.
+
+## Debugging Prod 404s: Read the Request's Referer/Origin BEFORE Theorizing
+
+I first "fixed" these `/cli/_next/*` 404s as a per-org-pod build-skew problem (shep-cloud PR #22) — plausible, but WRONG: the failing requests' **`Referer` was the preview host** (`<port>-<org>.preview.shep.bot`), i.e. they came from a *user dev server*, not the cli UI. The ingress access log line carries Referer, status, and `upstream_addr` — read those FIRST. A 404 from a path that a healthy pod serves at 200 means the request isn't going where you assume; the Referer/Host tells you which proxy path (`/cli/*` vs `/preview-proxy`) actually handled it. Confirm the exact failing request path end-to-end before writing a fix.
+
+## No CLI-Only Flows in the Web UI — Every Workflow Must Be Doable from the App
+
+The web UI is the product, not a console for the CLI. Telling a user to "Run `shep aspm ingest --sarif <file> --application <slug>`" from a web empty state is a UX failure: it requires them to leave the browser, know the CLI, know their app slug, and find the file path — none of which the UI helped with. Worse, the empty state stays empty forever because there's no way to populate it from the UI, so the section silently appears broken on every visit.
+
+**Concrete recurrence (spec 098 — ASPM):** Three places shipped with `<code>shep aspm ingest --sarif</code>` instructions in their empty states (`posture-cards.tsx`, `findings-table.tsx`, `aspm-application-section.tsx`). The CLI command existed, the use case existed, the DI wiring existed for everything except the web — but no server action, no dialog, no button. Users had no way to fill the dashboard from the app itself.
+
+**Rule:** If a CLI command exists for a workflow that has any UI surface, the SAME workflow must be reachable from that UI. The CLI is for power users and automation; it is never the primary or only way to do something users will encounter in the browser.
+
+**Checklist when shipping a CLI command that has a paired web surface:**
+
+1. **String-token alias for the use case** — register `container.register('XUseCase', { useFactory: ... })` in the appropriate `register-*.ts` module so a web server action can `resolve<XUseCase>('XUseCase')`. The CLI uses class tokens; the web cannot. Also add the token to `tests/integration/infrastructure/di/container-bootstrap.test.ts` `WEB_ROUTE_TOKENS` so a missing registration trips CI, not production.
+2. **Server action** at `src/presentation/web/app/actions/<name>.ts` that wraps the use case. Always start with `requireFeatureFlag(<name>)`, catch `FeatureFlagDisabledError` separately, and translate other errors into `{ ok: false, error }` so the UI sees a usable shape (never a raw 500).
+3. **Storybook mock** at `.storybook/mocks/app/actions/<name>.ts` — same exported names and signatures, returning fixture data. Without this, the Storybook build fails the moment any component imports the action.
+4. **Dialog or page** that drives the action. File upload? Use FormData + a `<input type="file">` + a labeled drop target. Multi-step? Use the existing `Dialog` primitive with a result panel inline (no second navigation).
+5. **Empty-state CTAs that include the trigger** — never write "Run `shep …`" in an empty state. Write a one-line description of what's missing, then place the trigger button right under it. The user should be able to fix the empty state from where they're standing.
+6. **Persistent entry point** in addition to empty-state CTAs — surface the same trigger somewhere always-visible (sub-nav action, page header button) so a user with existing data can re-run the workflow without first deleting it.
+7. **Revalidate after success** — `revalidatePath('/<section>', 'layout')` so server-component data refreshes without the user reloading.
+
+**Anti-patterns to refuse on sight:**
+
+- `<span>Run <code>shep …</code> to do X</span>` in any web component empty state. Always replace with a button that does X.
+- A web feature that depends on a CLI step the user must run "first" before the web works (e.g. "run `shep init` then refresh"). If init is required, the UI must offer to run it.
+- Surfacing the CLI command as the documentation/help text inside a "How to populate this view" tooltip. Documenting the gap doesn't close it.
+
+**The 5-second test:** open the page in a browser, look at it as a user who has never seen the CLI. Can you complete the primary task on this page without opening a terminal? If no, the page is incomplete.
+
+## Web pages must `import type` use cases — not runtime-import them
+
+Symptom: every `/aspm/*` route returned `Internal Server Error`; Next.js/turbopack logged `Module not found: Can't resolve '../../../../domain/generated/output.js'` (and similar `.js` resolutions deeper in the package). The control-center even returned 500s once the bundler had walked the failing graph once.
+
+Root cause: ASPM server components did `import { GetPostureSummaryUseCase, ... } from '@shepai/core/application/use-cases/aspm/posture/get-posture-summary'`. Importing the *class* as a runtime value forces Next.js to bundle the use-case source, which then walks every `.js`-suffixed relative import inside `packages/core/`. Turbopack's `.js → .ts` resolution doesn't follow those deeper paths reliably, so the bundle fails. Once the graph fails, the dev server enters a stuck state where unrelated routes also 500.
+
+Concrete instance: `src/presentation/web/app/aspm/page.tsx` (and every sibling under `app/aspm/`) used runtime `import { UseCase }` + `resolve(UseCase)`. The convention elsewhere in the repo is `import type { UseCase }` + `resolve<UseCase>('UseCase')` paired with a string-token registration alongside the class token (see `register-use-cases.ts`).
+
+Rules for any new web page or server route:
+
+1. **Always `import type` use cases from `@shepai/core`** — never `import { ClassName }`. Webpack/turbopack will bundle the entire use-case source otherwise, which can break deep relative `.js` imports inside `packages/core/`.
+2. **Resolve via string token** — `resolve<UseCase>('UseCase').execute()`. The use case must also be registered under that string in its DI module.
+3. **Add the string-token alias next to the class registration** in the relevant `register-*.ts` module: `container.register('UseCase', { useFactory: (c) => c.resolve(UseCase) })`. This keeps existing class-token consumers (CLI, tests) working while letting type-only web imports resolve at runtime.
+4. **Domain error classes are safe to runtime-import** when the file has no transitive imports (e.g. `FindingNotFoundError`). Bundling those is harmless because there's no resolution chain to follow.
+5. **If `/aspm/*` (or any route) returns 500 and the log says "Module not found" inside `packages/core/src/`**, the fix is at the *web page*, not the package: swap runtime imports for type imports.
+
+## Owners surface must be populated, not just resolved (feat/aspm-platform, 2026-05-21)
+
+Bug: the ASPM `/aspm/owners` page sat on "No owners yet" forever even when the
+spec promised ownership derived from git committers.
+
+Cause: `ScanApplicationUseCase` resolved a git author email via
+`IGitOwnershipPort.lookup` and then stuffed that raw email straight into
+`SecurityFinding.ownerId`. It never wrote a row to the `owners` table, so
+`IOwnerRepository.listAll()` (which `ListOwnerRollupsUseCase` powers the
+Owners page with) returned empty.
+
+Rule: whenever an external signal (git, OIDC, SSO, agent output) maps to a
+domain entity that has its own rollup/list view, the use case orchestrating
+that signal MUST upsert the entity, not just stamp its identifier on the
+adjacent record. "Resolves to" and "creates the row for" are two separate
+contracts.
+
+How to apply:
+
+- Before reusing an "id" string returned by a port, ask: is there a table whose
+  rollup screen lists rows of that type? If yes, ensure your use case has
+  injected the matching repository and is doing a find-or-create.
+- Cache within a single run (Map<email, ownerId>) to avoid N round-trips when
+  many findings share a committer.
+- Guard the create call against the unique-handle race: on error, re-query.
+
+## In ASPM UI, "branch" = a Feature (worktree), not a git ref on a Repository
+
+The `Repository` domain entity does NOT track multiple branches — it is just `{id, name, path, remoteUrl?}`. The thing users call a "branch" when they ask to "scan this branch" is a **Feature** with a `worktreePath` (and `applicationId` linking back to the parent Application).
+
+When the user requested "scan a repository branch" for ASPM, the right wiring was:
+
+- pass the Feature’s `worktreePath` as a new `scanPath?: string` override on `ScanApplicationUseCase`
+- still attribute findings to `feature.applicationId` (the schema requires it)
+
+Rule: before designing a "scan a branch" / "build a branch" / "deploy a branch" feature, check the Feature entity — not the Repository entity — for `worktreePath` + `branch`. Repositories are just paths.
+
+How to apply:
+
+- If you catch yourself proposing a `branchName` field on Repository, stop — you almost certainly want a Feature reference instead.
+- When extending a use case to scan/build an alternate working tree, prefer an optional `scanPath?: string` (or equivalent) override on the existing use case over inventing a new one. Findings/results still attribute to the Application/Repository row the user cares about.
+
+## Feature.worktreePath is rarely populated — never filter on it
+
+In the live DB virtually every Feature row has `worktree_path = NULL`, even for features in active lifecycle states (Review, Implementation, Maintain). The field only gets set by a few specific flows. Treating it as the source of truth for "is this feature a real branch?" hides almost every feature from any UI that filters on it.
+
+Concrete instance: the ASPM /aspm/inventory page filtered features by `worktreePath !== undefined` so it would only show "scannable" branches. The user expected to see their `feat/aspm-platform` feature under the `cli` repo and instead saw "no applications or branches yet" — because the feature had a null worktree_path even though it had been worked on for weeks.
+
+Rule: never filter feature rows on `worktreePath` for *display* purposes. Use `branch` and `repositoryPath` as the identity of a feature on disk. `worktreePath` is only meaningful when you are about to scan/checkout/spawn against it, and even then you should fall back to `git worktree list` or `<repositoryPath>` instead of hiding the row.
+
+How to apply:
+
+- Inventory / list / explorer views: include every non-Archived, non-deleted Feature. Render `branch` as the secondary identifier.
+- Scan / build / deploy actions: when the action requires an on-disk path, check `worktreePath` per row at action time and disable the action (or fall back) when it is missing — do not pre-filter the row out of the list.
+- Tests: pin down the "row with null worktreePath still appears" case explicitly. It is the more common shape in real data.
+
+## A New Cross-Cutting Context (Memory/Skills) Must Reach EVERY Agent Prompt, Not Just the First Node
+
+When wiring a repository-wide context blob ("Shep Brain" project memory) into the
+feature-agent, the first cut only injected it into the `analyze` and `research`
+prompts. That left the highest-value phases — `implement`, `fast-implement`,
+`merge` (commit + CI-fix) — and the entire interactive chat agent with NO memory.
+The user immediately asked "is anything injecting this when relevant?" — because
+a feature that only reaches 2 of ~8 agent prompts looks done but isn't.
+
+Rules for any cross-cutting context that "every agent should see":
+
+1. **Enumerate every agent-call prompt before claiming done.** For the
+   feature-agent that is: analyze, requirements, research, plan, implement,
+   fast-implement, merge commit-push-pr, AND the CI-fix loop prompt. Plus the
+   interactive agent's `FeatureContextBuilder.buildContext`. Grep for
+   `executor.execute(` and every `build*Prompt(` to find them all.
+2. **Custom-execution nodes are easy to miss.** `analyze/requirements/research/
+   plan` go through `executeNode(name, executor, buildXPrompt)`, but `implement`,
+   `fast-implement`, and `merge` build prompts inline and call the executor
+   directly — they will NOT inherit anything you add to `executeNode`.
+3. **Prompts that don't take graph state need a parameter.** `buildCiWatchFixPrompt`
+   and `buildLocalSquashMergePrompt` take primitives, not `state`. Thread the blob
+   through as an explicit optional arg (and update the caller that has `state`).
+   The CI-fix prompt is the single most relevant place for "past CI fixes" memory.
+4. **The interactive agent is a separate subsystem.** It boots via
+   `BootPromptResolver` → `FeatureContextBuilder.buildContext`. Inject the read
+   use case into the resolver, load by `feature.repositoryPath`, pass the blob in.
+   Best-effort: a load failure must never block session boot.
+5. **Provide a raw-string renderer, not just a state-based one.** Expose
+   `renderProjectMemoryBlock(blob)` alongside `buildProjectMemorySection(state)`
+   so non-state prompts can render the identical block without duplicating the
+   defensive framing text.
+6. **Test the breadth.** One parametrised test asserting the section appears in
+   every prompt (and is omitted when empty) is the proof that "all agents see it".
+
+## Injecting a Knowledge Store Into Prompts: Select Per-Prompt, Don't Dump the Whole Thing
+
+First we injected the FULL project-memory blob into every agent prompt. The user
+pushed back: "we shouldn't inject the whole memory, we should have a smart
+mechanism to understand what we need to inject per project/repo/task/prompt."
+Dumping everything bloats prompts, drowns the relevant entries in noise, and
+scales badly as the store grows.
+
+The pattern for injecting any growing knowledge store (memory, skills, docs)
+into an LLM prompt:
+
+1. **Make selection a first-class, pluggable port.** Define an
+   `IMemoryRelevanceScorer` (score(query, entries) → ranked) so a deterministic
+   scorer ships now and a semantic/embedding scorer can drop in later without
+   touching callers. Keep it agent-agnostic — no provider SDK in the port.
+2. **A deterministic scorer is enough for v1 and needs no deps:** combine
+   (a) lexical overlap between the entry and the task text, (b) phase→category
+   affinity (CI-fix cares about past CI fixes; implement cares about conventions
+   & naming), and (c) recency. Weight and sum to [0,1].
+3. **Budget, don't cap by count.** Greedily include top-ranked entries up to a
+   token budget so prompt size is bounded no matter how big the store is. Always
+   include at least the single most relevant entry.
+4. **Select per prompt at execution time, not once globally.** The worker used to
+   load ONE blob into state. Wrong — each phase/task wants a different subset.
+   Select inside the node boundary (async) with the phase + a derived task text,
+   then pass the selected blob to the (still pure, still sync) prompt builder via
+   a shallow-cloned state. Prompt builders and their tests stay unchanged.
+5. **The query is context-specific.** Derive task text from the spec/research/plan
+   for producer phases; use the FAILURE LOGS as the query for the CI-fix prompt
+   (so matching past fixes surface); use the feature name/description for the
+   interactive agent.
+6. **Thread the selector as an OPTIONAL dep** through graph deps → node factories
+   → executeNode (and the custom nodes). Optional = existing tests/callers keep
+   compiling and behave as before (no selector → no selection).
+7. **When you mock node-helpers in a node test, add every new export the node
+   imports** (e.g. `applyMemorySelection`) or the node throws "x is not a
+   function" at runtime.
+
+## Wiring an Optional External Capability (Embeddings) Agent-Agnostically + CI-Safe
+
+To add semantic memory ranking without violating the agent-agnostic rule or
+breaking offline CI:
+
+1. **Define an output port** (`IEmbeddingProvider { isAvailable(); embed() }`) and
+   keep the concrete adapter provider-agnostic — any OpenAI-compatible endpoint
+   via `fetch`, configured by env (`SHEP_EMBEDDINGS_API_KEY/BASE_URL/MODEL`). No
+   provider SDK imported, no hardcoded vendor.
+2. **Gate on config + degrade gracefully.** `isAvailable()` is false without an
+   API key, so the default/offline/CI path makes ZERO network calls and behaves
+   exactly as before. The semantic scorer composes the deterministic one and
+   **falls back to it** when the provider is unavailable, the task text is empty,
+   or any embedding call throws. Selection must never fail.
+3. **Compose, don't fork.** The embedding scorer injects the lexical scorer as
+   its fallback and both share one `rankByContentScore(query, entries, contentFn)`
+   helper — only the content signal differs (token overlap vs. cosine). No
+   duplicated category/recency/weight/sort logic.
+4. **Cache embeddings in-process** keyed by a hash of the text, so the same entry
+   isn't re-embedded across the many selections in one agent run.
+5. **Test offline.** Stub the provider for the scorer tests (cosine ranking,
+   fallback, cache); spy on `globalThis.fetch` for the adapter test. Never make a
+   real network call — the no-key default keeps the whole suite deterministic.
+6. **eslint `prefer-nullish-coalescing` vs. empty env strings:** `process.env.X ||
+   DEFAULT` is flagged. But `??` won't fall back on an empty string. Use
+   `const v = process.env.X?.trim(); return v && v.length ? v : DEFAULT;`.
+## Release-notes generator: ground the tagline in commit types, pin evidence to an immutable ref
+
+Two bugs shipped together in the v1.210.0 GitHub release (custom `scripts/release-notes-*.mjs` semantic-release plugin):
+
+1. **Tagline contradicted the changelog.** Claude wrote _"Under the hood maintenance and housekeeping — no user-facing changes…"_ for a release whose only commit was a `feat` (gated behind a feature flag). A flagged feature still ships. The prompt let Claude reason "behind a flag ⇒ internal", and nothing validated the result against the actual commit types.
+2. **Evidence images 404'd.** PR bodies embedded `raw.githubusercontent.com/owner/repo/<feature-branch>/specs/.../evidence/*.png`. After squash-merge the branch is deleted ⇒ broken images. The extractor added PR-body URLs verbatim.
+
+Fixes:
+
+- `buildPrompt` now branches on `hasUserFacingChanges` (any feat/fix/perf) and explicitly forbids "maintenance / housekeeping / under the hood / behind the scenes / no user-facing changes" framings for user-facing releases. Plus a post-generation guard (`isMaintenanceOnlyFraming`) rejects a contradictory tagline and falls back to the static one.
+- `normalizeRepoMediaUrl` rewrites any repo-hosted raw/blob URL to the immutable release tag (`nextRelease.gitTag`), threaded through as `ref`. Bare `specs|docs|evidence` paths now also pin to the tag, not `main`.
+
+Rules:
+
+- A git **ref can contain slashes** (`feat/aspm-platform`). You cannot split ref-from-path positionally in a `raw.githubusercontent.com/owner/repo/<ref>/<path>` URL. Recover the path by locating the first known repo root segment (`specs`/`docs`/`evidence`), not by `slice(3)`.
+- Anything permanent (release notes, changelog) must reference an **immutable ref** (tag or commit SHA), never a branch — branches get deleted.
+- When an LLM writes user-facing copy from structured data, **validate the output against that same data** before publishing. Don't trust the prompt alone; add a deterministic guard that falls back on contradiction.
+- `.mjs` scripts under ESLint need browser/Node globals declared: `/* global fetch, URL */`.
+
+## A public key in source still trips gitleaks: allowlist by rule, not fingerprint
+
+Setting `BUILT_IN_POSTHOG_KEY` to the PostHog project key (`phc_…`, public and write-only)
+failed CI's Gitleaks job on the generic-api-key rule. Local checks never run gitleaks, so it was
+only found after pushing. Rules: run CI's exact command before pushing any key-shaped literal
+(`gitleaks detect --source . --config .gitleaks.toml --gitleaks-ignore-path .gitleaksignore`,
+v8.30.1); allow a known-public key with a `[[allowlists]]` entry that ANDs the file path with the
+key's pattern, never a `.gitleaksignore` fingerprint (it embeds the commit SHA, so the
+squash-merge to main fails again); and check the allowlist is tight by scanning a throwaway git
+repo where the same key sits in another file. Anchored `paths` only match repo-relative paths,
+so test in git mode, not `--no-git` (which reports absolute paths).
+
+## Tag-triggered CI is defeated by `[skip ci]`; org ghcr first-push needs a PAT
+
+The `docker-publish.yml` workflow (issue #822 / PR #824) was written to trigger on `push: tags: v*`, then never ran on any release. Two independent bugs:
+
+1. **`[skip ci]` on the tagged commit skips the tag-push event.** semantic-release's `@semantic-release/git` commits `chore(release): x.y.z [skip ci]`, then tags THAT commit. GitHub Actions inspects the head commit of a pushed ref (including tag pushes) and skips ALL workflows when it contains `[skip ci]`. So a `push: tags: v*` trigger for a semantic-release tag can NEVER fire.
+2. **`GITHUB_TOKEN` 403s on the first org package publish.** Pushing to `ghcr.io/<org>/<repo>` returns `403 Forbidden` until the package exists and is linked to the repo. First creation needs a PAT with `write:packages` (we already have `RELEASE_TOKEN`), or a one-time manual publish + repo-link.
+
+Rules:
+
+- To run CI **after a semantic-release release**, trigger on `on: release: types: [published]` — the `release` event is immune to `[skip ci]` and cascades because the release is created with a PAT (`RELEASE_TOKEN`), not the default `GITHUB_TOKEN`. Do NOT rely on `push: tags: v*`.
+- For **org-owned ghcr packages**, authenticate the first publish with a PAT that has `write:packages`; the built-in `GITHUB_TOKEN` cannot create the package. After it exists and is repo-linked, `GITHUB_TOKEN` works.
+- A merged PR whose mechanism was never exercised end-to-end is not "done." Verify a workflow actually RAN (`gh run list --workflow=…`) and produced the artifact — a green syntax check proves nothing about triggers.
+- Install `git` in the Docker **builder** stage if the build invokes it (prebuild/generate) — `git: not found` silently drops version metadata even when the build "succeeds".
+## Client Components May Only TYPE-Import From Server-Only lib Modules (fs-backed)
+
+`src/presentation/web/lib/skills.ts` reads the filesystem (`node:fs/promises`, `node:path`, `node:os`, `js-yaml`) and is therefore **server-only**. `skill-list.tsx` (a client component) originally imported **only types** from it (`import type { SkillData }`) — types are erased at compile time, so nothing from the module reaches the browser bundle.
+
+I added a runtime helper (`derivePackage`) + a constant to `lib/skills.ts` and imported them as **values** into `skill-list.tsx`. `tsc`, vitest, and `pnpm build` all passed. But `pnpm build:storybook` (a Vite/Rollup **browser** bundle) failed:
+
+```
+"readdir" is not exported by "__vite-browser-external", imported by "src/presentation/web/lib/skills.ts"
+```
+
+A value import forces the bundler to actually include the module, dragging Node built-ins into a browser build that has no polyfills for them.
+
+**Rules:**
+1. From a client component (or anything Storybook bundles), import **only `type`** from an fs-backed / Node-built-in-importing lib module. Never import a runtime value (function, `const`, class) from it.
+2. When a client component needs a **pure** helper that logically belongs "next to" server-only code, put the helper in its own **browser-safe module** (no `node:*` / `fs` / `js-yaml` imports) and import it from both sides. Here: `lib/skill-package.ts` holds `derivePackage` + `UNGROUPED_PACKAGE_LABEL`, imported by both the client component and (potentially) the server module.
+3. `pnpm typecheck` + `pnpm build` (CLI/`tsc`) will **not** catch this — only the browser bundle does. For any web-UI change, run `pnpm build:storybook` locally before pushing (already required by `.claude/rules/cicd.md`). Treat a value-import from a server-only lib as the first suspect when the preview build fails with `"X" is not exported by "__vite-browser-external"`.
+
+## Deduplicate a Merged List Across the WHOLE Set, Not Just One Source vs Another
+
+`getSkills` merges project + global skills and used them as React keys (`key={skill.name}`). It deduped **project-vs-global** only (`seen = new Set(projectSkills.map(...))`, then `globalSkills.filter((s) => !seen.has(s.name))`) but never added accepted global names back to `seen`. Two global skill directories (`connect-chrome` and `open-gstack-browser`) both declared `name: open-gstack-browser`, so both survived → duplicate React keys → runtime "Encountered two children with the same key" error (only visible in the browser console / Next.js dev overlay, not in tests or `tsc`).
+
+**Rules:**
+1. When deduping a **merged** collection, dedupe across the entire combined set — add every accepted item's key back into the `seen` set as you go, not just the keys from the first source.
+2. Two distinct on-disk entries can advertise the **same logical id** (frontmatter `name`). Never assume directory names guarantee uniqueness of the id you key on.
+3. Duplicate-key bugs don't fail `tsc`/vitest — surface them by loading the real page and watching the **browser console** (Playwright `page.on('console')`) during evidence capture.
+
+## Adding a Model to the Catalog Is a Four-Touch Change, Not One
+
+`claude-sonnet-5` was added to `CLAUDE_CODE_MODELS` and `CURSOR_MODELS` in
+`agent-model-catalog.ts` plus `model-metadata.ts` — but **not** to
+`CURSOR_MODEL_MAP` in `cursor-executor.service.ts`. `toCursorModelName()` falls
+back to pass-through, so the Cursor CLI silently received `claude-sonnet-5`
+instead of the short `sonnet-5` name it expects. A pass-through fallback means
+a missing mapping never throws; it just sends the wrong flag value at runtime.
+The Storybook mocks had drifted too (`get-supported-models.ts` /
+`get-all-agent-models.ts` still listed the pre-Fable-5 set).
+
+**When adding or retiring a model ID, touch all five:**
+
+1. `packages/core/src/infrastructure/services/agents/common/agent-model-catalog.ts` — every agent list that actually supports it (ordered most-capable first).
+2. Per-agent **name translation maps** — `CURSOR_MODEL_MAP` (`cursor-cli.ts`) and `LEGACY_MODEL_ALIASES` (copilot-cli-executor). Each agent CLI has its own naming convention; a pass-through fallback hides the omission.
+3. `src/presentation/web/lib/model-metadata.ts` — display name + description. Without it the picker shows a prettified raw ID and an empty description. Re-check the *neighbouring* descriptions too: a new flagship makes the old "Most capable" line a lie.
+4. `.storybook/mocks/app/actions/get-supported-models.ts` and `get-all-agent-models.ts` — static mocks that don't import the catalog, so they drift silently and stories render a stale list.
+5. `packages/core/src/domain/shared/model-tier.ts` — the `MODEL_TIERS` table (family + High/Medium/Low). A model missing from it is not an error: it simply opts out of adaptive routing, so a new flagship silently never becomes the High-tier target and a new small model is never selected for Low-complexity tasks. There is no test that can catch the omission, because "unknown model passes through unchanged" is the deliberate safe default.
+
+**Do NOT** add a Claude model to `COPILOT_CLI_MODELS` / `OPENROUTER_MODELS` just
+because Anthropic shipped it — those lists are gated by what the third party
+actually serves. Verify against that provider before extending them.
+
+**Regression lock:** `tests/unit/infrastructure/services/agents/agent-executor-factory.test.ts`
+asserts the exact list per agent, and `cursor-executor.test.ts` asserts the
+`--model` flag value per canonical ID. Extend both in the same diff.
+
+## MCP tool handler return types must be `type`, not `interface`
+
+Extracting the shared `withErrorHandling` helper for MCP tools, I typed its
+return as `interface McpToolResult { ... }`. The four existing tool files had
+used an inline anonymous object literal. `packages/core` typecheck then failed
+on every `server.registerTool(...)` call: `Index signature for type 'string'
+is missing in type 'McpToolResult'`. The SDK's handler return type is
+`{ [x: string]: unknown; content: ...; ... }`, and a **named `interface` does
+NOT get an implicit index signature** (it can be augmented via declaration
+merging), whereas a **`type` alias / inline object literal does**. So an
+interface is not assignable to a type that has an index signature, but the
+equivalent `type` is.
+
+**Rules:**
+1. Any object shape that must satisfy a third-party "bag of unknown props"
+   contract (an index signature like `{ [x: string]: unknown }`) MUST be a
+   `type` alias, never an `interface`.
+2. This repo's eslint enforces `@typescript-eslint/consistent-type-definitions`
+   (prefer `interface`). When a `type` is required for the index-signature
+   reason above, add a one-line `// eslint-disable-next-line` with a comment
+   explaining why — don't silently fight the linter.
+3. Refactoring an inline type into a named one can introduce this failure even
+   when the values are identical; run `tsc` on the touched package after the
+   extraction, not just the unit tests (vitest transpiles per-file and won't
+   catch a cross-call assignability error).
+
+## Capturing Storybook evidence screenshots in a sandboxed session
+
+Needed screenshots of a new web component for PR evidence. Two traps:
+
+1. **The Playwright MCP defaults to system Chrome** (`/opt/google/chrome/chrome`),
+   which isn't installed — it errors with "Chromium distribution 'chrome' is
+   not found". The sandbox ships Playwright's own Chromium at
+   `/opt/pw-browsers/chromium-<rev>/chrome-linux/chrome`
+   (`PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers`). Don't run
+   `playwright install`. Instead drive it with the project's `@playwright/test`
+   via a script: `chromium.launch({ executablePath: '/opt/pw-browsers/chromium-<rev>/chrome-linux/chrome' })`.
+2. **A `.mjs` script placed in the scratchpad (`/tmp/...`) can't resolve repo
+   `node_modules`** — `import ... from '@playwright/test'` throws
+   ERR_MODULE_NOT_FOUND. Write the throwaway script at the repo root (then
+   `rm` it) so Node resolves modules from the project.
+
+Workflow that works: `storybook dev -p 6006 --no-open --quiet` in the
+background → poll `curl -sf localhost:6006/index.json` → find story ids in
+`index.json` → screenshot each `iframe.html?id=<story-id>&viewMode=story`,
+toggling `colorScheme` / `document.documentElement.classList.add('dark')` for
+dark mode. Commit PNGs under an `evidence/` dir and embed in the PR comment
+via `https://github.com/<owner>/<repo>/blob/<branch>/<path>.png?raw=true`
+(renders inline for authorized viewers, private repos included).
+
+## Two vocabularies for the same concept = a silently wrong default
+
+The create drawer's Fast/Spec picker showed **nothing** selected and every
+web-created feature ran the spec workflow even when Fast was clicked. Two
+independent causes, both invisible to the type system:
+
+1. **Casing drift between a persisted label and a domain enum.**
+   `settings.workflow.defaultMode` predates `BuildMode` and stores
+   `'Regular' | 'Fast' | 'Exploration'`; the enum is lowercase
+   (`'fast' | 'spec' | ...`). Consumers wrote `defaultMode as BuildMode` and
+   `defaultMode !== 'spec'` — both compile, both are always wrong. Fix:
+   `normalizeBuildMode()` in `domain/shared/build-mode.ts` is the ONE bridge;
+   every reader funnels through it.
+2. **A field renamed at a layer boundary and dropped by an object spread.**
+   The web action forwarded `...(mode ? { mode } : {})` while
+   `CreateFeatureUseCase` reads `buildMode`. Excess-property checking does NOT
+   apply to spread properties, so TS never flagged it and the mode vanished.
+
+**Rules:**
+- Never write `someString as SomeEnum`. If a stored value must become an enum,
+  route it through a normalizer that handles legacy spellings and has a
+  documented fallback — and unit-test the legacy spellings, not just the
+  canonical ones.
+- A UI picker whose "selected" state is `value === option` MUST render exactly
+  one pressed option for ANY input. Collapse out-of-range/legacy values onto a
+  renderable option instead of letting the group render all-unpressed.
+- When wiring a payload across a layer boundary, grep the *receiving* type for
+  the field name. `...(x ? { x } : {})` into a typed parameter is an
+  unchecked hole — a typo or rename there fails silently at runtime.
+- Component tests that only feed canonical enum values prove nothing about
+  production data. Add a case using the value the DB actually holds
+  (`sqlite3 ~/.shep/data "select default_mode from settings"` — check it).
+
+## A unit test that spawns a real binary is a timeout waiting for CPU contention
+
+`project-memory-section.test.ts` passed alone in 22s and failed in the full
+suite with `Test timed out in 60000ms` — on a *synchronous* test body. The cause
+was not the test but what it reached: `FeatureContextBuilder.buildContext()`
+builds its CLI-reference section with `execFileSync('shep', ['--help'])` plus
+one `execFileSync('shep', [cmd, '--help'])` per subcommand. With shep installed
+in PATH that is dozens of real CLI boots inside a "unit" test; with shep absent
+it silently takes the `catch` branch instead. Either way the assertions under
+test (the project-memory block) never needed a subprocess.
+
+**Rules:**
+- A test under `tests/unit/` must not spawn a process, touch the network, or
+  depend on what is installed in PATH. If the code under test does, mock the
+  boundary (`vi.mock('node:child_process', ...)`) — do not raise the timeout.
+- Diagnose a timeout on a synchronous test body as hidden I/O, never as
+  flakiness. Sync code cannot time out on its own; something under it blocked.
+- A test that passes in isolation and fails in the full suite is a resource
+  problem, not a fluke. Compare its solo duration against the timeout: 22s of
+  a 60s budget leaves no headroom once workers compete for CPU.
+- Machine-dependent branches (`try { spawn } catch { fallback }`) make a test
+  assert different things on CI than on a dev box. Pin the branch explicitly.
+
+
+## An event-only invariant strands state the moment nobody is listening
+
+A feature sat `Blocked` under a parent that had merged, completed, and been
+archived. Nothing was ever going to release it, for three compounding reasons:
+
+1. **Wrong argument to a fan-out.** `ReparentFeatureUseCase` called
+   `checkAndUnblock.execute(featureId)` — the *reparented child's* id, which
+   evaluates that child's own children. The feature just attached was never
+   evaluated against its NEW parent. Its `newLifecycle` branch also only ever
+   *added* `Blocked`; there was no branch that cleared it.
+2. **A gate duplicated in four places.** `COMPLETED_LIFECYCLES.has(parent.lifecycle)` (then named `POST_IMPLEMENTATION`)
+   was inlined in create / start / reparent / check-and-unblock. Copies drift.
+3. **`Archived` slammed the gate shut.** Auto-archive moves *every* completed
+   feature to `Archived` on a delay, and `Archived ∉` the gate set — so
+   waiting long enough was itself enough to strand a child forever.
+
+**Rules:**
+- An invariant enforced only as a side effect of a *transition* is dead the
+  moment nothing transitions again. Terminal states have no next event. For any
+  "when X advances, release Y" rule, also provide a **state-side reconciler**
+  that restores it from the data (`ReconcileBlockedFeaturesUseCase`, swept
+  fire-and-forget on dashboard load next to `AutoResolveMergedBranchesUseCase`).
+- A gate belongs in ONE domain predicate (`satisfiesDependencyGate()`), not as
+  `SET.has(entity.field)` at each call site. Callers delegate; they do not
+  re-derive. Make the owning use case *return what it did* so callers never need
+  to re-check the condition themselves.
+- Ask of every terminal/bookkeeping state: does it still satisfy the predicates
+  the pre-terminal state satisfied? `Archived` must answer via
+  `previousLifecycle` — archiving is filing, not a rollback of progress.
+- Every writer of a lifecycle field must route through the use case that owns the
+  transition's side effects. `merge.node.ts` wrote `Maintain` straight to the
+  repository, so the LAST transition a feature ever made was the one that never
+  fired its hook. Use `setFeatureLifecycle()` to announce transitions with no
+  graph node of their own.
+- When a status tree looks self-contradictory, check whether the two columns come
+  from two sources: `feat ls` derives "Completed" from the **agent run** and
+  "Blocked" from the **feature lifecycle**. Confirm against the DB
+  (`sqlite3 ~/.shep/data`) before theorising — and read `phase_timings.phase` to
+  tell which code path actually ran (`rebase` = manual, `rebase-on-parent` = auto).
+- `findByParentId` deliberately includes soft-deleted rows for cascade deletes.
+  Any other caller must filter `deletedAt` or it will resurrect deleted work.
+
+## A timeout override that shortens the budget on the slowest platform
+
+`E2E CLI (windows-latest)` failed with `expected 1 to be +0` on
+`shep restart` — no stack, no CLI output, nothing to diagnose. Two defects:
+
+1. **The override went the wrong way.** `createCliRunner`'s default timeout is
+   platform-aware (15s posix / **30s win32**), but five call sites in
+   `daemon-lifecycle.test.ts` hardcoded `timeout: 20_000` with the comment
+   "needs longer timeout on Windows". A flat 20s is *longer* than the posix
+   default and *shorter* than the Windows one — so the most expensive commands
+   in the suite (restart/upgrade: stop with a 5s poll + start + spawn) got the
+   tightest budget on the slowest platform.
+2. **A killed process is indistinguishable from a failed one.** `execSync` sets
+   `status: null` when it kills on timeout, and the helper did
+   `exitCode: execError.status ?? 1`. Every timeout therefore reported as
+   "exited 1", which is why the CI log said nothing useful.
+
+**Rules:**
+- Never hardcode a timeout that overrides a platform-aware default. Derive it
+  (`isWindows ? … : …`) and assert the relationship you intend — an override
+  meant to *raise* a budget must be checked against the value it replaces.
+- Keep the layered timeouts ordered: per-command exec timeout < vitest per-test
+  timeout, so the inner one wins and produces the diagnosable error. Raising one
+  without the other just changes which layer kills you.
+- Any `?? 1` fallback for an exit code erases the difference between "killed" and
+  "failed". Detect the kill (`status == null`) and say so in `stderr` — the CI log
+  is the only forensic artifact you get from a platform you cannot reproduce on.
+- Before blaming your diff for a platform-only CI failure, check the last main
+  run (`gh run list --branch main --workflow CI/CD`), then read the *mechanism*.
+  Latent flakes surface when a budget is already at its edge.
+- `tests/e2e/cli/script-runner.test.ts` skips Docker scripts when Docker is
+  absent, but if Docker is present-but-cold the base-image pull happens *inside*
+  the build deadline and fails as `DeadlineExceeded`. `docker pull node:22-slim`
+  first, then re-run.
+
+## A self-healing sweep on one presentation surface is not an escape hatch
+
+`ReconcileBlockedFeaturesUseCase` fixes the stranded-Blocked invariant, but it is
+wired into exactly one caller: the web dashboard's `get-graph-data`. A CLI-only
+user hitting `shep feat start` on a stranded feature gets
+`not in Pending state (current: Blocked)` and has **no command** to recover —
+there is no `shep feat unblock`, and `feat start` has no `--force`. The only route
+was a raw `UPDATE features SET lifecycle='Pending'` plus temporarily
+unarchiving the parent so the gate would pass on the older installed build.
+
+**Rules:**
+- When you fix a stuck-state bug, ship the manual override alongside the automatic
+  repair. The automatic path only helps users already on the new version; the
+  override is what rescues the DBs that are *already* wrong.
+- A reconcile/repair use case must be reachable from every presentation layer
+  (per `.claude/rules/code-quality.md` — "every feature MUST be implementable in
+  ALL presentation layers"). Registering it in the DI container and calling it
+  from one Next.js loader is half a feature.
+- Any lifecycle precondition that rejects a state the system can enter *by itself*
+  needs a documented recovery command in the error message — "Only pending
+  features can be started" tells the user what is wrong and nothing about what to do.
+
+## A test that kills processes must not share state with one that expects success
+
+The timeout test above then failed on `ubuntu-latest` only: two tests killed the
+CLI 1ms into first-run SQLite initialisation, and a third asserted
+`shep --version` exits 0 — all three sharing the runner's module-level
+`SHEP_HOME` (one temp dir per test *file*, not per test). A dying process can
+still hold the DB lock, so the third test inherited the wreckage. It passed on
+macOS, where 1ms barely clears `exec` and nothing had touched the DB yet.
+
+**Rules:**
+- A test that deliberately kills a process must own its `SHEP_HOME`
+  (`createIsolatedCliRunner()`), never the file-level shared one. Auto-isolation
+  is per *file* — that is not isolation between tests that corrupt state.
+- Don't assert on a *success* path to prove a *failure*-classification flag.
+  Asserting "a real non-zero exit is not flagged as a timeout" via an unknown
+  command needs no database and tests the distinction directly; asserting it via
+  `--version` exit 0 imports every first-run initialisation risk for nothing.
+- Every assertion on a spawned process must carry stdout/stderr in its message.
+  `expect(result.exitCode).toBe(0)` on a remote platform yields
+  `expected 1 to be +0` and nothing else — the second CI round-trip is the price.
+- Confirm the mechanism locally before pushing a theory: scripting the exact
+  sequence (kill, kill, run) disproved the first guess in 30s, which is what
+  redirected the fix from "harden the assertion" to "stop sharing the home".
+
+## A relative path is meaningless without the directory it is relative to
+
+`validateFileExistence` called `stat(e.relativePath)` on paths like
+`specs/108-dev-server-auto-start/evidence/shot.png`. The evidence agent runs with
+`cwd = state.worktreePath`, but validation runs back in the daemon, so Node
+resolved those paths against the daemon's `process.cwd()` — a different directory
+entirely. Every committed evidence file reported "Evidence file not found", the
+node burned all three `evidenceRetries` re-capturing files that already existed,
+and then degraded to shipping partial evidence. The files were on disk, committed,
+and pushed the whole time.
+
+**Rules:**
+- **A function that consumes a relative path must take its base directory as a
+  parameter.** Not a default, not an ambient `process.cwd()` — a parameter. Every
+  *other* step in this pipeline (`buildExecutorOptions`, `buildEvidencePrompt`,
+  `saveEvidenceManifest`) computed `state.worktreePath || state.repositoryPath`
+  explicitly; validation was the one place that let Node guess, and the guess was
+  wrong everywhere except a developer's own checkout.
+- **`process.cwd()` is a property of the host process, not of the work.** In a
+  daemon that shells agents into worktrees, cwd is never the interesting
+  directory. Treat a bare `stat`/`readFile`/`existsSync` on a relative path in
+  long-lived server code as a bug on sight.
+- **Mocking `fs` hides path-resolution bugs by construction.**
+  `evidence-output-parser.test.ts` stubs `node:fs/promises` wholesale and asserts
+  only the returned strings, so it passed for as long as the defect existed and
+  would have kept passing. Path resolution needs one real-filesystem test with a
+  temp dir and a cwd deliberately pointed elsewhere — mocks agree with whatever
+  you already believe.
+- **When a validator reports that all N items failed, suspect the validator.** A
+  uniform failure across every record is a systemic resolution/config fault, not
+  N independent mistakes. Verify one item by hand (`ls` the path, `git ls-tree`
+  the commit) before regenerating anything — re-capturing evidence would never
+  have fixed this.
+
+## React Context Over-Rendering and Aggressive Polling Cause UI Lag
+
+**Symptom:** The `shep` web application became extremely laggy, with click interactions taking a long time to react. The application felt unresponsive.
+
+**Root Causes:**
+
+1. **Context Over-Rendering:** `TurnStatusesProvider` managed a large `Record<string, TurnStatus>` object representing all active session statuses. It passed this entire object down via `TurnStatusesContext`. Because `useAllTurnStatuses` updated this object with a new reference on *any* status change (via a single SSE stream), `TurnStatusesProvider` re-rendered. This caused *every* component calling `useTurnStatus(id)` to re-render, even if their specific `id` hadn't changed, because the context value identity changed. This is a classic React context anti-pattern.
+2. **Aggressive Database Polling:** Several components (`applications-page-client.tsx`, `clusters-page-client.tsx`, `git-status-cluster.tsx`) were using `refetchInterval` of 3,000ms or 5,000ms. The `listDeployments` action polled the database synchronously via `better-sqlite3` and checked `process.kill(pid, 0)` every 3 seconds per open browser tab. While individually fast, this frequent synchronous activity caused noticeable background noise and event-loop pressure.
+3. **Heavy Component Re-renders:** Heavy components like `@monaco-editor/react` (used in `EditorPane`) were subject to these frequent parent re-renders. Even if Monaco is dynamically loaded, frequent React reconciliation around it contributes significantly to UI jank.
+
+**Rules and Fixes:**
+
+1. **Use Zustand for Fine-Grained Subscriptions:** Global, frequently updating state (like event streams) should NOT be passed through React Context as a single large object. Replaced `TurnStatusesContext` with a Zustand store (`useTurnStatusStore`). Components now subscribe only to the specific slice they need (`useTurnStatusStore(state => state.statuses[scopeId])`), preventing widespread re-renders.
+2. **Memoize Heavy Components:** Wrapped `EditorPane` with `React.memo` to ensure the heavy Monaco editor only re-renders when its specific props (`activePath`, `openFiles`, etc.) actually change, shielding it from unrelated parent updates.
+3. **Audit Polling Intervals:** Increased `refetchInterval` from 3,000ms/5,000ms to 10,000ms. If real-time updates are critical, use SSE or WebSockets instead of frequent short-interval polling, especially when the backend performs synchronous I/O or system calls.
+
+
+## AgentType Additions
+- When adding a new `AgentType` (like `LlmProxy`), you must update `tests/unit/domain/shared/agent-resume-descriptor.test.ts` to include the new enum value in the exhaustive enum sweep check, otherwise it will fail to compile (TS2741).
+- In `tests/unit/infrastructure/services/agents/agent-executor-factory.test.ts`, the test `should list supported agents` has a strict `.toHaveLength(N)` assertion which must be incremented manually when adding a new supported agent type.
+
+## YAML Specifications
+- The tests parsing existing specs (`spec-yaml-backward-compatibility.test.ts`) require valid YAML formatting for block scalars (`content: |`). Empty lines must be completely empty (no trailing spaces), and lines starting with special characters like `@` without spaces at the column start break the indentation.
+
+## Vitest mock exports must match actual module exports
+
+When modifying a module's exports (e.g. changing `useAllTurnStatuses` to `useTurnStatusSync`), vitest mocks using `vi.mock()` that return an object missing the expected exports will fail at runtime with `TypeError: (0, ...useTurnStatus) is not a function` or `Error: [vitest] No "useTurnStatusSync" export is defined...`. Vitest strictly verifies that if a module is mocked, any named import actually exists on the mocked object. 
+
+**Rule:** Always search the codebase for `vi.mock('path/to/module')` whenever you rename, add, or remove an exported function from a module, and ensure all test files update their mock returns to match the new signature.
+
+## A per-node "skip if already completed" check must distinguish crash-resume from rejection-rework
+
+`fast-implement.node.ts` unconditionally skipped execution whenever `fast-implement`
+was already in `feature.yaml`'s `completedPhases`. That check exists to make the
+crash/error-resume path idempotent (a fresh `graph.invoke` from `START` after a
+worker crash must not redo finished phases). But `merge.node.ts` also routes back
+to `fast-implement` on a **merge rejection**, setting `_needsReexecution: true` —
+and since `fast-implement` was already marked complete from the first pass, the
+same skip fired, silently discarding the user's rejection feedback and looping
+straight back to merge review. Log symptom: `"Phase already completed, skipping
+execution"` immediately followed by no re-implementation at all.
+
+**Rule:** any node with a hand-rolled `getCompletedPhases().includes(phase)` skip
+guard (i.e. one that doesn't go through the shared `executeNode()` helper in
+`node-helpers.ts`, which already handles this correctly) must also check the
+graph's rework signal (`state._needsReexecution`) before skipping — the guard
+becomes `completedPhases.includes(phase) && !state._needsReexecution`, which is
+enough on its own; do **not** also clear the completed flag, as a phase marker
+mutated on the rework path is a second source of truth for the same decision.
+`_needsReexecution` is `false` by
+default on every fresh invocation, so it safely distinguishes "legitimate resume
+skip" from "must re-execute for rejection rework." Prefer routing new fast-mode
+nodes through `executeNode()` instead of reimplementing this check by hand.
+
+## Real-git integration tests must isolate the host's global/system git config
+
+`tests/integration/.../merge-step-real-git/local-merge.test.ts` and
+`smoke.test.ts` asserted a freshly-`git init`'d harness repo has **no** remotes,
+but failed with `git remote` reporting `origin` — not because the harness added
+one, but because the developer/CI machine's `~/.gitconfig` had a stray
+`[remote "origin"]` section (even one with only `prune = true`, no `url`). Git
+merges system + global + local config into one view, so that phantom section
+leaked into every repo's `git remote` output, including brand-new ones.
+
+**Rule:** any test harness that shells out to the real `git`/`gh` binaries
+(`execFile` rather than a mock) must isolate `GIT_CONFIG_GLOBAL=/dev/null` and
+`GIT_CONFIG_SYSTEM=/dev/null` in the child process env. Otherwise the test's
+pass/fail outcome depends on the ambient config of whatever machine runs it —
+a correctness bug in the harness, not flakiness in the test itself. Fixed once,
+centrally, in `setup.ts`'s `makeRealExec()` so every test in the suite inherits
+the isolation.
+
+## A `try` that both calls and throws swallows its own error
+
+`PtyTerminalSessionService.create()` guarded the cwd check like this:
+
+```ts
+try {
+  const stat = statSync(input.cwd);
+  if (!stat.isDirectory()) throw new Error(`Working directory is not a directory: ${cwd}`);
+} catch (error) {
+  if (error instanceof Error && 'code' in error) { /* ENOENT / EACCES mapping */ }
+  throw new Error(`Cannot access working directory: ${cwd}`);   // <- catches its own throw
+}
+```
+
+The `isDirectory` error has no `code`, so it fell past the errno branches and was
+rewritten as the generic "Cannot access" message. The specific diagnosis was
+computed, then discarded — and a unit test asserting the precise message is the
+only thing that shows it, because both paths still throw.
+
+**Rule:** a `try` block wraps **only** the call that can fail. Validation of that
+call's *result* goes after the `catch`, never inside the `try` — otherwise the
+catch-all rethrow becomes a silent overwrite of your own error. Any `catch` that
+ends in an unconditional `throw new Error(...)` must be read as "every error
+raised above me is now this message."
+
+## Adding a method to a port interface breaks every hand-built mock
+
+Adding one method to `INodeHelpers` compiled fine in `packages/core` but broke
+six test files that build the port as an object literal
+(`{ writeSpecFileAtomic: vi.fn(), safeYamlDump: vi.fn() }`) — `TS2741`, one per
+site. Nothing in the source tree points at them, so the port change looks
+complete right up until `pnpm typecheck`.
+
+**Rule:** widening a port interface is a two-part change. After editing the
+interface, `grep` for a distinctive existing member (`grep -rn "safeYamlDump:" tests/`)
+and update every literal in the **same commit** — a port change that typechecks
+only in `packages/core` is not done. Prefer a shared mock factory over an inline
+literal for any port with more than two members, so the next method is one edit.
+
+## A watchdog test must advance past the reconnect delay, not just the timeout
+
+The SSE heartbeat tests advanced fake timers by exactly the 60s timeout and then
+asserted a replacement `EventSource` existed. It never did: the watchdog closes
+the dead stream immediately but schedules the reconnect one backoff interval
+later, and `advanceTimersByTime(60_000)` does not run a timer queued at 61_000.
+A fourth test advanced to exactly the deadline and expected "still connected",
+but `setTimeout(60_000)` fires *at* 60_000, not after.
+
+**Rule:** a timer test asserts each step of the chain separately — timeout fires
+(stream closed, status disconnected), *then* backoff elapses (replacement
+created). Mirror the delay as a named constant in the test rather than hiding it
+in an arithmetic literal, and probe a boundary from *just inside* it
+(`advanceTimersByTime(59_999)`), because `<=` is what fake timers implement.
+
+## Never trust a green claim from a branch you are porting
+
+Seven branches ported from a fork arrived with: three timer tests that could not
+pass as written, six port mocks never updated, a swallowed-error defect, and
+three `spec.yaml` files that did not parse. None of it was visible from reading
+the diffs — only `pnpm lint && pnpm typecheck && pnpm test:unit && pnpm test:int`
+on the merge result surfaced it.
+
+**Rule:** porting is authoring. Run the full local verification sequence against
+the *merged* tree, not the source branch, and fix what it finds in the porting
+commit — the moment the code lands here it is ours, and "it was like that on
+their branch" is not a status. Take the source branch's tests as a statement of
+intent to be re-verified, not as evidence.
+
+## Multi-line values written into `spec.yaml` must be block scalars
+
+Three ported specs failed `spec-yaml-backward-compatibility` because a user's
+pasted bug report (agent log lines) was written as a plain scalar: continuation
+lines sat at column 0, and YAML read `[2026-08-25T…] [fast-implement] …` as a new
+mapping key ("bad indentation of a mapping entry"). The same file also had lines
+that had fallen out of the `content: |` block.
+
+**Rule:** any spec field fed from free-form user input (`oneLiner`, `userQuery`,
+`summary`, `content`) is emitted as a literal block (`|-`) with every line
+indented — never as an inline scalar, however short it looks at write time. A
+value containing `: `, a leading `[`, or a newline breaks the document, and the
+repo-wide parse test is the only place it shows up.
+
+## An erased constructor parameter makes a tsyringe binding depend on the build
+
+`DiagnosticRunner(options: RunnerOptions = {})` took an **interface**, which
+erases to `Object`. Bound with `registerSingleton`, resolution goes through
+tsyringe's reflective construction, which needs `design:paramtypes` to have been
+emitted. Under `tsc` it resolves (tsyringe happily constructs `Object`), so every
+node test passes. Where the build does not emit decorator metadata — the
+Next/Turbopack compile of the web surface — it throws
+`TypeInfo not known for "Object"`, and the user sees
+"Environment check unavailable".
+
+**Rules:**
+
+1. **A class whose constructor parameter erases to `Object` must not be bound
+   reflectively.** Either give the parameter a real class token, or bind a
+   ready-made instance: `container.registerInstance(TOKEN, new Thing())`. The
+   instance form is the stronger fix — it is correct whether or not metadata is
+   emitted, and matches the bypass already used for
+   `GithubDiscussionRecapPublisher` in the same file.
+2. **`tsc`-based tests cannot prove this class of DI bug.** `@injectable()`
+   captures paramtypes at decoration time, so deleting the metadata afterwards in
+   a test changes nothing, and `typeInfo` is not exported from tsyringe 4.x.
+   Do not write a test that appears to guard it — verify the web build, and say
+   plainly when a fix is covered only by the symptom-level test.
+3. **A test that passes both before and after the fix is not a regression test.**
+   Run it against the old code; if it stays green, delete it rather than shipping
+   a green check that proves nothing.
+
+## A `useEffect`-pair "hydrate then persist" localStorage hook races itself on mount
+
+`useWorkspaces` (`src/presentation/web/hooks/use-workspaces.ts`) lost newly
+created Control Center workspaces after closing and reopening the browser.
+The hook had a hydrate effect (`useEffect(() => setState(loadState()), [])`)
+and a persist effect (`useEffect(() => saveState(state), [state])`). Both run
+in the **same initial passive-effect flush**, using the **same pre-hydration
+render closure** — so the persist effect's first invocation always fires with
+the un-hydrated default `state`, deterministically overwriting whatever was
+already in `localStorage` with just the default workspace. It "self-corrects"
+on the *next* render once the hydrate effect's `setState` commits, but that
+is not a guaranteed win against a real browser closing (or another tab
+reading storage) in that window — and a synchronous `renderHook()` test that
+only checks the *final* state after `act()` settles won't catch it, since the
+test environment's `act()` flush happens to complete the self-correction
+before the test can observe the intermediate clobber.
+
+A `useRef` guard set *inside* the hydrate effect
+(`isHydratedRef.current = true`) does **not** fix this: because both effects
+run in one synchronous pass in source order, the ref is already flipped to
+`true` by the time the persist effect's `if (!isHydratedRef.current) return`
+check runs — the guard never gets a chance to skip that first stale write.
+
+**Rules:**
+
+1. **Test the *every write*, not just the *final* state.** The regression
+   test that actually caught this asserted that no `localStorage.setItem`
+   call made during/after mount may ever contain less data than what was
+   already persisted — not just that `result.current` looks right after
+   `act()` settles. A "final state" assertion passes even when a real,
+   harmful transient write happened in between.
+2. **Prefer a lazy `useState` initializer over a hydrate-effect for
+   synchronous localStorage reads.** `useState<T>(loadState)` runs
+   `loadState()` once, synchronously, during the first render — before any
+   effect (including a persist effect) exists to race against it. This
+   removes the entire race by construction instead of patching around it
+   with ref-based guards whose correctness depends on effect execution
+   order. The sibling hook `use-viewport-persistence.ts` in the same
+   directory already uses this pattern (`useRef(readViewport()).current`);
+   follow that precedent rather than reintroducing the two-effect version.
+3. **`loadState()`-style functions must never return a shared default
+   object by reference** (e.g. `return INITIAL_STATE`) — return a freshly
+   constructed object on every branch. React's `setState` bails out on
+   referential equality, so returning the same reference silently skips a
+   re-render that downstream effects may depend on.
+
+## A missing CI run URL is not proof of CI success
+
+When a repository has no GitHub Actions runs, `getCiStatus()` can still report
+pending or failed external PR checks. The CI watch loop must preserve that
+status; treating every URL-less result as success turns unresolved branch
+protection checks into a false green.
+
+**Rule:** Only the explicit no-workflow/no-checks case may complete without a
+CI verdict. Do not manufacture `Success`; record no status when no CI exists,
+and use `Indeterminate` when CI is configured but no run was observed. Pending
+or failed PR checks must remain non-success through the merge-node path.
+
+## CI evidence is tied to the PR merge base
+
+A PR check can be green or red for an old synthetic merge ref while upstream
+`main` has already advanced. Before making a release decision, compare the PR's
+`baseRefOid` with the live upstream default branch and inspect the check's
+`headSha`; stale results must be refreshed by rebasing and rerunning.
+## A Next.js server action must resolve core use cases by token, not by import
+
+The fleet web action imported `GetFleetOverviewUseCase` as a value and passed the class to
+`resolve()`. That is how the unit tests, the CLI and the DI container all do it, so it looked
+right — and every check that could run in isolation passed: `pnpm typecheck`, `pnpm lint`,
+`pnpm test:unit`, `pnpm test:int` and `pnpm build:storybook` were all green.
+
+`pnpm build:web` (`next build`) failed, and with it every E2E and Electron job in CI — ten red
+checks from one import line.
+
+The cause is specific: core's internal relative imports are `.js`-suffixed
+(`../../../domain/generated/output.js`) to suit Node ESM, and there is no `extensionAlias` for
+that here, so the moment a value import pulls a core module into the web bundle Turbopack fails
+with `Module not found`. Existing actions avoid it by importing the use case as a **type** and
+resolving it by string token — `resolve<LoadSettingsUseCase>('LoadSettingsUseCase')`. That is
+what `infrastructure/di/tokens.ts` and the generic `resolve<T>` signature are for.
+
+**Rules:**
+
+1. In `src/presentation/web`, import core as `import type` and resolve by token. A value import
+   of anything under `packages/core/src` is a build failure waiting for the next `next build`.
+2. Typecheck, lint and the unit suites cannot see this class of bug — nothing else in the
+   toolchain resolves modules the way Turbopack does. When a change makes the web app import a
+   core module for the first time, run `pnpm build:web` before pushing.
+3. A CI job that fails in about a minute on every platform is a build failure, not a test
+   failure. Read the shared step they all run first; the per-platform detail is noise.
+4. The same asymmetry bit in both directions. In one file a type-only import needed no
+   resolution while the sibling value import did, which is how a broken relative path and this
+   bundler mismatch each survived four other green gates.
+
+## A wall-clock ceiling measures the runner, not the code
+
+`daemon-lifecycle.test.ts` bounded NFR-1 ("the parent hands the daemon off and exits") with
+`expect(elapsed).toBeLessThan(isWindows ? 20000 : 10000)`. The same commit read 6s on one Windows
+run and 27.5s on the next — the runner was four times slower for a few minutes, and a test with
+nothing to do with the change went red.
+
+The property is a *delta*: everything `shep start` costs beyond an ordinary CLI invocation is the
+handoff. Measuring a plain `shep status` immediately before and asserting on the difference makes
+runner speed cancel out — and the measured delta is ~500ms (`SPAWN_SETTLE_MS` plus the
+`daemon.json` write) against a 5s budget, where the old form had 10s of pure headroom and still
+flaked.
+
+**Rules:**
+
+1. Never assert an absolute duration in an E2E test. Assert the difference against a baseline
+   measured in the same environment, moments apart, or assert on an observable fact instead.
+2. Prove the budget still bites: set it to `0`, run the test, and read the real delta out of the
+   failure message. A timing assertion nobody has watched fail is decoration.
+3. Two timeouts around the same command must not be able to tie. The runner's `execSync` kill has
+   to fire before vitest's, or the failure is a bare "test timed out" with no command output —
+   `feat.test.ts` capped the runner at 30s on a platform whose own default was already 30s, so a
+   loaded Windows runner killed `feat new` mid-worktree and reported exit code 1, indistinguishable
+   from a real failure.
+
+## A nested `eslint.config.mjs` silently drops every rule scoped by path
+
+`src/presentation/web/eslint.config.mjs` re-exported the root config, so `pnpm lint:web` looked
+correctly wired. But flat-config `files` patterns resolve against the directory of the config file
+ESLint actually loaded, so the root block scoped to `src/presentation/web/**/*.tsx` matched nothing
+when ESLint was launched from inside that directory. The React, hooks and Next plugins were
+therefore never registered for the files they exist for: `pnpm lint:web` reported 38
+`Definition for rule 'react-hooks/exhaustive-deps' was not found` errors — which is ESLint saying
+"your disable comments reference rules I never loaded", not "your code is clean". Deleting the
+nested config lets ESLint find the root one by upward search, with the repo root as the base path,
+and the rules match again.
+
+**Rules:**
+
+1. One flat config per repo. A nested config that "just extends the root" re-bases every path
+   pattern in it.
+2. `Definition for rule … was not found` is never cosmetic. It means a rule you believe is
+   enforcing something is absent — check what else that plugin was supposed to be checking.
+3. Prove a lint gate is live before trusting it: write a file that violates the rule and watch it
+   fail. Here `useEffect` with a missing dependency went from silently passing to reported.
+
+## A catch-all mock turns a new dependency into a merge-time landmine
+
+Two PRs were green in isolation and red the moment both were on `main`. #863 made
+`runClusterWorker` resolve `IAgentCheckpointService` from the container (so checkpoints
+respect `SHEP_HOME`); #866 landed crash-handling tests whose `container.resolve` stub ended
+in `return {}` for any token it did not name. Neither branch had the other's change, so
+neither CI run could see that the catch-all was now swallowing a *required* dependency —
+`checkpointService.getClusterCheckpointPath is not a function` only appeared after the merge,
+on `main`, 8 tests down.
+
+Rules:
+
+1. **A container stub must name every token, and throw on anything else.** `return {}` for the
+   unknown case converts "the worker gained a dependency" from a loud failure into a
+   `TypeError` deep inside the call, and only on whichever branch merges second.
+2. **Adding a `container.resolve` call is a test-surface change.** Grep for the stubs of every
+   suite that exercises the changed module in the same PR — the sibling worker's test already
+   stubbed `IAgentCheckpointService`; the cluster one never learned about it.
+3. **Green on a branch is not green on the merge.** When a PR changes what a module resolves,
+   rebase on the latest `main` before merging; two independently-green CI runs prove nothing
+   about their union.
+4. **Assert the wiring, not just the absence of a crash.** The path a checkpointer is built
+   from is the whole point of the SHEP_HOME fix, so a test now asserts `createCheckpointer`
+   receives the injected service's path — it goes red if anyone hardcodes it again.
+
+## An uncleaned `setTimeout` fails the suite even when every test passes
+
+`PrdQuestionnaire` auto-advanced with a bare `setTimeout(() => setCurrentStep(...), 250)`.
+Nothing cancelled it, so a run could finish with the timer still armed; it then fired against
+a torn-down jsdom and vitest reported `976 passed` **and exited 1** on
+`ReferenceError: window is not defined` under "Unhandled Errors".
+
+Rules:
+
+1. **Every timer a component starts needs an owner.** Keep the handle in a ref, clear it in a
+   `useEffect` cleanup, and clear the previous one before arming a new one.
+2. **A deferred state update also loses a race with the user.** The same pending advance
+   over-shot when someone clicked a step dot first — manual navigation has to cancel it, which
+   is why navigation now goes through a single `goToStep`.
+3. **`Tests: all passed` is not a green run.** Read vitest's exit code and its "Errors" line;
+   an unhandled rejection or late timer fails CI with no red test to point at.
+
+## A `postinstall` hook needs its script in the image before the install runs
+
+`Docker Publish` failed on all 15 releases from v1.219.1 to v1.228.1 — every release since
+the workflow last went green. #831 added `"postinstall": "node scripts/verify-native-bindings.mjs"`
+to the root `package.json`, but the Dockerfile's builder stage copies only the package.json
+files and lockfile before `RUN pnpm install --frozen-lockfile`. `scripts/` arrives later, so
+node exited 1 on `MODULE_NOT_FOUND` and the install step died at layer 8/14.
+
+The guard is written to never fail an install — `try { main() } catch {}` then
+`process.exit(0)` — and that protection was worth nothing here, because node could not resolve
+the file to begin with. None of the script's own error handling ever ran.
+
+Rules:
+
+1. **Adding a lifecycle hook to `package.json` is a Dockerfile change.** Any `preinstall`,
+   `postinstall`, or `prepare` that shells out to a repo file means that file must be COPY'd
+   before the install layer, in every stage that installs with scripts enabled. The `deps`
+   stage was immune only because it passes `--ignore-scripts`.
+2. **`exit(0)` inside a script cannot protect the script's own absence.** A guard that must
+   never fail the build has to be resilient at the *call site* too — or the file has to be
+   guaranteed present.
+3. **A release-only workflow hides its own breakage.** `docker-publish.yml` runs on
+   `release: published` and nothing else, so 15 consecutive failures never blocked a PR and
+   never showed on `main`. Workflows that only fire on release need their failures surfaced
+   somewhere a human looks daily.
+4. **Verify the build context, not just the Dockerfile text.** `.dockerignore` decides whether
+   a COPY can resolve at all; confirm the file lands at the exact path the hook invokes.
+5. **Dependency patches are install inputs.** Copy `patches/` before every install stage
+   when `pnpm.patchedDependencies` references it; `--ignore-scripts` does not skip patches.
+6. **Probe native modules in the final runtime.** With scripts disabled, rebuilding only
+   `better-sqlite3` leaves `node-pty` unavailable. Exercise a database query, terminal spawn,
+   and web readiness as the image's default user after the build succeeds.
+
+## An issue reference in a commit body makes commitlint fail `footer-leading-blank`
+
+A commit whose body said "Since PR #831 the root package.json carries…" failed CI with
+`✖ footer must have leading blank line [footer-leading-blank]` — even though the real
+trailers did have a blank line before them.
+
+`@commitlint/parse` treats the first issue reference (`#nnn`, per the parser's default
+`issuePrefixes`) as the start of the footer. So the body was just the first line, and
+everything from `#831` onward — four paragraphs plus the trailers — became "footer", which
+of course does not begin after a blank line. The error names a symptom three paragraphs
+away from its cause.
+
+Rules:
+
+1. **Keep `#nnn` out of the commit body.** Put the reference in a trailer where it belongs —
+   `Refs: #831` — and refer to the change in prose without the `#`.
+2. **Debug this rule with the parser, not by eye.** `@commitlint/parse` prints the
+   header/body/footer split; the misplaced boundary is obvious there and invisible in the
+   message itself. Guessing at the cause cost a wasted amend.
+3. **commitlint runs locally without a full install.** `npm i @commitlint/cli
+   @commitlint/config-conventional` in a temp dir, symlink it as the repo's `node_modules`
+   so the config's `extends` resolves, then `commitlint --from <base> --to HEAD`. Cheaper
+   than a CI round trip. Remove the symlink afterwards — `.gitignore`'s `node_modules/`
+   pattern does not match a symlink, so it shows up as untracked.
+
+## A gate that reads an LLM's words must fail CLOSED on every shape it did not expect
+
+An audit found three governance gates — the ones standing between an agent with shell
+access plus push rights and a merge — all failing OPEN. Not one of them had a bug in its
+happy path; each had a *default* that pointed the wrong way.
+
+1. **The supervisor verdict parser looped over the verdict list, not the text.**
+   `for (const candidate of [approve, reject, escalate, advise]) if (lower.includes(...))`
+   returns `approve` whenever the word appears anywhere — including in the most common way
+   a model phrases a refusal: "I cannot give verdict: approve here. verdict: reject". A
+   human approval gate auto-approved on a rejected review.
+2. **The CI parser tested PASSED before FAILED on the same line.** The prompt asks the
+   agent to summarise *which runs failed*, so `CI_STATUS: FAILED — 3 of 4 runs reported
+   CI_STATUS: PASSED, but lint failed` is the specified output shape — and it parsed as
+   success. The FAILED branch also required an em-dash to capture its summary, so an ASCII
+   hyphen silently discarded the reason.
+3. **Absence of evidence was recorded as evidence of success.** A 403 from the GitHub API,
+   and "no CI run detected at all", both returned `CiStatus.Success`. The prompt even told
+   the agent to *report* `CI_STATUS: PASSED` when rate-limited.
+4. **Exit code 0 is not "it finished".** The Claude CLI emits
+   `{"type":"result","subtype":"error_max_turns","is_error":true}` and exits 0; the AI SDK
+   returns `finishReason: 'length'` with a fragment. Both read as completed runs.
+5. **`catch { return [] }` erases the difference between "nothing" and "unreadable".**
+   `tasks.yaml` missing → `[]` → the completeness loop iterated over nothing and reported
+   `valid: true`, accepting zero evidence as a pass. Two byte-identical
+   ` ```json ` regexes returned `[]` for ` ```JSON `, a bare fence, and a single-line
+   fence, so project memory could stop accumulating and log the same line as success.
+
+Rules:
+
+1. **Scan the text for the marker, never the enum for a substring.** Anchor the marker to
+   the start of a line (`^\s*\**\s*verdict:?\**\s*(\w+)`) so prose that *mentions* a
+   verdict is not a verdict, and read bottom-up so a model that revises itself is read
+   correctly.
+2. **Test the blocking branch before the passing branch, on the same line.** Whenever two
+   patterns can match one line, the order *is* the policy.
+3. **Two different answers means escalate, not pick one.** A parser that guesses between
+   `approve` and `reject` has chosen `approve` half the time.
+4. **"I could not check" needs its own value.** Collapsing it into the passing value is the
+   bug; collapsing it into the failing one breaks every repo that legitimately has no CI.
+   `CiStatus.Indeterminate` blocks and escalates; `null` (no CI configured at all) does
+   not. Tell them apart with evidence — `.github/workflows/*.yml` exists — not a guess.
+5. **Put a `never` exhaustiveness check wherever you branch on a domain enum.** Adding
+   `Indeterminate` to `CiStatus` then breaks the build at every site that must state an
+   opinion, instead of silently defaulting to "allowed". `ciStatusBlocksAutoMerge()` and
+   `CiStatusBadge` are those sites.
+6. **A parse result must distinguish "found empty" from "found nothing".** `{ found,
+   items, failure }`, and the caller logs the two differently — otherwise a pipeline that
+   has stopped receiving data looks exactly like one with nothing to report.
+7. **Before adding tolerance to a duplicated parser, extract it.** The fence regex existed
+   twice, byte-identical; fixing it in place would have fixed one of them.
+
+## A read that authorises a write must live in the same statement as the write
+
+Shep runs many OS processes against ONE SQLite file — the daemon, every CLI
+invocation, and one detached worker per running feature — so every
+"check, then act" in the database is a race with a real trigger, not a
+theoretical one. A DB audit reproduced five of them:
+
+- Two processes computed the same pending migration set and both executed it.
+  The loser died on `UNIQUE constraint failed: umzug_migrations.name`, having
+  already re-run the DDL. First launch after any upgrade is exactly this.
+- `listQueued()` then `getRunningCount()` then an unconditional
+  `UPDATE features ... WHERE id = ?` then a spawn: two detached workers in ONE
+  git worktree, sharing one agent run and one log file.
+- `hasCapacity()` read 2-running-of-3 in one transaction and the caller started
+  a feature in another — twice.
+- The crash sweep read `status = 'running'`, then `isAlive(pid)` said "dead"
+  because the worker had just written `completed` and exited — the NORMAL exit
+  path — and an unguarded `UPDATE agent_runs ... WHERE id = ?` reported a
+  successful run to the user as crashed.
+
+Rules:
+
+1. **Put the condition in the WHERE clause and gate on `.changes`.** `UPDATE …
+   WHERE id = ? AND queued_at IS NOT NULL` returning 1 *is* the claim; an `if`
+   above the statement is a check another process can invalidate. A derived
+   count is still right (see the parallel-cap lesson) — derive it in a
+   sub-select inside the authorising statement, not in an earlier one.
+2. **Cross-process serialisation is a one-statement conditional INSERT with a
+   TTL**, the shape `pr-sync-watcher` already used. The loser WAITS and re-reads;
+   it never proceeds and never crashes. `busy_timeout` does not help here — this
+   is two legitimate writers, not lock contention.
+3. **Make transactionality structural.** 135 of 136 migration files had no
+   transaction, so each multi-statement one had a partial-apply window;
+   migration 097 lost `supervisor_policies.app_id` through it (ADD COLUMN, die,
+   re-run takes the "already migrated" branch, DROP still fires). Wrap
+   execution once in the runner rather than editing 136 files. SQLite rolls DDL
+   back, unlike several other engines — `ALTER TABLE`, `DROP COLUMN` and
+   `CREATE INDEX` are all safe inside a transaction.
+4. **`db.transaction()` is DEFERRED; a read-then-write needs `.immediate()`.**
+   A deferred transaction takes its read snapshot before the write lock, so a
+   concurrent writer turns it into SQLITE_BUSY_SNAPSHOT — which `busy_timeout`
+   does NOT retry. Write-only transactions are fine deferred.
+5. **A terminal-status guard must be opt-in, not a default.** Resuming an
+   interrupted run is a legitimate terminal→running transition; a blanket guard
+   would refuse it and leave a live agent reported as crashed.
+6. **Never wrap an indexed column in a function.** `WHERE
+   REPLACE(repository_path, '\', '/') = ?` made `idx_features_repo` unusable and
+   `findByBranch` visited every live row. Normalise on WRITE, back-fill existing
+   rows in a migration, and compare the column directly. `EXPLAIN QUERY PLAN` is
+   the proof — and read the whole plan: matching `deleted_at IS NULL` also says
+   "USING INDEX" while scanning everything.
+7. **A method nothing calls is not a feature.** `pruneBefore()` existed on the
+   operation log with zero callers while the database grew ~184 MB a year.
+   Grep for a caller before counting a capability as shipped.
+
+## A `Buffer.toString()` per chunk silently corrupts every multi-byte character
+
+All six CLI agent executors read stdout with `lineBuffer += chunk.toString()`. stdio is
+`['pipe','pipe','pipe']` with no encoding, so chunks are Buffers, and a 4-byte emoji or a
+CJK character that straddles a 64 KiB pipe boundary decodes to U+FFFD on both sides.
+`héllo — ✅ 日本語 🚀 done` arrived as `héllo — ✅ 日本語 ??? done`. The damage is invisible:
+replacement characters are legal JSON, so `JSON.parse` succeeds and the corrupted text flows
+into results, commit messages and PR bodies. The existing "split across chunks" tests used
+`String.slice` on ASCII, so they could never land mid-codepoint.
+
+**Rules:**
+
+1. Decode a byte stream with `StringDecoder`, never `chunk.toString()` per chunk. One shared
+   reader (`process-stream.ts#createLineAccumulator`) is the only place that has to be right.
+2. A chunk-splitting test that slices a JS string proves nothing. Split a real `Buffer` inside
+   a multi-byte sequence — `payload.indexOf(Buffer.from('🚀','utf8')) + 2`.
+3. `lineBuffer +=` with no ceiling is also a `RangeError` waiting in a `'data'` listener,
+   which throws *outside* every try and kills the worker. Bound the line and ring-buffer
+   stderr, whose tail is the only part ever read.
+
+## `code === null` on 'close' is a kill, not a clean exit
+
+`if (code !== 0 && code !== null)` reads as "ignore the kill case". It means the OOM killer
+takes the agent and the run RESOLVES with `result: ''` — a success with no work in it.
+
+**Rule:** reject on `code === null` unless a result was already captured, and name the signal
+(`close` passes it as the second argument). The same shape applies to a stream: emit an error
+event, not an empty result.
+
+## A piped prompt needs an `error` listener on stdin
+
+`proc.stdin.write(prompt)` with no `'error'` handler: when the CLI exits early (bad flag, auth
+failure, a timeout kill) the in-flight write raises EPIPE on the stream, and a stream error
+with no listener reaches `process.on('uncaughtException')` — killing the worker instead of
+failing the run. Prompts are piped precisely because they are large, so a write is always in
+flight. `process-stream.ts#writePromptToStdin` attaches the handler and lets the
+`close`/`exit` handler report the real reason.
+
+## Breaking out of a `for await` over an executor leaves the agent running
+
+No `executeStream` generator had a `finally`, so a consumer that stopped iterating (found its
+answer, hit its own error) left the child holding a worktree and burning tokens until it
+exited on its own. A generator's `finally` runs on `.return()`, which is what `break` calls.
+
+**Rule:** every generator that owns a process kills it in `finally`, guarded by a
+`processClosed` flag so a normal end does not signal a pid that may have been reused.
+
+## Stderr scanning must never overrule a result that exists
+
+`/failed with status 4\d{2}\. Retrying/` is what the Gemini CLI prints when it RETRIES — a
+retry that then succeeds exits 0 with a full response, and the executor rejected it anyway.
+Codex did the same with `/rate.?limit/i` against `[warn] approaching rate limit`.
+
+**Rule:** match exhaustion, not the attempt, and consult stderr only when stdout produced no
+answer. A completed message is the run's outcome; stderr noise from a call the CLI recovered
+from must not discard finished work.
+
+## The session id is not the answer
+
+`cursor-executor` returned `{ type: 'result', content: parsed.session_id }`, and
+`streaming-executor-proxy` keeps `event.content` of the last result event — so every graph
+node running under `agent.type = cursor` received a UUID where the work should have been.
+`kimi-code` had the same line. An identifier travels in its own field (`sessionId`), never in
+the field callers read as the answer.
+
+**Rule:** when one event carries both an identifier and text, give the identifier a named
+field. A test that asserts `content: 'sess-stream'` is pinning the defect, not the contract.
+
+## `private silent = false` on a cached executor is shared mutable state
+
+The executor factory caches one instance per agent type. A `silent` field set per call means
+two agents running in parallel mute each other, and a stream that never sets it inherits the
+previous call's value. A logger built per call (`createExecutorLogger(options?.silent)`)
+carries the flag with it and cannot be overwritten.
+
+## An overlay pinned over the canvas must reserve its space
+
+`FleetControl` mounted `absolute top-3 right-3 z-20` over the Control Center canvas.
+`pointer-events-none` on the wrapper let clicks through the padding, so the mount looked
+safe — but the pill itself is opaque, and it covered both the canvas chrome in the same
+band and whatever feature node dagre laid out underneath it. Shipping it took a UI surface
+away from the user to add a summary of that same surface.
+
+**Rule:** a surface drawn over the canvas either lives in real chrome (app shell header,
+session-tree sidebar) or the canvas viewport is inset so nothing is ever laid out beneath
+it. `pointer-events-none` answers "can I click through it", never "can I see through it" —
+and never check only the empty-canvas case, since the overlap appears exactly when the
+canvas is full.
+
+## A status only one writer guards is a status any writer can overturn
+
+Spec 116 audited shep against an external list of agent-harness bugs. The `allowedFrom` guard on
+`agent_runs.updateStatus` existed, but only the crash sweep used it. Every other writer — the
+worker's boot/heartbeat/terminal writes, Stop, Approve, Reject — wrote `WHERE id = ?`, so a Stop
+issued while the worker booted was overwritten by its first heartbeat, and two concurrent
+approvals each spawned a worker into one worktree.
+
+**Rules:**
+
+1. **Every status writer states the statuses it may leave.** The worker may write `running` only
+   from `pending`/`running` and a terminal status only from `running`; Stop only from a
+   non-terminal status; Approve/Reject only from a resumable one. The boolean the write returns
+   IS the claim — a worker whose boot claim fails exits before building its graph.
+2. **Record a stop before you signal.** Signalling first lets the dying worker's own write land
+   first, and then the stop looks like it failed.
+3. **A claim needs a release on the path that cannot finish.** A run claimed to `running` whose
+   worker fails to spawn has no owner; hand the claim back (guarded on `running`) and rethrow.
+
+## "It ended" is not "it answered" — for streams as much as for exit codes
+
+`StreamingExecutorProxy.execute()` only caught thrown errors, but subprocess executors report
+timeouts, kills and non-zero exits as an `error` stream event and then end — so every failed
+`shep run` stream was recorded as a completed run with `result: ''`. It also closed the shared
+channel after every node, silently dropping the events of every node after the first.
+
+**Rules:**
+
+1. The last `result`/`error` event decides a stream's outcome; a stream with neither was cut
+   short and rejects.
+2. A signal kill rejects even with partial output unless the CLI's terminal event (Codex
+   `turn.completed`, Claude/Cursor/Copilot `result`) was already seen.
+3. Whoever owns a channel's lifetime closes it once; a per-call helper must never close it.
+
+## An SSE comment is invisible to EventSource
+
+`': heartbeat\n\n'` keeps proxies from idling out a connection, but `EventSource` never
+dispatches comments to page code, so a client watchdog reset only by events tore down a healthy
+quiet stream every 60s — and each reconnect replayed the full message/question history because
+per-connection caches started empty. Send a named `heartbeat` event, seed per-connection caches
+silently on connect (sending only still-open state such as pending questions), and upsert by id
+on the client so a replay is idempotent.
+
+## A commit hook that fails restores its backup over everyone's working tree
+
+Mid-session a failed `git commit` (the typecheck hook tripped on uninstalled electron deps)
+made lint-staged restore its automatic backup, silently reverting uncommitted edits other
+agents were making in the same checkout. Rules: never commit from a checkout another writer is
+editing — wait until every writer reports, then run the full verification, then commit; if a
+hook fails, check `git diff` of every in-flight file before anything else. When a dependency
+cannot be installed (egress 403), install the exact package from an allowed registry into the
+ignored `node_modules` **and apply the repo's `patches/` to it** — an unpatched stand-in made a
+security test fail for a reason that had nothing to do with the code.
+
+## A liveness signal nobody reads is not liveness
+
+`agent_runs.last_heartbeat` was written every 30s and read by nothing, so a hung worker kept its
+run `running` forever and a worker that died before recording its pid left a `pending` run no
+command could clear. A heartbeat is only half a mechanism; the sweep that acts on it is the other
+half, and it must run on every surface's read path (CLI, TUI, MCP, web), guarded on the exact
+`updated_at` it judged so a heartbeat landing mid-sweep wins.
+
+## A derived count must also derive "is it still running"
+
+The parallel-feature slot count read lifecycle only; a failed or stopped run leaves the
+lifecycle in a running phase, so every crash leaked a slot permanently. Derive occupancy from
+the current run's status in the same sub-select the atomic claim uses, and wire the queue drain
+to every event that frees a slot — including failure and stop, not only completion.
+
+## "Full local verification" means every script CI runs, not the four in the rule
+
+The spec 116 follow-up passed lint, format, typecheck, unit, integration and three builds locally,
+then went red twice in CI: `check:stories` rejected a grandfathered entry for a component that
+had just gained its story, and the Electron build rejected `tree-kill` because a core adapter
+started importing it and the Electron bundle includes core. Neither check is in the four-step
+rule, and both run in seconds. Rules: before pushing, grep `.github/workflows/*.yml` for every
+`pnpm run …` and run each one that can run locally (`check:stories`, `generate` with a clean
+diff, `node packages/electron/scripts/build.mjs`); a new third-party import in `packages/core`
+is also a `packages/electron/package.json` dependency; when adding a story, remove the
+component from `scripts/check-stories.mjs`'s grandfathered list in the same change.
+
+## An opinionated path must say so on every surface — and must not leak into the neutral one
+
+Issue 896: a user spent two days in the Applications "Describe with AI" flow believing it was
+Shep's spec-driven orchestrator; it always scaffolds Vite + React + shadcn with no spec phase.
+The copy said only "Start with an idea", the sidebar listed Applications first as Home, and the
+README never mentioned it. Worse, tracing it showed the "neutral" path was not neutral: the
+Control Center composer defaulted to Application mode, and its Fast/Spec modes prepended a
+hard-coded "Build this as a React application using Vite" preamble inside a server action.
+
+Rules:
+
+1. Every create surface names what it builds and on which stack. If an option is single-stack,
+   the stack is in the option itself, not in a doc the user has not read.
+2. Never rewrite the user's prompt to inject a technology choice on a path that promises "any
+   stack". Stack defaults belong only to the path that advertises them.
+3. A greenfield project defaults to the spec-driven workflow — an empty repo has no stack, so
+   skipping research is the wrong default.
+4. Orchestration of "create project + create feature" lives in a core use case
+   (`StartApplicationUseCase`), never in a server action, so the rules are testable and
+   shared by every surface.
+5. When a user's prompt names an existing folder, a "new project" flow must notice and offer to
+   work on that folder instead of silently creating an empty sandbox.
+6. Build on the user's mental model instead of teaching yours. "Everything is a feature" was
+   true internally, but people think "start an app, then add features". The first fix — label
+   two products ("Features" vs an "App Builder") honestly — made the split harder, not easier.
+   The right fix made the opinionated template one *starter* of an app, so the choice is visible
+   at creation and every feature has a home.
+
+## A hard-coded port in a test is a Windows failure waiting for a reboot
+
+`port.service.test.ts` bound 49153–49162 directly. Windows reserves slices of the dynamic range
+(49152+) per boot, so the same commit passed on one runner and failed on the next with
+`listen EACCES`; the test's `listen` promise had no error handler, so each failure became a 60s
+timeout. Rules: let the OS choose (`listen(0)`), bind consecutive ranges from an OS-chosen base
+with retries, and make every test `listen` reject on `error`.
+
+## An efficiency claim needs a paired measurement that counts everything the provider counts
+
+The first paired eval showed the query-aware harness costing 6× baseline's input tokens on
+small tasks. Two causes, both found only by measuring:
+- the scripted provider's token estimate left out the tool schemas that baseline sends on every
+  turn, so baseline looked artificially cheap;
+- tiered tool loading spent a whole extra turn on each tool's first use.
+
+Fixing those surfaced a third problem: on a long task, a relevant 2,500-line log was shown in
+full on every turn (229K tokens against baseline's 55K). Rules:
+- count tools, the system prompt and every message the way a real provider bills them;
+- run one small case and one long case before claiming a saving;
+- cap what any single chunk may cost per turn, and bound dense-match "relevant ranges"
+  (a token that appears on every line of a log is not a match).
+
+## `pnpm generate` output must be committed exactly as generate writes it
+
+A commit carried `domain/generated/output.ts` with double quotes, while `pnpm generate` (which
+runs prettier) writes single quotes. CI's Type Check re-runs generate and diffs. After any
+TypeSpec change, run `pnpm generate` last and confirm `git diff --quiet
+packages/core/src/domain/generated/` before committing.
+
+## `cat >> file <<'EOF' … EOF || true` creates the file even when you meant to probe it
+
+An empty heredoc appended to a path that did not exist left an empty test file behind, and the
+next edit "appended" a test without imports. Check existence with `test -f` or `ls`; never use
+an append as a probe.
+
+## Model-supplied text that reaches a shell must be restricted, not escaped
+
+`run_tests` appended the model's `filter` to the test command and ran it through a shell, so
+`a; curl …` would have run. Restrict such arguments to a safe character set in both the JSON
+schema and the executor, and pin it with a test of shell metacharacters.
+
+## After merging main, reinstall before trusting local test results
+
+A merge bumped `next` to 16.3.6 but `node_modules` still linked 16.3.5, so 473 web tests failed
+locally (mocks of `next/navigation` missed the stale copy) while CI was green. Run
+`pnpm install --frozen-lockfile` after every merge that touches a lockfile.
+
+## `rg` drops the file name when its scope is a single file
+
+`search_source` with `path: src/auth/errors.js` printed `7:export class …`, so the hit counter
+reported "0 matches" and a real model searched the same thing 14 times. Always pass
+`--with-filename` when the output is parsed as `path:line:`.
+
+## A killed process leaves its harness task "running" forever
+
+`stop` only acts "before the next turn", which never comes once the process is gone, so the
+session could not be discarded. Record the owning pid on the task and cancel orphans on stop.
+Real-model runs find these; scripted ones did not.
+
+## Check the pass count, not just that a test command printed something
+
+A demo repo's `node --test test/` failed on Node 22 ("Cannot find module …/test") while my check
+only tailed the summary lines, so a real agent was asked to run tests that could never pass.
+Grep for `# pass N` / `# fail 0` (or the runner's equivalent) before calling a suite green.
+
+## A TypeSpec change also regenerates `apis/json-schema/` — commit it with the model
+
+`pnpm tsp:compile` (run by the pre-commit hook) emits a YAML schema per model and enum into
+`apis/json-schema/`, and those files are tracked. Adding `Space` and two `MemoryScope` members
+left eight untracked/modified schema files behind the commit that changed the `.tsp`. After any
+`tsp/` edit, run `git status apis/` and stage the schemas in the same commit.
+
+## A core module the web bundle reaches takes extensionless relative imports
+
+`web-auth-token.service.ts` is imported by the Next middleware, so Turbopack compiles it from
+raw `.ts` and cannot resolve `../filesystem/shep-directory.service.js`.
+`tests/unit/presentation/web/core-bundle-imports.test.ts` caught it. Before adding a relative
+value import to a core file, grep `src/presentation/web` for that file. If web imports it, drop
+the `.js`, as `domain/` files do.
+
+## Never `pkill -f <pattern>` from the shell that contains the pattern
+
+`pkill -f "http.server 6107"` matches the Bash tool's own `bash -c` command line, which contains
+the same text, so it kills the calling shell (exit 144) and every command after it in that
+call silently never runs — a commit was skipped this way, twice in one session. Stop a
+background server by its pid (`kill $(cat server.pid)`), or use a bracketed pattern that cannot
+match itself (`pkill -f "[h]ttp.server 6107"`), and never chain other work after it.
+
+## The pre-commit hook type-checks the whole working tree, not only what is staged
+
+lint-staged stashes unstaged edits, but `tsc --noEmit` still sees untracked files. Committing
+a rename in slices failed twice: staged `git mv`s without their content, then an untracked test
+that imported a module not yet written. Commit a slice only when the working tree type-checks
+as a whole — stage every file the slice touches, and keep work-in-progress files that import
+missing modules out of the tree (or finish them) before `git commit`.
+
+## Read `tsp:compile` warnings, not just its exit code
+
+A duplicated `@doc` on an enum member (spec 129) compiled with exit 0 and four
+`duplicate-decorator` warnings, and was committed. `pnpm tsp:compile` must end with
+"Compilation completed successfully." and no warnings; treat any warning as a failure to fix
+before committing.
+
+## Parse enum options inside the command action, not with a throwing Commander parser
+
+An option parser that throws `InvalidArgumentError` makes Commander call `process.exit(1)`,
+which kills the test runner and skips the command's own error path. Read the raw string and
+validate it in the action (print `messages.error`, set `process.exitCode = 1`, return), like
+`parseNumberOption` and the incident `read*` helpers.
+
+## A new field on a persisted entity is not done until it round-trips the database
+
+`SpaceAgentSettings.autoRuntimeActions` (spec 129) and `docsFirst`/`docsPaths` (spec 131) were
+validated, shown by the CLI and unit-tested — but the space mapper and SQL never stored them,
+so the policies vanished on the next read. The CLI echoed the in-memory result, which hid it;
+only the web page, which re-reads the space, showed the truth. For every field added to an
+entity a repository stores: add the column (migration), the mapper both ways, the INSERT and
+UPDATE SQL, and a repository integration test that writes and reads the field back.
+
+## Read every user-facing string a feature produces from a real run before calling it done
+
+A scripted end-to-end run of specs 120–132 (dev agent, stub kubectl) found a dozen defects that
+green unit tests had missed: enum values used as sentences ("Manual opened a Minor incident"),
+a label printed twice ("the Acme space allows restart: restart"), "about 0 minutes",
+"1 signals", UUIDs where titles belonged, multi-line evidence breaking a Markdown list, and a
+caller's feature name overwritten by generated metadata. Tests asserted kinds and counts, never
+the text a person reads. For timeline, summary and postmortem text: assert the exact sentence in
+a test, and never interpolate a raw enum value into prose — map it through a `Record` of words.
+
+## `pnpm tsp:compile` rewrites the generated output unformatted — run `pnpm generate` last
+
+`tsp compile tsp/` also runs the TypeScript emitter, so after a compile check the committed
+`output.ts` comes back with double quotes and `format:check` fails on 750 lines. Always finish
+with `pnpm generate` (which runs prettier) and confirm `git diff --stat` on the generated folder
+shows only the intended change.
+
+## Fake credentials in demos and transcripts must contain an allowlisted word
+
+Gitleaks' `curl-auth-header` rule flagged `-H 'Authorization: Bearer shep_fb_wrong'` in a demo
+script and its recorded transcript, and CI scans the full git history, so fixing the file in a
+later commit is not enough. Name every deliberately fake token with a word `.gitleaks.toml`
+allowlists (`fake`, `placeholder`, `dummy`, `example`), run
+`gitleaks detect --log-opts "origin/main..HEAD"` before pushing, and if a flagged value was
+already committed on an unmerged branch, replace that commit rather than adding a fingerprint
+that a squash merge would invalidate.
+
+## Normalize `path.relative()` output before comparing it with a literal path
+
+`relative(ROOT, file)` returns backslashes on Windows, so a test comparing it with
+`'packages/core/src/...'` passed on Linux and failed on `windows-latest`. Always
+`.replace(/\\/g, '/')` a computed path before comparing or printing it in a test.
+
+## A "pause" must not be encoded as `0` in a field where `0` already means "off/unlimited"
+
+The circuit breaker needed to stop new work. The one-field fix — set
+`workflow.maxParallelFeatures = 0` — was backwards twice over. In that field `0` means
+**UNLIMITED**, so it would have removed the cap and admitted *everything*; and it would have
+overwritten the ceiling the user chose, leaving `resume` with nothing to restore.
+`hasCapacity(0, 0)` is literally `true`, so the pause would have silently done nothing.
+
+The pause became its own record (`workflow.queuePaused`) beside the untouched ceiling, and
+`resolveMaxParallelFeatures` returns `0` while paused — which means the returned `0` now has TWO
+meanings depending on a second field. That is only safe because the gate reads
+`isFleetQueuePaused` first, and because a separate `resolveConfiguredMaxParallelFeatures` exists
+for the callers that persist or display the user's own number.
+
+**Rules:**
+
+1. Before overloading a sentinel value, grep the field for what it already means. `0`/`-1`/`''`
+   are almost never free, and the failure is silent because the code still runs.
+2. When one value must carry two meanings, add a second field that discriminates them and make
+   the GATE read the discriminator — never the number. Write the pair of assertions down as the
+   contract: `resolveMaxParallelFeatures(paused) === 0` **and** `isFleetQueuePaused(paused)`.
+3. Give the persistence/display path its own resolver. A mapper that reuses the effective limit
+   writes the override over the user's setting, and the only symptom appears at `resume` time.
+   The round-trip test ("leaves the user ceiling intact while paused") caught exactly this.
+4. A pause that is re-evaluated on every read must be idempotent and keep the ORIGINAL
+   `pausedAt`; re-stamping makes "parked for an hour" read as "paused just now", forever.
+
+## `container.resolve(X)` is not a DI registration test — tsyringe auto-constructs `@injectable`
+
+A test asserting `expect(container.resolve(SetFleetQueuePauseUseCase)).toBeInstanceOf(...)`
+proves nothing about registration: tsyringe constructs any `@injectable` class on demand. I
+deleted the `registerSingleton` call and the test stayed green.
+
+The registration's real job here was to put the class into the container's token registry,
+because `hollow-dependency-guard` only sweeps **registered class tokens** — so an unregistered
+use case escapes that guard entirely while still resolving fine.
+
+**Rules:**
+
+1. Assert the class token is present in `container._registry` (`entries()`), not that
+   `resolve()` returns an instance.
+2. Delete the registration and watch the test go red before trusting it. A registration test
+   that passes both ways is decoration.
+3. Keep the `.js` extension in a same-package import unless a sibling in that exact directory
+   omits it: `domain/` files must omit it (the web bundles that directory as raw source), and
+   `grep`ping the sibling beats guessing.
+
+## A new hook in a shared shell is a change to every test that renders the shell
+
+Adding `useRouteViewTelemetry()` to `AppShell` (it calls `useParams`) failed four AppShell suites
+whose `vi.mock('next/navigation')` only returned `usePathname`/`useRouter`, and a new
+`container.resolve('ITelemetry')` in `startBackgroundSync` failed the `ui` and `_serve` command
+tests whose stubs throw on unknown tokens. Before mounting a hook in a layout, grep the tests that
+mock its imports; before adding a resolve to a shared starter, grep the stubs of every command that
+calls it. The web test setup replaces `localStorage` with `vi.fn()` mocks (`getItem` returns
+`undefined`), so drive it with `vi.mocked(localStorage.getItem)` and treat "missing" as falsy, not
+`!== null`.
+
+## PostHog `/batch/` answers 200 for any project key
+
+A live probe returned `200 {"status":"Ok"}` for a fake key and `400` for a malformed body. A
+successful send proves the wire format, not that events reach a project — check the project's
+event stream after configuring a real key.
+
+## A scripted "insert before the first import" can land above `import 'reflect-metadata'`
+
+Adding an import to `container-bootstrap.test.ts` with a script that inserted it before the
+file's first `import` put a tsyringe-decorated module above `import 'reflect-metadata'`. The DI
+suite still passed when run together with other files (another file had loaded the polyfill in
+the same worker) and failed alone in `test:int` with "tsyringe requires a reflect polyfill".
+When inserting imports programmatically, anchor on a sibling import of the same kind, never on
+"the first import", and run the touched test file on its own.
+
+## In-memory repositories have no foreign keys — smoke the real process before trusting a wired path
+
+`EscalateToUserUseCase` wrote its audit row with `work_item_id` = the agent question's id, but
+`activity_log.work_item_id` references `work_items(id)`. With collaboration on, every non-info
+`AskAgentQuestionUseCase` call threw `FOREIGN KEY constraint failed` after storing the question
+and sending the notification. The gate publisher swallowed it, and every unit test used
+in-memory repositories, so it stayed hidden until spec 134 ran the `ask_decision` MCP server as a
+real process against a real database. Rules: an audit write that is not the point of the call is
+best-effort (the approval use cases already wrap theirs); a use case that writes several tables
+needs at least one test against the migrated SQLite schema; and a new process entry point
+(an MCP server, a worker) gets one real spawn-and-call smoke before it is called done — that run
+also caught the entry skipping `initializeSettings()`.
+
+## Agent worktrees under `.claude/worktrees/` are not gitignored
+
+A subagent started with worktree isolation checks out under `.claude/worktrees/<id>/` inside the
+main clone, and `.gitignore` does not cover that path, so `git add -A` or `git status`-driven lint
+and prettier runs pick up the whole second checkout. Add `.claude/worktrees/` to
+`.git/info/exclude` before starting one, and stage with `git add -u` plus explicit new paths.
+
+## Never isolate git config with `NUL` on Windows
+
+`GIT_CONFIG_GLOBAL=NUL` worked until the Windows runner moved to git 2.56, which fails every
+command with `fatal: unable to access 'NUL': Invalid argument`. Point `GIT_CONFIG_GLOBAL` and
+`GIT_CONFIG_SYSTEM` at an empty temp file (as `tests/helpers/harness/temp-git-repo.ts` does) — it
+reads the same on every platform and git version, so never branch on `process.platform` for it.
+
+## Wait for a specific server action in e2e, never "the first `next-action` POST"
+
+The i18n spec waited for any server-action response, then called `response.finished()` to stop the
+page closing mid-save. Pages fire several actions on load (model catalog, routing plan), so the wait
+could match the wrong one, and a server action's response streams the re-rendered page, so
+`finished()` can hang past the test timeout even after the action has persisted. Match the action
+by its request body (`request.postData()` contains the field it saves), treat its response headers
+as "persisted", and verify through a reload rather than `finished()`.
+
+## Fields that identify a person are opt-in, even when usage metrics are opt-out
+
+Spec 133 first shipped "Include my identity" on by default (account hash, GitHub username and
+owners). The owner reversed it before merge: anonymous usage events may be opt-out, but anything
+that identifies a person defaults to off and the notice offers to turn it on. Keep one source for
+the default (`DEFAULT_TELEMETRY_PREFERENCES`) and make the migration's column default, the mapper's
+fallback and every `?? default` read it — the first version had `?? true` in three places.
+
+## Trace "the agent is told X" to the bytes the agent receives
+
+Spec 137 added a "Rich replies" section to the interactive agent's context and the unit test
+for `FeatureContextBuilder` passed — but the Claude Agent SDK V2 session drops `systemPrompt`,
+and a chat booted by the user's first message sent only that message. So no Shep context had
+ever reached a Claude chat started that way; only chats opened without a message (where the
+context doubles as the boot prompt) saw it. Rules: when a change depends on an agent knowing
+something, follow it to the first turn the executor actually sends (`BootPromptResolver`
+output), not to the string that builds it; and check an SDK's option type before passing an
+option — a field the type does not declare is silently ignored. The same SDK also hard-codes
+`mcpServers: {}` for V2 sessions, which is why chat tools go through the shell
+(`shep chat block`) rather than MCP.
+
+## A shared fake must answer from its own rows, not a constant
+
+`createFakeAgentRunRepository().findLatestByFeatureId` always returned `null`, even after `seed()`.
+So every test of "refuse while an agent runs" would have passed, because there was never a run to
+refuse on. Spec 138 fixed it to answer from the seeded rows. When a shared fake has a `seed`, every
+read method must use it. When adding a guard that depends on a read, first watch the guard's test
+fail against the fake.
+
+## Renaming a spec number: change only the lines you added
+
+T4 started as spec 135 while another merged PR also used "spec 135" in its comments, so a
+repository-wide replace would have rewritten that PR's references. Instead, take your branch's
+added lines (`git diff -U0 <merge-base> <your-last-commit>`) and replace only those. Grep
+afterwards for anything a later reformat moved. Ask which number to use before
+`/shep-kit:new-feature` when workstreams run in parallel.
+
+## Files under `.storybook/mocks/` cannot import `@shepai/core/*`
+
+A Storybook action mock that imported `@shepai/core/domain/shared/git-checkpoint` failed the
+Storybook build with `Rollup failed to resolve import`. Web components can import that path, but
+the mock lives outside the web package, where the alias does not resolve. Mocks may import from
+`@/…` (fixtures, `lib/`) only; derive anything else from the fixture data. The commit had been
+pushed while the local `build:storybook` was still running. Wait for the build's exit code before
+pushing any change to a story or a mock.
+
+## Vitest injects `__dirname`; the built ESM CLI does not
+
+`decision-tool-startup.ts` used a bare `__dirname`. Every test passed (vitest and tsx provide it),
+and 1.238.0–1.242.0 shipped a worker that died at boot — "`__dirname is not defined`" — whenever
+collaboration was on and the agent took an MCP config: the defaults. Only a real spawned worker
+showed it. Rules: in `packages/core` and `src`, derive it with
+`dirname(fileURLToPath(import.meta.url))`; `tests/unit/infrastructure/esm-dirname-guard.test.ts`
+fails for any module that reads it bare. A change to a worker's boot path gets one real spawn of
+the built worker before it is called done.
+
+## An empty restriction list can mean "no restriction" — check the argv
+
+The S2 coordinator passed `tools: []` meaning "no tools"; the Claude Code executor only emitted
+`--tools` for a non-empty list, so the call ran with every tool under
+`--dangerously-skip-permissions`. A security restriction is proven by the argument the agent
+receives (`--tools ""`), not by the option object. When a caller relies on "empty = nothing",
+test the executor with the empty value.
+
+## The feature drawer has its own node-data builder
+
+`buildGraphNodes` feeds the canvas, but the drawer route and `useDrawerSync` refresh use
+`buildFeatureNodeData`. A field added to only the first appears when you click a node and
+vanishes on the drawer's first sync (or never shows from a `/feature/<id>` URL). Map a new
+field once (e.g. `lib/coordination-note-data.ts`) and call it from both builders.
+
+## A version pinned in two places drifts — derive it from the one that is installed
+
+`electron-builder.yml` pinned `electronVersion: '36.9.5'` while `packages/electron` depended on
+`^39.8.10`, so every shipped installer ran an Electron three majors older than dev and tests, and
+Dependabot (which reads only package.json) never saw it. Packaging now passes the installed
+version (`scripts/electron-version.mjs`) and a test fails if either YAML pins one again. When a
+tool cannot detect a version, compute it from the lockfile-installed package, never copy it.
+
+## Launch the packaged desktop app before calling an Electron change done
+
+The Electron 44 upgrade passed every test and `node scripts/build.mjs`, yet three things only
+showed up when packaging and launching the app: a stale `node-abi` could not rebuild
+better-sqlite3 for the new ABI, a `global-agent` 4 override silently stopped `@electron/get`
+from honouring proxies, and the shipped app crashed on start because migrations were compiled
+without their relative imports (`./data/*`, `../add-column`). Rules: run
+`node scripts/package.mjs full linux` and start `release/linux-unpacked/shep` under `xvfb-run`
+with a fresh `SHEP_HOME`; an override of a transitive dependency must be exercised on the code
+path that uses it, not just installed. In the sandbox, unset `GH_TOKEN`/`GITHUB_TOKEN` (they make
+electron-builder add a GitHub publish target and crash on `null.channel`) and pass
+`ELECTRON_GET_USE_PROXY=1 GLOBAL_AGENT_HTTPS_PROXY=$HTTPS_PROXY`.
+
+## A capability is not done until every presentation layer has it
+
+Spec 149 shipped agent activity to MCP, A2A, the CLI and the TUI, and the user had to ask
+where the web UI was. The rule in code-quality.md ("every feature MUST be implementable in ALL
+presentation layers") is a checklist item, not a design note: before calling a feature done, list
+each CLI command / TUI behaviour it adds and name the web surface that shows the same use-case
+result (page, drawer card, sidebar badge, settings section). If one is deliberately skipped, the
+spec's Out of Scope says so.
+
+## "Contained in main" is not "merged" for a branch with no commits of its own
+
+AutoResolveMergedBranches closed Review features as merged because `verifyMerge` (is-ancestor,
+then an empty diff) is also true for a branch nobody has committed to yet: it still points at
+the base commit it was cut from. Merge detection needs a sign of the branch's own work, here a
+tip committed after the feature was created. When a check can be satisfied by doing nothing,
+ask what the "nothing happened" case looks like and test it against real git.
+
+## A long-running server must not exit on a client hanging up
+
+The CLI's `uncaughtException` handler exits, and `shep ui` and the daemon run in the CLI
+process, so one browser tab closing mid-request (`Error: aborted`, ECONNRESET) could stop the
+daemon for every tab and agent. Triage process-level errors by origin before exiting: a client
+disconnect is the client's problem.
+
+## A plan with a setting must give its default and the screen that changes it
+
+Spec 150's first plan added `Settings.learning.mode` and a per-feature "Explore" option but
+never said what the mode defaults to, had no settings section to change it, and no toggle on
+the surfaces that create a feature. The user had to ask "is everything opt-in? is the UI
+covered?". **Rule:** for every new setting, flag or per-item option a plan introduces, state
+its default (and whether that keeps the feature opt-in), name the settings section that edits
+it, and list every surface that creates the item it applies to (web drawer, `shep feat new`,
+TUI) with a task for each — before calling the plan complete.
+
+## Check a CLI option name is free before a spec names it
+
+Spec 150 told `shep feat new` to take `--explore`, but `--explore` already selects the
+Exploration build mode; implementation had to rename it `--explore-harness` and patch the spec.
+**Rule:** before a spec or plan names a new CLI option, grep the command for it
+(`grep -n "'--name" src/presentation/cli/commands/<cmd>`) and pick a free, specific name.
+
+## A new create-input field must reach every create path
+
+The per-feature Explore fields were added to `CreateFeatureInput` but not to
+`CreateFeatureFromRemoteInput`, so `shep feat new --remote` would have dropped them silently.
+**Rule:** when a field is added to one create/update input, grep for every use case that
+builds that input (`grep -rn "createFeatureUseCase\.\(execute\|createRecord\)"`) and forward
+it there too, with a test per path.
+
+## A new web link needs `pnpm build:web:prod`, not just `typecheck:web`
+
+The web app has `typedRoutes: true`: `<Link href>` and `router.push` only accept a `Route`, and
+that is checked by `next build`, not by `pnpm typecheck:web`. Spec 150's Learning links passed
+every local check and broke the production build. **Rule:** a helper that builds an href returns
+`Route` (`` `/path?${params}` as Route ``), and any change that adds a link or `router.push` runs
+`pnpm build:web:prod` before pushing.
+
+## A major upgrade that drops an export a plugin needs: patch the import, prove output is identical
+
+Clearing GHSA-2q42-4q24-7rgv meant moving TypeSpec 0.60 → 1.17, but the TypeScript emitter
+(last release 0.3.0) imports `@typespec/compiler/emitter-framework`, which 1.0 moved unchanged
+into `@typespec/asset-emitter`. A one-line `pnpm patch` of the import, plus `packageExtensions`
+(add the new dependency) and `peerDependencyRules.allowedVersions` (accept the new peer — a
+`packageExtensions` peer entry does *not* override an existing one), kept `output.ts`
+byte-identical. Traps hit on the way:
+
+1. `pnpm patch-commit` reported success but the lockfile had no `patchedDependencies` and the
+   unpatched copy kept loading. Run `pnpm install` again and grep the lockfile for `patch_hash`.
+2. Auto-installed peers stay pinned in the lockfile across a major bump (`@typespec/http@0.60`
+   survived next to compiler 1.17). Declare the peers you rely on explicitly.
+3. Compile the full `tsp:compile` too, not only `pnpm generate`: `apis/json-schema/` is committed
+   and read at runtime, and its output changed (`unevaluatedProperties`, `default: []`).
+4. In the sandbox the default Node heap is ~2.2 GB and `tsc`/`eslint` need ~2.9 GB even on main,
+   so they OOM. Set `NODE_OPTIONS=--max-old-space-size=8192` and compare against a baseline
+   worktree before blaming the change.
+
+## A drawer page needs a children-slot page — Next 16.4 fails the build without one
+
+`@drawer/adopt/page.tsx` shipped with no `(dashboard)/adopt/page.tsx`, so `/adopt` only worked
+on client navigation and had no route on a refresh or shared link. Next 16.4's strict route
+matching turned it into a build error. Every new `@drawer/<route>` gets a null children stub;
+`drawer-slot-parity.test.ts` enforces it. After a Next upgrade, run `pnpm build:web:prod` —
+unit tests and the dev server do not run this validation.
+5. Sandbox e2e: the preinstalled Chromium build can differ from the one the pinned Playwright
+   wants (every web spec fails at `browserType.launch`). Symlink `/opt/pw-browsers/*-<wanted>` to
+   the installed build, then compare remaining failures against a `main` worktree run.
+6. `pnpm test:e2e:cli` can leave a `shep _serve` on port 4050. A packaged Electron launch then
+   waits forever on the invisible "port in use" dialog — kill it before launching under xvfb.
+
+## An SDK "success" can carry an error: check `is_error` before publishing model output
+
+Every release from v1.219.0 to v1.252.2 (56 in a row) shipped _"Your organization does not have
+access to Claude. Please login again…"_ as its tagline. The `CLAUDE_CODE_OAUTH_TOKEN` secret had
+lost access, and the Agent SDK reports that as a `result` message with `subtype: 'success'`,
+`is_error: true` and the error as `result`. The tagline code read only `subtype`, so the fallback
+to the static tagline never fired, and no check noticed for three months. **Rules:**
+
+- Treat a `result` with `is_error` and an `assistant` message with `error` as failures, and also
+  reject text matching known service errors (`isServiceError`) before anything is published.
+- A fallback that hides a broken credential must say so loudly (a warning naming the secret).
+- Permanent output (release notes, CHANGELOG.md) gets fixed at the source of truth, then synced:
+  `scripts/release-notes-backfill.mjs` copies CHANGELOG.md taglines into GitHub releases.
