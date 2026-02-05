@@ -1,0 +1,10312 @@
+export type UUID = string;
+
+/**
+ * Base model providing identity and timestamp fields for all domain entities
+ */
+export type BaseEntity = {
+  /**
+   * Unique identifier for this entity (UUID v4 format)
+   */
+  id: UUID;
+  /**
+   * Timestamp when this entity was created (read-only, set by system)
+   */
+  createdAt: any;
+  /**
+   * Timestamp when this entity was last updated (read-only, set by system)
+   */
+  updatedAt: any;
+};
+
+/**
+ * Entity that supports soft deletion with a deletedAt timestamp
+ */
+export type SoftDeletableEntity = BaseEntity & {
+  /**
+   * Timestamp when this entity was soft-deleted (null if not deleted)
+   */
+  deletedAt?: any;
+};
+
+/**
+ * Entity with audit trail tracking who created and modified it
+ */
+export type AuditableEntity = BaseEntity & {
+  /**
+   * UUID of the user who created this entity (null for system-created)
+   */
+  createdBy?: UUID;
+  /**
+   * UUID of the user who last updated this entity (null for system-updated)
+   */
+  updatedBy?: UUID;
+};
+
+/**
+ * Request model for conversational AI interactions
+ */
+export type AskRequest = {
+  /**
+   * The natural language query to be processed by the AI agent
+   */
+  query: string;
+};
+
+/**
+ * Response model for conversational AI interactions
+ */
+export type AskResponse = {
+  /**
+   * The AI-generated response content (typically Markdown-formatted)
+   */
+  content: string;
+  /**
+   * Whether the operation completed successfully
+   */
+  success: boolean;
+};
+
+/**
+ * Acceptance criterion for validating completion of an action item
+ */
+export type AcceptanceCriteria = BaseEntity & {
+  /**
+   * Description of what must be true for this criterion to be satisfied
+   */
+  description: string;
+  /**
+   * Whether this criterion has been verified as complete
+   */
+  verified: boolean;
+};
+
+/**
+ * Granular, atomic step within a Task representing a single unit of work
+ */
+export type ActionItem = BaseEntity & {
+  /**
+   * Short name describing the action (verb-noun pattern recommended)
+   */
+  name: string;
+  /**
+   * Detailed description of the work to be performed
+   */
+  description: string;
+  /**
+   * Git branch name where this action item's work is performed
+   */
+  branch: string;
+  /**
+   * Action items that must complete before this one can start
+   */
+  dependsOn: ActionItem[];
+  /**
+   * Acceptance criteria for verifying completion of this action item
+   */
+  acceptanceCriteria: AcceptanceCriteria[];
+};
+export enum ArtifactCategory {
+  PRD = 'PRD',
+  API = 'API',
+  Design = 'Design',
+  Other = 'Other',
+}
+export enum ArtifactFormat {
+  Markdown = 'md',
+  Text = 'txt',
+  Yaml = 'yaml',
+  Other = 'Other',
+}
+export enum ArtifactState {
+  Todo = 'Todo',
+  Elaborating = 'Elaborating',
+  Done = 'Done',
+}
+
+/**
+ * Generated document or file attached to a Feature
+ */
+export type Artifact = BaseEntity & {
+  /**
+   * Human-readable name identifying this artifact
+   */
+  name: string;
+  /**
+   * Type description providing additional context (e.g., 'documentation', 'api-spec')
+   */
+  type: string;
+  /**
+   * Category classification (PRD, API, Design, or Other)
+   */
+  category: ArtifactCategory;
+  /**
+   * File format for the artifact content
+   */
+  format: ArtifactFormat;
+  /**
+   * Brief summary of the artifact's content and purpose
+   */
+  summary: string;
+  /**
+   * Relative file path where the artifact is stored
+   */
+  path: string;
+  /**
+   * Current state in the artifact generation lifecycle
+   */
+  state: ArtifactState;
+};
+export enum MessageRole {
+  Assistant = 'assistant',
+  User = 'user',
+}
+
+/**
+ * A message in a conversation thread between user and AI assistant
+ */
+export type Message = BaseEntity & {
+  /**
+   * Role of the message sender (User or Assistant)
+   */
+  role: MessageRole;
+  /**
+   * The text content of the message
+   */
+  content: string;
+  /**
+   * Optional choices presented to the user for selection
+   */
+  options?: string[];
+  /**
+   * Optional user's freeform text answer
+   */
+  answer?: string;
+  /**
+   * Optional index of the selected option from the options array (0-based)
+   */
+  selectedOption?: number;
+};
+export enum RequirementType {
+  Functional = 'Functional',
+  NonFunctional = 'NonFunctional',
+}
+export enum ResearchState {
+  NotStarted = 'NotStarted',
+  Running = 'Running',
+  Finished = 'Finished',
+}
+
+/**
+ * A research topic exploration for gathering technical information
+ */
+export type Research = BaseEntity & {
+  /**
+   * The topic or subject being researched
+   */
+  topic: string;
+  /**
+   * Current state of the research activity (NotStarted, Running, Finished)
+   */
+  state: ResearchState;
+  /**
+   * Summary of research findings and recommendations
+   */
+  summary: string;
+  /**
+   * Artifacts produced during the research activity
+   */
+  artifacts: Artifact[];
+};
+
+/**
+ * A user or inferred requirement attached to a feature
+ */
+export type Requirement = BaseEntity & {
+  /**
+   * URL-friendly short identifier for the requirement
+   */
+  slug: string;
+  /**
+   * The original user query that generated this requirement
+   */
+  userQuery: string;
+  /**
+   * Classification type of the requirement (Functional or NonFunctional)
+   */
+  type: RequirementType;
+  /**
+   * Research activities conducted to clarify or validate this requirement
+   */
+  researches: Research[];
+};
+export enum AgentEffort {
+  low = 'low',
+  medium = 'medium',
+  high = 'high',
+  xhigh = 'xhigh',
+  max = 'max',
+}
+
+/**
+ * Adaptive per-task model tier selection
+ */
+export type AdaptiveModelConfig = {
+  /**
+   * Route each task to a model tier matching its complexity (default: false)
+   */
+  enabled: boolean;
+  /**
+   * Explicit model for High-complexity tasks (default: derived from the pinned model)
+   */
+  high?: string;
+  /**
+   * Explicit model for Medium-complexity tasks (default: derived from the pinned model)
+   */
+  medium?: string;
+  /**
+   * Explicit model for Low-complexity tasks (default: derived from the pinned model)
+   */
+  low?: string;
+};
+
+/**
+ * AI model configuration for the SDLC agent
+ */
+export type ModelConfiguration = {
+  /**
+   * Default model identifier for all agents
+   */
+  default: string;
+  /**
+   * Default reasoning effort for new feature runs (default: agent default)
+   */
+  effort?: AgentEffort;
+  /**
+   * Adaptive per-task model tier selection (default: disabled)
+   */
+  adaptive?: AdaptiveModelConfig;
+};
+export enum Language {
+  English = 'en',
+  Ukrainian = 'uk',
+  Russian = 'ru',
+  Portuguese = 'pt',
+  Spanish = 'es',
+  Arabic = 'ar',
+  Hebrew = 'he',
+  French = 'fr',
+  German = 'de',
+}
+
+/**
+ * User profile information
+ */
+export type UserProfile = {
+  /**
+   * User's display name (optional)
+   */
+  name?: string;
+  /**
+   * User's email address (optional)
+   */
+  email?: string;
+  /**
+   * GitHub username (optional, for PR attribution)
+   */
+  githubUsername?: string;
+  /**
+   * Preferred UI language (default: English)
+   */
+  preferredLanguage?: Language;
+};
+export enum EditorType {
+  VsCode = 'vscode',
+  Cursor = 'cursor',
+  Windsurf = 'windsurf',
+  Zed = 'zed',
+  Antigravity = 'antigravity',
+}
+export enum TerminalType {
+  System = 'system',
+  Warp = 'warp',
+  ITerm2 = 'iterm2',
+  Alacritty = 'alacritty',
+  Kitty = 'kitty',
+}
+
+/**
+ * Environment and tooling preferences
+ */
+export type EnvironmentConfig = {
+  /**
+   * Preferred code editor
+   */
+  defaultEditor: EditorType;
+  /**
+   * Preferred shell
+   */
+  shellPreference: string;
+  /**
+   * Preferred terminal emulator
+   */
+  terminalPreference: TerminalType;
+  /**
+   * Default directory for cloning GitHub repositories (e.g. ~/repos)
+   */
+  defaultCloneDirectory?: string;
+};
+
+/**
+ * System configuration
+ */
+export type SystemConfig = {
+  /**
+   * Log level for CLI output
+   */
+  logLevel: string;
+};
+
+/**
+ * Default approval gate settings for new features
+ */
+export type ApprovalGateDefaults = {
+  /**
+   * Auto-approve requirements phase (default: false)
+   */
+  allowPrd: boolean;
+  /**
+   * Auto-approve planning phase (default: false)
+   */
+  allowPlan: boolean;
+  /**
+   * Auto-approve merge phase (default: false)
+   */
+  allowMerge: boolean;
+  /**
+   * Push branch to remote on implementation complete (default: false)
+   */
+  pushOnImplementationComplete: boolean;
+};
+
+/**
+ * Per-stage timeout overrides for the feature agent workflow (all values in milliseconds)
+ */
+export type StageTimeouts = {
+  /**
+   * Timeout for the analyze stage (default: 600000)
+   */
+  analyzeMs?: number;
+  /**
+   * Timeout for the requirements stage (default: 600000)
+   */
+  requirementsMs?: number;
+  /**
+   * Timeout for the research stage (default: 600000)
+   */
+  researchMs?: number;
+  /**
+   * Timeout for the plan stage (default: 600000)
+   */
+  planMs?: number;
+  /**
+   * Timeout for the implement stage (default: 1800000)
+   */
+  implementMs?: number;
+  /**
+   * Timeout for the fast-implement stage (default: 1800000)
+   */
+  fastImplementMs?: number;
+  /**
+   * Timeout for the merge stage (default: 1800000)
+   */
+  mergeMs?: number;
+};
+
+/**
+ * Timeout overrides for the analyze-repository agent (all values in milliseconds)
+ */
+export type AnalyzeRepoTimeouts = {
+  /**
+   * Timeout for the repository analysis stage (default: 600000)
+   */
+  analyzeMs?: number;
+};
+export enum SkillSourceType {
+  Local = 'local',
+  Remote = 'remote',
+}
+
+/**
+ * A skill source for injection into feature worktrees
+ */
+export type SkillSource = {
+  /**
+   * Unique skill directory name (e.g. 'architecture-reviewer')
+   */
+  name: string;
+  /**
+   * How this skill is provisioned (local copy or remote install)
+   */
+  type: SkillSourceType;
+  /**
+   * Source path (local) or npm package/URL (remote)
+   */
+  source: string;
+  /**
+   * Remote skill name passed to --skill flag (remote type only)
+   */
+  remoteSkillName?: string;
+};
+
+/**
+ * Skill injection configuration for feature worktrees
+ */
+export type SkillInjectionConfig = {
+  /**
+   * Whether skill injection is enabled (default: false, opt-in)
+   */
+  enabled: boolean;
+  /**
+   * List of skills to inject into feature worktrees
+   */
+  skills: SkillSource[];
+};
+
+/**
+ * Reason the fleet admission queue is paused, and when it was paused
+ */
+export type FleetQueuePause = {
+  /**
+   * Timestamp the queue was paused
+   */
+  pausedAt: any;
+  /**
+   * Human-readable reason the queue was paused
+   */
+  reason: string;
+};
+
+/**
+ * Global workflow configuration defaults
+ */
+export type WorkflowConfig = {
+  /**
+   * Create PR on implementation complete (default: false)
+   */
+  openPrOnImplementationComplete: boolean;
+  /**
+   * Default approval gate preferences for new features
+   */
+  approvalGateDefaults: ApprovalGateDefaults;
+  /**
+   * Enable CI watch/fix loop after push (default: true)
+   */
+  ciWatchEnabled: boolean;
+  /**
+   * Maximum concurrently running features (default: 0 = unlimited)
+   */
+  maxParallelFeatures?: number;
+  /**
+   * Present while the fleet admission queue is paused (absent = draining)
+   */
+  queuePaused?: FleetQueuePause;
+  /**
+   * When the user last acknowledged a breaker trip; failures before this do not re-trip
+   */
+  breakerAcknowledgedAt?: any;
+  /**
+   * Whether a tripped circuit breaker parks the admission queue (default: false)
+   */
+  circuitBreakerAutoPauseQueue?: boolean;
+  /**
+   * Minutes a background agent's question waits before the agent proceeds with its recommended option (spec 134; default: 30)
+   */
+  decisionDefaultTimeoutMinutes?: number;
+  /**
+   * Maximum number of CI fix/push/watch iterations before giving up (default: 3)
+   */
+  ciMaxFixAttempts?: number;
+  /**
+   * Timeout in milliseconds for watching a CI run (default: 600000 = 10 minutes)
+   */
+  ciWatchTimeoutMs?: number;
+  /**
+   * Maximum characters of CI failure logs to pass to the executor (default: 50000)
+   */
+  ciLogMaxChars?: number;
+  /**
+   * Poll interval in seconds for gh run watch (default: 30)
+   */
+  ciWatchPollIntervalSeconds?: number;
+  /**
+   * Per-stage timeout overrides for the feature agent (default: 600000 = 10 minutes per stage)
+   */
+  stageTimeouts?: StageTimeouts;
+  /**
+   * Timeout overrides for the analyze-repository agent (default: 600000 = 10 minutes)
+   */
+  analyzeRepoTimeouts?: AnalyzeRepoTimeouts;
+  /**
+   * Enable evidence collection after implementation (default: false)
+   */
+  enableEvidence: boolean;
+  /**
+   * Commit evidence to PR (default: false, requires enableEvidence)
+   */
+  commitEvidence: boolean;
+  /**
+   * Maximum number of evidence collection retry attempts when validation fails (default: 3)
+   */
+  evidenceRetries?: number;
+  /**
+   * Hide CI status badges from UI (default: true)
+   */
+  hideCiStatus?: boolean;
+  /**
+   * Default feature mode for new features: 'Regular', 'Fast', or 'Exploration' (default: 'Fast')
+   */
+  defaultMode: string;
+  /**
+   * Maximum exploration feedback iterations (default: 10, 0 = unlimited)
+   */
+  explorationMaxIterations?: number;
+  /**
+   * Minutes after completion before auto-archiving a feature (default: 10, 0 = disabled)
+   */
+  autoArchiveDelayMinutes?: number;
+  /**
+   * Skill injection configuration (optional, disabled by default)
+   */
+  skillInjection?: SkillInjectionConfig;
+};
+export enum AgentType {
+  ClaudeCode = 'claude-code',
+  KimiCode = 'kimi-code',
+  CodexCli = 'codex-cli',
+  CopilotCli = 'copilot-cli',
+  GeminiCli = 'gemini-cli',
+  Cursor = 'cursor',
+  Cline = 'cline',
+  OpenRouter = 'openrouter',
+  TogetherAi = 'together-ai',
+  Ollama = 'ollama',
+  LlmProxy = 'llmproxy',
+  Dev = 'dev',
+  ShepHarness = 'shep-harness',
+}
+export enum AgentAuthMethod {
+  Session = 'session',
+  Token = 'token',
+}
+
+/**
+ * AI coding agent configuration
+ */
+export type AgentConfig = {
+  /**
+   * Selected AI coding agent
+   */
+  type: AgentType;
+  /**
+   * Authentication method for the agent
+   */
+  authMethod: AgentAuthMethod;
+  /**
+   * API token for token-based auth (optional)
+   */
+  token?: string;
+};
+
+/**
+ * Notification channel enable/disable configuration
+ */
+export type NotificationChannelConfig = {
+  /**
+   * Whether this notification channel is enabled
+   */
+  enabled: boolean;
+};
+
+/**
+ * Notification event type filters
+ */
+export type NotificationEventConfig = {
+  /**
+   * Notify when agent starts running
+   */
+  agentStarted: boolean;
+  /**
+   * Notify when agent completes a workflow phase
+   */
+  phaseCompleted: boolean;
+  /**
+   * Notify when agent is waiting for human approval
+   */
+  waitingApproval: boolean;
+  /**
+   * Notify when agent completes successfully
+   */
+  agentCompleted: boolean;
+  /**
+   * Notify when agent execution fails
+   */
+  agentFailed: boolean;
+  /**
+   * Notify when a pull request is merged on GitHub
+   */
+  prMerged: boolean;
+  /**
+   * Notify when a pull request is closed without merging on GitHub
+   */
+  prClosed: boolean;
+  /**
+   * Notify when pull request CI checks pass
+   */
+  prChecksPassed: boolean;
+  /**
+   * Notify when pull request CI checks fail
+   */
+  prChecksFailed: boolean;
+  /**
+   * Notify when pull request has merge conflicts
+   */
+  prBlocked: boolean;
+  /**
+   * Notify when feature is ready for merge review
+   */
+  mergeReviewReady: boolean;
+  /**
+   * Notify when cloud deployment status changes (spec 089)
+   */
+  cloudDeploymentUpdated?: boolean;
+  /**
+   * Notify when application row changes (setupComplete, status, gitRemoteUrl, cloudDeploymentProvider — spec 090)
+   */
+  applicationUpdated?: boolean;
+  /**
+   * Notify when a new operation log entry is appended (spec 090)
+   */
+  operationLogAppended?: boolean;
+  /**
+   * Notify when a non-blocking AgentQuestion is raised by a running agent (spec 093). Default OFF — info-tier events go to the activity feed only unless the user opts in.
+   */
+  agentQuestionPending?: boolean;
+  /**
+   * Notify when a blocking AgentQuestion pauses an agent and requires an answer (spec 093). Default ON — blocking-tier events MUST reach the user.
+   */
+  agentQuestionBlocking?: boolean;
+  /**
+   * Notify when an inter-agent message is rejected or undeliverable (spec 093). Default OFF — info-tier event.
+   */
+  agentMessageBlocked?: boolean;
+  /**
+   * Notify when the supervisor escalates a decision back to the user (spec 093). Default ON — actionable.
+   */
+  supervisorEscalated?: boolean;
+  /**
+   * Notify when the supervisor evaluator fails and the system falls back to standard human approval (spec 093, FR-22). Default ON — actionable.
+   */
+  supervisorFailed?: boolean;
+  /**
+   * Notify when a scheduled workflow execution starts
+   */
+  workflowStarted?: boolean;
+  /**
+   * Notify when a scheduled workflow execution completes successfully
+   */
+  workflowCompleted?: boolean;
+  /**
+   * Notify when a scheduled workflow execution fails
+   */
+  workflowFailed?: boolean;
+};
+
+/**
+ * Notification preferences for agent lifecycle events
+ */
+export type NotificationPreferences = {
+  /**
+   * In-app toast notification channel (Sonner)
+   */
+  inApp: NotificationChannelConfig;
+  /**
+   * Browser push notification channel (Web Notifications API)
+   */
+  browser: NotificationChannelConfig;
+  /**
+   * Desktop OS notification channel (node-notifier)
+   */
+  desktop: NotificationChannelConfig;
+  /**
+   * Which event types trigger notifications
+   */
+  events: NotificationEventConfig;
+};
+
+/**
+ * Feature flag toggles for runtime feature control
+ */
+export type FeatureFlags = {
+  /**
+   * Enable environment deployment features in the web UI
+   */
+  envDeploy: boolean;
+  /**
+   * Enable debug UI elements and verbose client-side logging
+   */
+  debug: boolean;
+  /**
+   * Use the built-in React file manager instead of the native OS folder picker
+   */
+  reactFileManager: boolean;
+  /**
+   * Enable Projects pages and navigation (project management)
+   */
+  projects: boolean;
+  /**
+   * Enable AI-powered code review for pull requests
+   */
+  codeReview: boolean;
+  /**
+   * Enable agent collaboration, supervisor agent, and unified question pipeline (spec 093)
+   */
+  collaboration: boolean;
+  /**
+   * Enable project-bedrock memory integration UI and server actions (spec 098)
+   */
+  bedrockIntegration: boolean;
+  /**
+   * Enable WhatsApp-native task dispatch and interactive control (spec 101)
+   */
+  whatsappDispatch: boolean;
+  /**
+   * Enable the Application Security Posture Management (ASPM) module — /aspm web routes, `shep aspm` CLI command tree, and the posture SSE stream (spec 098). Off by default: ASPM is a separate product category users opt into (spec 135).
+   */
+  aspm: boolean;
+  /**
+   * Enable Clusters navigation and Kubernetes cluster management in the web UI
+   */
+  clusters: boolean;
+  /**
+   * Enable scheduled workflows feature — workflow creation, scheduling, and execution
+   */
+  scheduledWorkflows: boolean;
+  /**
+   * Enable GitHub repository import flow (clone, fork, and add to Shep)
+   */
+  githubImport: boolean;
+  /**
+   * Enable the experimental query-aware agent harness: the Shep Harness agent, /harness pages, the feature Context tab and `shep harness` commands (spec 119)
+   */
+  queryAwareHarness: boolean;
+  /**
+   * Software factory: spaces and product lines — /spaces and `shep space` (spec 120)
+   */
+  spaces: boolean;
+  /**
+   * Software factory: Linear and Jira tracker sync — /connections, `shep connection`, `shep sync` and the daemon sync loop (spec 122)
+   */
+  trackers: boolean;
+  /**
+   * Software factory: Notion knowledge sources — `shep knowledge` and the daemon knowledge sync (spec 125)
+   */
+  knowledge: boolean;
+  /**
+   * Software factory: customer and incident signals — `shep signal` (spec 126)
+   */
+  signals: boolean;
+  /**
+   * Software factory: ranked opportunities — /opportunities and `shep opportunity` (spec 126)
+   */
+  opportunities: boolean;
+  /**
+   * Software factory: feedback intake and themes — POST /api/feedback and `shep feedback` (spec 127)
+   */
+  feedback: boolean;
+  /**
+   * Software factory: agent discovery of opportunities — `shep discovery` and its daemon schedule (spec 128)
+   */
+  discovery: boolean;
+  /**
+   * Software factory: incident triage — /incidents, POST /api/alerts and `shep incident` (spec 129)
+   */
+  incidents: boolean;
+  /**
+   * Software factory: shipped-work outcomes — `shep outcome` and the daemon outcome tracker (spec 130)
+   */
+  outcomes: boolean;
+  /**
+   * Software factory: docs-first spaces — the docs-first space policy, planning instructions and merge gate (spec 131)
+   */
+  docsFirst: boolean;
+  /**
+   * Software factory: autopilot — `shep autopilot` and the daemon autopilot pass (spec 132)
+   */
+  autopilot: boolean;
+  /**
+   * Software factory: factory status — /factory and `shep factory` (spec 132)
+   */
+  factory: boolean;
+  /**
+   * SDLC board — /sdlc, its live task stream and board actions; off by default (spec 140)
+   */
+  sdlcBoard: boolean;
+  /**
+   * Agent coordination of overlapping features — an agent decides whether one waits for the other; off by default (spec 141)
+   */
+  agentCoordination: boolean;
+  /**
+   * Self-learning harness — reflect on runs and propose harness changes; off by default (spec 150)
+   */
+  selfLearning: boolean;
+};
+export enum LearningMode {
+  Off = 'off',
+  Reflect = 'reflect',
+  Explore = 'explore',
+}
+export enum HarnessRecursion {
+  Parallel = 'parallel',
+  Sequential = 'sequential',
+}
+export type float = any;
+export type float64 = float;
+export enum HarnessAdoptionPolicy {
+  Manual = 'manual',
+  AutoTextOnly = 'auto-text-only',
+  Auto = 'auto',
+}
+
+/**
+ * Self-learning harness settings (spec 150)
+ */
+export type LearningConfig = {
+  /**
+   * Off, Reflect (propose after each run) or Explore (also probe the implement phase)
+   */
+  mode: LearningMode;
+  /**
+   * Task-level recursion budget for Explore; 4k executions and 3k improver sessions
+   */
+  exploreK: number;
+  /**
+   * Recursion shape for Explore
+   */
+  exploreRecursion: HarnessRecursion;
+  /**
+   * Cost cap in USD for one Explore refinement; over it the base result is used
+   */
+  exploreMaxCostUsd: float64;
+  /**
+   * When a candidate is adopted without a person; scripts and hooks always need one
+   */
+  adoptionPolicy: HarnessAdoptionPolicy;
+  /**
+   * Maximum characters of always-on harness text
+   */
+  alwaysOnCharCap: number;
+  /**
+   * Features a version and its parent each need before a regression is judged
+   */
+  regressionMinSample: number;
+};
+export enum WhatsAppAdapterKind {
+  Baileys = 'baileys',
+  CloudApi = 'cloud-api',
+}
+export enum WhatsAppConnectionStatus {
+  Disconnected = 'disconnected',
+  Connecting = 'connecting',
+  AwaitingScan = 'awaiting-scan',
+  Connected = 'connected',
+  Error = 'error',
+}
+
+/**
+ * WhatsApp integration configuration (spec 101)
+ */
+export type WhatsAppConfig = {
+  /**
+   * Whether the WhatsApp integration is active (default: false)
+   */
+  enabled: boolean;
+  /**
+   * Which messaging adapter backs the gateway (default: baileys)
+   */
+  adapter: WhatsAppAdapterKind;
+  /**
+   * Linked WhatsApp number in E.164 form (the account shep speaks AS)
+   */
+  linkedNumber?: string;
+  /**
+   * Last observed connection status (runtime; not user-edited)
+   */
+  status?: WhatsAppConnectionStatus;
+  /**
+   * E.164 numbers authorized to dispatch tasks; empty means only the linked number
+   */
+  allowedNumbers?: string[];
+  /**
+   * Cloud API: phone number ID from the Meta app dashboard
+   */
+  cloudApiPhoneNumberId?: string;
+  /**
+   * Cloud API: permanent access token (stored in the settings DB)
+   */
+  cloudApiAccessToken?: string;
+  /**
+   * Cloud API: webhook verify token (echoed during webhook setup)
+   */
+  cloudApiVerifyToken?: string;
+  /**
+   * Cloud API: app secret used to verify inbound webhook signatures
+   */
+  cloudApiAppSecret?: string;
+};
+
+/**
+ * Interactive agent chat tab configuration
+ */
+export type InteractiveAgentConfig = {
+  /**
+   * Whether the interactive agent Chat tab is enabled (default: true)
+   */
+  enabled: boolean;
+  /**
+   * Idle timeout in minutes before auto-stopping the agent (default: 15, range: 1-120)
+   */
+  autoTimeoutMinutes: number;
+  /**
+   * Maximum number of concurrent active interactive sessions (default: 3)
+   */
+  maxConcurrentSessions: number;
+};
+export enum SupervisorAutonomy {
+  advisory = 'advisory',
+  cosign = 'cosign',
+  autonomous = 'autonomous',
+}
+
+/**
+ * Supervisor agent default configuration (spec 093)
+ */
+export type SupervisorConfig = {
+  /**
+   * Whether a supervisor is enabled by default for newly created apps
+   */
+  enabled: boolean;
+  /**
+   * Default autonomy level (advisory by default)
+   */
+  autonomyLevel: SupervisorAutonomy;
+  /**
+   * Default LLM model identifier (resolved through IAgentExecutorProvider)
+   */
+  modelId?: string;
+  /**
+   * Default evaluator prompt version marker
+   */
+  promptVersion?: string;
+};
+
+/**
+ * Opt-out usage metrics preferences (spec 133)
+ */
+export type TelemetryConfig = {
+  /**
+   * Whether usage metrics are recorded and sent
+   */
+  enabled: boolean;
+  /**
+   * Whether identity (agent account hash, GitHub username and owners) is attached; opt-in
+   */
+  includeIdentity: boolean;
+  /**
+   * Whether the Shep team may contact the user on GitHub
+   */
+  contactConsent: boolean;
+  /**
+   * Random install identifier (UUID), assigned on first use
+   */
+  installId?: string;
+  /**
+   * When the first-run notice was shown
+   */
+  noticeShownAt?: any;
+  /**
+   * When the last install.heartbeat event was recorded
+   */
+  lastHeartbeatAt?: any;
+};
+
+/**
+ * FAB (floating action button) layout configuration
+ */
+export type FabLayoutConfig = {
+  /**
+   * Swap Create and Chat FAB positions (default: false)
+   */
+  swapPosition: boolean;
+};
+
+/**
+ * Configuration for a single messaging platform connection
+ */
+export type MessagingPlatformConfig = {
+  /**
+   * Whether this platform connection is active
+   */
+  enabled: boolean;
+  /**
+   * Platform-specific chat ID for message routing (set during pairing)
+   */
+  chatId?: string;
+  /**
+   * Whether the chat has been verified via pairing code
+   */
+  paired: boolean;
+  /**
+   * One-time code shown to the user during pairing, cleared once confirmed
+   */
+  pendingPairingCode?: string;
+  /**
+   * Expiry timestamp for the pending pairing code (ISO-8601)
+   */
+  pendingPairingExpiresAt?: any;
+  /**
+   * Gateway integration route ID allocated during pairing
+   */
+  routeId?: string;
+  /**
+   * Gateway integration route token (path-auth) allocated during pairing
+   */
+  routeToken?: string;
+  /**
+   * Public webhook URL that the messaging platform should POST updates to
+   */
+  publicUrl?: string;
+  /**
+   * Bot API token used by the daemon to send outbound messages (Telegram: 123456:ABC...)
+   */
+  botToken?: string;
+};
+
+/**
+ * Messaging remote control configuration
+ */
+export type MessagingConfig = {
+  /**
+   * Whether messaging remote control is enabled
+   */
+  enabled: boolean;
+  /**
+   * URL of the Commands.com Gateway instance
+   */
+  gatewayUrl?: string;
+  /**
+   * Device ID used when registering integration routes and opening the tunnel
+   */
+  deviceId?: string;
+  /**
+   * OAuth client ID for fetching gateway access tokens (demo mode uses public client)
+   */
+  gatewayClientId?: string;
+  /**
+   * Telegram platform configuration
+   */
+  telegram?: MessagingPlatformConfig;
+  /**
+   * WhatsApp platform configuration
+   */
+  whatsapp?: MessagingPlatformConfig;
+  /**
+   * Debounce window in milliseconds for notification delivery (default: 5000)
+   */
+  debounceMs: number;
+  /**
+   * Buffer interval in milliseconds for chat relay output batching (default: 3000)
+   */
+  chatBufferMs: number;
+};
+export enum SecurityMode {
+  Disabled = 'Disabled',
+  Advisory = 'Advisory',
+  Enforce = 'Enforce',
+}
+
+/**
+ * Supply-chain security configuration persisted in settings
+ */
+export type SecurityConfig = {
+  /**
+   * Effective security mode (default: Advisory)
+   */
+  mode: SecurityMode;
+  /**
+   * ISO timestamp of last policy evaluation (null if never evaluated)
+   */
+  lastEvaluationAt?: string;
+  /**
+   * Source of the active security policy (null if never evaluated)
+   */
+  policySource?: string;
+};
+
+/**
+ * Custom worktree provisioning commands
+ */
+export type WorktreeConfig = {
+  /**
+   * Command replacing `git worktree add` (empty = built-in git worktree)
+   */
+  createCommand?: string;
+  /**
+   * Command run inside the worktree after it is provisioned
+   */
+  postCreateCommand?: string;
+  /**
+   * Timeout in milliseconds for each worktree command (default: 300000)
+   */
+  commandTimeoutMs?: number;
+};
+export enum DefaultHomePage {
+  ControlCenter = 'control-center',
+  Applications = 'applications',
+  Features = 'features',
+}
+export enum HarnessMode {
+  Baseline = 'baseline',
+  QueryAware = 'query_aware',
+}
+export enum HarnessBudgetMode {
+  Economy = 'economy',
+  Balanced = 'balanced',
+  Quality = 'quality',
+}
+export enum ChunkVisibility {
+  Hidden = 'hidden',
+  Short = 'short',
+  Long = 'long',
+  Full = 'full',
+}
+
+/**
+ * Context budget and visibility bands
+ */
+export type HarnessContextConfig = {
+  /**
+   * Maximum input tokens of a model call
+   */
+  maxInputTokens: number;
+  /**
+   * Tokens reserved for the model's output
+   */
+  reserveOutputTokens: number;
+  /**
+   * Maximum candidate chunks scored per turn
+   */
+  candidateLimit: number;
+  /**
+   * Relevance below this is hidden
+   */
+  hideThreshold: float64;
+  /**
+   * Relevance from this is long (below it: short)
+   */
+  longThreshold: float64;
+  /**
+   * Relevance from this is full
+   */
+  fullThreshold: float64;
+  /**
+   * Largest view (tokens) shown in full without an explicit request; bigger chunks get their long view
+   */
+  fullTokenCap: number;
+  /**
+   * Visibility used when no provider could score a chunk
+   */
+  uncertainDefault: ChunkVisibility;
+};
+export enum DecisionProviderKind {
+  Deterministic = 'deterministic',
+  OpenAiCompatible = 'openai_compatible',
+  Reranker = 'reranker',
+  StructuredLlm = 'structured_llm',
+  Jev = 'jev',
+}
+
+/**
+ * One configured decision provider instance
+ */
+export type DecisionProviderConfig = {
+  /**
+   * Unique id referenced by routes
+   */
+  id: string;
+  /**
+   * Implementation family
+   */
+  kind: DecisionProviderKind;
+  /**
+   * HTTP endpoint (openai_compatible, reranker, jev)
+   */
+  endpoint?: string;
+  /**
+   * Model name the endpoint should use
+   */
+  model?: string;
+  /**
+   * Name of the environment variable holding an API key (never the key itself)
+   */
+  apiKeyEnv?: string;
+  /**
+   * Per-call timeout in milliseconds
+   */
+  timeoutMs?: number;
+};
+
+/**
+ * Which provider answers each decision kind
+ */
+export type DecisionRoutes = {
+  /**
+   * Provider for chunk visibility
+   */
+  chunkVisibility?: string;
+  /**
+   * Provider for capability choice
+   */
+  capabilityChoice?: string;
+  /**
+   * Provider for cache strategy
+   */
+  cacheStrategy?: string;
+  /**
+   * Provider for (shadow) permission risk
+   */
+  permissionRisk?: string;
+};
+
+/**
+ * Pluggable decision layer: Jev is optional and replaceable by open-source providers
+ */
+export type HarnessDecisionsConfig = {
+  /**
+   * Configured providers; 'deterministic' always exists implicitly
+   */
+  providers: DecisionProviderConfig[];
+  /**
+   * Per-kind routes
+   */
+  routes: DecisionRoutes;
+  /**
+   * Provider for kinds without a route
+   */
+  defaultProviderId: string;
+  /**
+   * Ordered fallbacks; deterministic is always appended last
+   */
+  fallbackProviderIds: string[];
+};
+
+/**
+ * Shadow (record-only) switches
+ */
+export type HarnessShadowConfig = {
+  /**
+   * Run baseline but record query-aware plans
+   */
+  contextRouter: boolean;
+  /**
+   * Record AI permission-risk judgments without enforcing them
+   */
+  permissions: boolean;
+  /**
+   * Record capability-router picks while the model's choice runs
+   */
+  toolRouter: boolean;
+};
+export enum PermissionEffect {
+  Allow = 'allow',
+  Ask = 'ask',
+  Deny = 'deny',
+}
+
+/**
+ * Permission defaults
+ */
+export type HarnessPermissionsConfig = {
+  /**
+   * Effect for actions no rule matches
+   */
+  defaultUnknown: PermissionEffect;
+  /**
+   * What 'ask' becomes when nobody can answer (evals, --non-interactive)
+   */
+  nonInteractiveAsk: PermissionEffect;
+  /**
+   * How long to wait for a person before denying, in milliseconds
+   */
+  approvalTimeoutMs: number;
+};
+
+/**
+ * Global configuration of the query-aware agent harness (spec 119)
+ */
+export type HarnessConfig = {
+  /**
+   * Context-assembly mode
+   */
+  mode: HarnessMode;
+  /**
+   * Budget mode
+   */
+  budgetMode: HarnessBudgetMode;
+  /**
+   * Maximum model calls per task
+   */
+  maxTurns: number;
+  /**
+   * Timeout for one model call in milliseconds; raise it for slow local models
+   */
+  modelTimeoutMs: number;
+  /**
+   * SDK agent whose model access (and credentials) the harness reuses
+   */
+  backendAgentType: AgentType;
+  /**
+   * Model id on the backend (unset: settings.models.default)
+   */
+  backendModel?: string;
+  /**
+   * Context budget and visibility bands
+   */
+  context: HarnessContextConfig;
+  /**
+   * Decision layer
+   */
+  decisions: HarnessDecisionsConfig;
+  /**
+   * Shadow switches
+   */
+  shadow: HarnessShadowConfig;
+  /**
+   * Permission defaults
+   */
+  permissions: HarnessPermissionsConfig;
+};
+
+/**
+ * Global Shep platform settings (singleton)
+ */
+export type Settings = BaseEntity & {
+  /**
+   * AI model configuration for different agents
+   */
+  models: ModelConfiguration;
+  /**
+   * User profile information
+   */
+  user: UserProfile;
+  /**
+   * Environment and tooling preferences
+   */
+  environment: EnvironmentConfig;
+  /**
+   * System-level parameters
+   */
+  system: SystemConfig;
+  /**
+   * AI coding agent selection and authentication
+   */
+  agent: AgentConfig;
+  /**
+   * Notification preferences for agent lifecycle events
+   */
+  notifications: NotificationPreferences;
+  /**
+   * Global workflow configuration defaults
+   */
+  workflow: WorkflowConfig;
+  /**
+   * Feature flag toggles for runtime feature control
+   */
+  featureFlags?: FeatureFlags;
+  /**
+   * Whether first-run onboarding has been completed (default: false)
+   */
+  onboardingComplete: boolean;
+  /**
+   * Interactive agent chat configuration (optional, defaults applied at runtime)
+   */
+  interactiveAgent?: InteractiveAgentConfig;
+  /**
+   * FAB layout configuration (optional, defaults applied at runtime)
+   */
+  fabLayout?: FabLayoutConfig;
+  /**
+   * Supervisor agent default configuration (optional, defaults applied at runtime)
+   */
+  supervisor?: SupervisorConfig;
+  /**
+   * Default landing page when opening the web UI (default: control-center)
+   */
+  defaultHomePage?: DefaultHomePage;
+  /**
+   * WhatsApp integration configuration (optional, defaults applied at runtime)
+   */
+  whatsapp?: WhatsAppConfig;
+  /**
+   * Supply-chain security configuration (optional, defaults applied at runtime)
+   */
+  security?: SecurityConfig;
+  /**
+   * Messaging remote control configuration (optional, defaults applied at runtime)
+   */
+  messaging?: MessagingConfig;
+  /**
+   * Custom worktree provisioning commands (optional, built-in git worktree by default)
+   */
+  worktree?: WorktreeConfig;
+  /**
+   * Query-aware agent harness configuration (optional, defaults applied at runtime)
+   */
+  harness?: HarnessConfig;
+  /**
+   * Usage metrics preferences (optional, defaults applied at runtime)
+   */
+  telemetry?: TelemetryConfig;
+  /**
+   * Self-learning harness settings (optional, defaults applied at runtime)
+   */
+  learning?: LearningConfig;
+};
+export enum HarnessEvalRunStatus {
+  Pending = 'pending',
+  Running = 'running',
+  Completed = 'completed',
+  Failed = 'failed',
+}
+
+/**
+ * One eval run over a suite: cases × variants × repeats
+ */
+export type HarnessEvalRun = BaseEntity & {
+  /**
+   * Suite name
+   */
+  suite: string;
+  /**
+   * Variants compared
+   */
+  variants: HarnessMode[];
+  /**
+   * Repeats per case and variant
+   */
+  repeats: number;
+  /**
+   * Status
+   */
+  status: HarnessEvalRunStatus;
+  /**
+   * Model id used by every variant
+   */
+  modelId?: string;
+  /**
+   * Error message when the run failed
+   */
+  error?: string;
+  /**
+   * OS process running the eval; a run whose process exited is reported as failed
+   */
+  ownerPid?: number;
+};
+
+/**
+ * Result of one case × variant × repeat in an eval run
+ */
+export type HarnessEvalResult = BaseEntity & {
+  /**
+   * Eval run
+   */
+  runId: string;
+  /**
+   * Case id
+   */
+  caseId: string;
+  /**
+   * Variant
+   */
+  variant: HarnessMode;
+  /**
+   * Repeat index (0-based)
+   */
+  repeat: number;
+  /**
+   * Whether the success check passed
+   */
+  success: boolean;
+  /**
+   * Metric values (inputTokens, outputTokens, cachedTokens, costUsd, wallMs, turns, repeatedReads, visibleToolTokens, rawToolTokens, recall)
+   */
+  scores: Record<string, float64>;
+  /**
+   * Harness session of the run
+   */
+  sessionId?: string;
+  /**
+   * Error message when the case failed to run
+   */
+  error?: string;
+};
+export enum SupervisorScopeType {
+  global = 'global',
+  repo = 'repo',
+  app = 'app',
+}
+
+/**
+ * Supervisor policy with cascading scope: global → repo → app → feature
+ */
+export type SupervisorPolicy = BaseEntity & {
+  /**
+   * Level at which this policy applies (global, repo, or app)
+   */
+  scopeType: SupervisorScopeType;
+  /**
+   * Scope identifier — app or repo UUID (null for global policies)
+   */
+  scopeId?: string;
+  /**
+   * Feature scope identifier (optional per-feature override)
+   */
+  featureId?: string;
+  /**
+   * Master enable toggle
+   */
+  enabled: boolean;
+  /**
+   * Default autonomy level (advisory by default)
+   */
+  autonomyLevel: SupervisorAutonomy;
+  /**
+   * JSON map: per-gate autonomy override (e.g. { prd: 'advisory', merge: 'autonomous' })
+   */
+  gateAuthorityJson?: string;
+  /**
+   * LLM model identifier resolved through IAgentExecutorProvider
+   */
+  modelId?: string;
+  /**
+   * Evaluator prompt version marker for audit reproducibility
+   */
+  promptVersion?: string;
+  /**
+   * JSON array of structured policy rules
+   */
+  policyRulesJson?: string;
+  /**
+   * JSON array of deterministic GuardrailRules evaluated before the LLM evaluator
+   */
+  guardrailRulesJson?: string;
+  /**
+   * JSON object overriding the user's notification preferences for supervisor events
+   */
+  notificationOverridesJson?: string;
+};
+export enum TaskState {
+  Todo = 'Todo',
+  WIP = 'Work in Progress',
+  Done = 'Done',
+  Review = 'Review',
+}
+
+/**
+ * A discrete unit of work within an implementation plan
+ */
+export type Task = BaseEntity & {
+  /**
+   * Optional human-readable title for the task
+   */
+  title?: string;
+  /**
+   * Optional detailed description of what the task entails
+   */
+  description?: string;
+  /**
+   * Tasks that must be completed before this task can begin
+   */
+  dependsOn: Task[];
+  /**
+   * Granular action items that comprise this task
+   */
+  actionItems: ActionItem[];
+  /**
+   * The base branch from which this task's working branch was created
+   */
+  baseBranch: string;
+  /**
+   * Current state of task execution (Todo, WIP, Review, Done)
+   */
+  state: TaskState;
+  /**
+   * Git branch where work for this task is performed
+   */
+  branch: string;
+};
+
+/**
+ * A significant event in the feature's timeline tracking user interactions and milestones
+ */
+export type TimelineEvent = BaseEntity & {
+  /**
+   * The user query or action that triggered this timeline event
+   */
+  userQuery: string;
+  /**
+   * Timestamp when this event occurred (read-only, set by system)
+   */
+  timestamp: any;
+};
+export enum PlanState {
+  Requirements = 'Requirements',
+  ClarificationRequired = 'ClarificationRequired',
+  Ready = 'Ready',
+}
+
+/**
+ * Individual task representation within a Gantt chart visualization
+ */
+export type GanttTask = {
+  /**
+   * Unique identifier for the Gantt task
+   */
+  id: UUID;
+  /**
+   * Display name of the task shown in the Gantt chart
+   */
+  name: string;
+  /**
+   * Scheduled start time for the task
+   */
+  start: any;
+  /**
+   * Scheduled end time for the task
+   */
+  end: any;
+  /**
+   * IDs of tasks that this task depends on (must complete before this task can start)
+   */
+  dependencies: UUID[];
+  /**
+   * Completion progress as a fraction (0.0 = not started, 1.0 = complete)
+   */
+  progress: number;
+};
+
+/**
+ * Container for Gantt chart visualization data including tasks and time bounds
+ */
+export type GanttViewData = {
+  /**
+   * Collection of tasks to display in the Gantt chart
+   */
+  tasks: GanttTask[];
+  /**
+   * Start date of the overall work plan (left boundary of the chart)
+   */
+  startDate: any;
+  /**
+   * End date of the overall work plan (right boundary of the chart)
+   */
+  endDate: any;
+};
+
+/**
+ * Implementation plan for a feature containing tasks, artifacts, and requirements
+ */
+export type Plan = BaseEntity & {
+  /**
+   * High-level overview describing the implementation approach
+   */
+  overview: string;
+  /**
+   * User and inferred requirements that this plan addresses
+   */
+  requirements: Requirement[];
+  /**
+   * Documents and artifacts to be produced as part of this plan
+   */
+  artifacts: Artifact[];
+  /**
+   * Work items (tasks) that comprise this implementation plan
+   */
+  tasks: Task[];
+  /**
+   * Current state of the plan execution lifecycle
+   */
+  state: PlanState;
+  /**
+   * Optional Gantt chart visualization data for work scheduling
+   */
+  workPlan?: GanttViewData;
+};
+export enum SdlcLifecycle {
+  Started = 'Started',
+  Analyze = 'Analyze',
+  Requirements = 'Requirements',
+  Research = 'Research',
+  Planning = 'Planning',
+  Implementation = 'Implementation',
+  Review = 'Review',
+  Maintain = 'Maintain',
+  Blocked = 'Blocked',
+  Pending = 'Pending',
+  Exploring = 'Exploring',
+  Deleting = 'Deleting',
+  AwaitingUpstream = 'AwaitingUpstream',
+  Archived = 'Archived',
+}
+export enum BuildMode {
+  Application = 'application',
+  Fast = 'fast',
+  Spec = 'spec',
+  Exploration = 'exploration',
+}
+
+/**
+ * Configuration for human-in-the-loop approval gates
+ */
+export type ApprovalGates = {
+  /**
+   * Skip human review after requirements phase
+   */
+  allowPrd: boolean;
+  /**
+   * Skip human review after plan phase
+   */
+  allowPlan: boolean;
+  /**
+   * Skip human review after merge phase
+   */
+  allowMerge: boolean;
+};
+export type integer = any;
+export enum PrStatus {
+  Open = 'Open',
+  Merged = 'Merged',
+  Closed = 'Closed',
+}
+export enum CiStatus {
+  Pending = 'Pending',
+  Success = 'Success',
+  Failure = 'Failure',
+  Indeterminate = 'Indeterminate',
+}
+
+/**
+ * Record of one CI fix attempt in the watch/fix loop
+ */
+export type CiFixRecord = {
+  /**
+   * 1-based attempt number
+   */
+  attempt: number;
+  /**
+   * ISO timestamp when this attempt started
+   */
+  startedAt: string;
+  /**
+   * First 500 chars of failure logs for this attempt
+   */
+  failureSummary: string;
+  /**
+   * Outcome of this attempt: fixed, failed, or timeout
+   */
+  outcome: string;
+};
+
+/**
+ * Pull request tracking data for a feature
+ */
+export type PullRequest = {
+  /**
+   * GitHub PR URL
+   */
+  url: string;
+  /**
+   * GitHub PR number
+   */
+  number: number;
+  /**
+   * Current PR status
+   */
+  status: PrStatus;
+  /**
+   * Final commit SHA after push
+   */
+  commitHash?: string;
+  /**
+   * CI pipeline status
+   */
+  ciStatus?: CiStatus;
+  /**
+   * Number of CI fix attempts made
+   */
+  ciFixAttempts?: number;
+  /**
+   * History of CI fix attempts
+   */
+  ciFixHistory?: CiFixRecord[];
+  /**
+   * Whether the PR can be merged (false = merge conflicts)
+   */
+  mergeable?: boolean;
+  /**
+   * URL of the PR created on the upstream repo (fork-and-PR flow only)
+   */
+  upstreamPrUrl?: string;
+  /**
+   * PR number on the upstream repo
+   */
+  upstreamPrNumber?: number;
+  /**
+   * Status of the upstream PR
+   */
+  upstreamPrStatus?: PrStatus;
+};
+export enum CoordinationAction {
+  Defer = 'defer',
+  Continue = 'continue',
+}
+
+/**
+ * The last agent coordination decision about a feature and one overlapping peer (spec 141)
+ */
+export type FeatureCoordination = {
+  /**
+   * What the agent chose
+   */
+  action: CoordinationAction;
+  /**
+   * The agent's one-paragraph reason, shown to the user
+   */
+  rationale: string;
+  /**
+   * The other feature whose committed changes overlap this one
+   */
+  peerFeatureId: UUID;
+  /**
+   * Repository-relative paths both features changed
+   */
+  overlappingPaths: string[];
+  /**
+   * When the decision was applied
+   */
+  decidedAt: any;
+};
+
+/**
+ * File attachment metadata for a feature (value object, embedded in Feature)
+ */
+export type Attachment = {
+  /**
+   * Unique identifier for this attachment (UUID v4)
+   */
+  id: UUID;
+  /**
+   * Original filename of the attached file
+   */
+  name: string;
+  /**
+   * File size in bytes
+   */
+  size: bigint;
+  /**
+   * MIME type of the file (e.g. image/png, application/pdf)
+   */
+  mimeType: string;
+  /**
+   * File path relative to the repository root
+   */
+  path: string;
+  /**
+   * Timestamp when the attachment was created
+   */
+  createdAt: any;
+  /**
+   * Optional user notes or annotations for this attachment
+   */
+  notes?: string;
+};
+
+/**
+ * Central entity tracking a piece of work through the SDLC lifecycle (Aggregate Root)
+ */
+export type Feature = SoftDeletableEntity & {
+  /**
+   * Human-readable name identifying this feature
+   */
+  name: string;
+  /**
+   * The exact user input that initiated this feature, preserved verbatim
+   */
+  userQuery: string;
+  /**
+   * URL-friendly identifier derived from name (unique within repository)
+   */
+  slug: string;
+  /**
+   * Detailed description explaining the feature's purpose and scope
+   */
+  description: string;
+  /**
+   * Absolute file system path to the repository
+   */
+  repositoryPath: string;
+  /**
+   * Git branch name where this feature's work is performed
+   */
+  branch: string;
+  /**
+   * Current stage in the SDLC lifecycle
+   */
+  lifecycle: SdlcLifecycle;
+  /**
+   * Conversation history with the AI assistant
+   */
+  messages: Message[];
+  /**
+   * Implementation plan containing tasks, artifacts, and requirements (optional)
+   */
+  plan?: Plan;
+  /**
+   * Generated documents and artifacts attached to this feature
+   */
+  relatedArtifacts: Artifact[];
+  /**
+   * Associated agent run ID for process tracking (optional)
+   */
+  agentRunId?: string;
+  /**
+   * Skills that were injected into this feature's worktree during creation
+   */
+  injectedSkills?: string[];
+  /**
+   * Absolute path to the feature spec directory inside the worktree
+   */
+  specPath?: string;
+  /**
+   * ID of the Repository entity this feature belongs to
+   */
+  repositoryId?: UUID;
+  /**
+   * Parent application ID when this feature was launched scoped to an Application (optional)
+   */
+  applicationId?: UUID;
+  /**
+   * Build mode controlling which SDLC pipeline the feature follows
+   */
+  buildMode: BuildMode;
+  /**
+   * When true, SDLC phases were skipped and the feature was implemented directly from the prompt
+   */
+  fast: boolean;
+  /**
+   * Push branch to remote after implementation (default: false)
+   */
+  push: boolean;
+  /**
+   * Create PR after implementation (default: false)
+   */
+  openPr: boolean;
+  /**
+   * Fork repo and create PR to upstream at merge time (default: false)
+   */
+  forkAndPr: boolean;
+  /**
+   * Commit specs/evidences into the repo (defaults false when forkAndPr is enabled)
+   */
+  commitSpecs: boolean;
+  /**
+   * Enable CI watch/fix loop after push (default: true)
+   */
+  ciWatchEnabled: boolean;
+  /**
+   * Enable evidence collection after implementation (default: false)
+   */
+  enableEvidence: boolean;
+  /**
+   * Inject curated skills into the feature worktree (default: false)
+   */
+  injectSkills: boolean;
+  /**
+   * Commit evidence to PR (default: false, requires enableEvidence)
+   */
+  commitEvidence: boolean;
+  /**
+   * Approval gates configuration (embedded value object)
+   */
+  approvalGates: ApprovalGates;
+  /**
+   * Absolute path to the git worktree for this feature
+   */
+  worktreePath?: string;
+  /**
+   * Per-feature plugin activation overrides mapping plugin names to enabled state (JSON-serialized in DB)
+   */
+  activePlugins?: Record<string, boolean>;
+  /**
+   * Number of prototype iterations completed so far (incremented on each feedback loop)
+   */
+  iterationCount?: integer;
+  /**
+   * Maximum exploration feedback iterations (default: 10, 0 = unlimited)
+   */
+  maxIterations?: integer;
+  /**
+   * Pull request data (null until PR created)
+   */
+  pr?: PullRequest;
+  /**
+   * Parent feature ID for dependency tracking (optional)
+   */
+  parentId?: UUID;
+  /**
+   * Last agent coordination decision with an overlapping feature (optional)
+   */
+  coordination?: FeatureCoordination;
+  /**
+   * Run this feature's implement phase in Explore mode regardless of the scope's learning mode (optional)
+   */
+  exploreHarness?: boolean;
+  /**
+   * Explore budget k for this feature; falls back to the learning settings (optional)
+   */
+  exploreK?: number;
+  /**
+   * Lifecycle state prior to archiving, used to restore on unarchive (only set when lifecycle is Archived)
+   */
+  previousLifecycle?: SdlcLifecycle;
+  /**
+   * Files attached by the user when creating or messaging this feature
+   */
+  attachments?: Attachment[];
+  /**
+   * Whether project-bedrock memory integration is enabled for this feature worktree (defaults to false in persistence)
+   */
+  bedrockEnabled?: boolean;
+  /**
+   * Provider-native agent session id this feature was adopted from (optional)
+   */
+  sourceAgentSessionId?: string;
+  /**
+   * Agent type that owned the adopted session (optional)
+   */
+  sourceAgentType?: AgentType;
+  /**
+   * When this feature was queued by the parallel-feature limit (optional, cleared on admission)
+   */
+  queuedAt?: any;
+};
+
+/**
+ * External link with title and URL
+ */
+export type RelatedLink = {
+  /**
+   * Human-readable title describing the linked resource
+   */
+  title: string;
+  /**
+   * URL to the external documentation, reference, or resource
+   */
+  url: string;
+};
+
+/**
+ * Option for resolving an open question
+ */
+export type QuestionOption = {
+  /**
+   * The option text describing the potential approach or answer
+   */
+  option: string;
+  /**
+   * Description explaining this option's benefits and approach
+   */
+  description: string;
+  /**
+   * Whether this option was the one ultimately selected
+   */
+  selected: boolean;
+};
+
+/**
+ * Open question with resolution via options or direct answer
+ */
+export type OpenQuestion = {
+  /**
+   * The question text that needs to be answered
+   */
+  question: string;
+  /**
+   * Whether this question has been resolved (false = blocking)
+   */
+  resolved: boolean;
+  /**
+   * Structured options for resolving this question (spec.yaml pattern)
+   */
+  options?: QuestionOption[];
+  /**
+   * Rationale explaining which option was selected and why
+   */
+  selectionRationale?: string;
+  /**
+   * Free-text answer or resolution (research.yaml pattern)
+   */
+  answer?: string;
+};
+
+/**
+ * Base entity for spec artifacts with common metadata fields
+ */
+export type SpecArtifactBase = BaseEntity & {
+  /**
+   * Artifact title / feature name
+   */
+  name: string;
+  /**
+   * Short description of the artifact's purpose
+   */
+  summary: string;
+  /**
+   * Raw Markdown body containing the human-written spec content
+   */
+  content: string;
+  /**
+   * Key technologies mentioned or evaluated in this artifact
+   */
+  technologies: string[];
+  /**
+   * References to other spec IDs (e.g., '008-agent-configuration')
+   */
+  relatedFeatures: string[];
+  /**
+   * URLs to external documentation, references, or comparisons
+   */
+  relatedLinks: RelatedLink[];
+  /**
+   * Structured open questions for validation gate checks
+   */
+  openQuestions: OpenQuestion[];
+};
+
+/**
+ * Technology or approach decision with rationale
+ */
+export type TechDecision = {
+  /**
+   * Title or name of the decision being made
+   */
+  title: string;
+  /**
+   * The chosen technology, library, or approach
+   */
+  chosen: string;
+  /**
+   * Alternative options that were considered but rejected
+   */
+  rejected: string[];
+  /**
+   * Rationale explaining why the chosen option was selected
+   */
+  rationale: string;
+};
+
+/**
+ * Rejection feedback entry for iteration tracking
+ */
+export type RejectionFeedbackEntry = {
+  /**
+   * Iteration number (1-based)
+   */
+  iteration: number;
+  /**
+   * User's feedback message explaining what needs to change
+   */
+  message: string;
+  /**
+   * Which phase was rejected (e.g. 'requirements', 'plan')
+   */
+  phase?: string;
+  /**
+   * When the rejection occurred
+   */
+  timestamp: any;
+  /**
+   * File attachment paths included with the rejection feedback
+   */
+  attachments?: string[];
+};
+
+/**
+ * Implementation phase grouping related tasks
+ */
+export type PlanPhase = {
+  /**
+   * Unique identifier for this phase (e.g., 'phase-1')
+   */
+  id: string;
+  /**
+   * Display name of the phase
+   */
+  name: string;
+  /**
+   * Description of what this phase accomplishes and why it's ordered this way
+   */
+  description?: string;
+  /**
+   * Whether tasks in this phase can be executed in parallel
+   */
+  parallel: boolean;
+  /**
+   * Task IDs belonging to this phase (e.g., ['task-1', 'task-2']). Optional — not present in plan.yaml phases.
+   */
+  taskIds?: string[];
+};
+
+/**
+ * Test-Driven Development cycle phases for a task
+ */
+export type TddCycle = {
+  /**
+   * RED phase: tests to write FIRST (before implementation)
+   */
+  red: string[];
+  /**
+   * GREEN phase: minimal implementation to pass tests
+   */
+  green: string[];
+  /**
+   * REFACTOR phase: code improvements while keeping tests green
+   */
+  refactor: string[];
+};
+export enum TaskComplexity {
+  High = 'High',
+  Medium = 'Medium',
+  Low = 'Low',
+}
+
+/**
+ * Task definition within a spec's task breakdown
+ */
+export type SpecTask = {
+  /**
+   * Unique identifier for this task (e.g., 'task-1')
+   */
+  id: string;
+  /**
+   * ID of the phase this task belongs to (e.g., 'phase-1')
+   */
+  phaseId: string;
+  /**
+   * Task title or name
+   */
+  title: string;
+  /**
+   * Detailed description of what this task accomplishes
+   */
+  description: string;
+  /**
+   * Current state of the task
+   */
+  state: TaskState;
+  /**
+   * IDs of other SpecTasks that must complete before this task starts
+   */
+  dependencies: string[];
+  /**
+   * List of acceptance criteria that define task completion
+   */
+  acceptanceCriteria: string[];
+  /**
+   * TDD cycle definition for this task (if applicable)
+   */
+  tdd?: TddCycle;
+  /**
+   * Estimated effort (e.g., '2 hours', '1 day')
+   */
+  estimatedEffort: string;
+  /**
+   * Reasoning capability this task requires — drives adaptive model tier selection
+   */
+  complexity?: TaskComplexity;
+};
+
+/**
+ * Feature specification artifact (PRD) defining requirements and scope
+ */
+export type FeatureArtifact = SpecArtifactBase & {
+  /**
+   * Spec number (e.g., 11 for spec 011)
+   */
+  number: number;
+  /**
+   * Git branch name for this feature (e.g., 'feat/011-feature-name')
+   */
+  branch: string;
+  /**
+   * One-line description of the feature
+   */
+  oneLiner: string;
+  /**
+   * Current phase in the SDLC lifecycle
+   */
+  phase: SdlcLifecycle;
+  /**
+   * Size estimate: XS, S, M, L, or XL
+   */
+  sizeEstimate: string;
+  /**
+   * Rejection feedback history for PRD iterations (append-only)
+   */
+  rejectionFeedback?: RejectionFeedbackEntry[];
+};
+
+/**
+ * Research artifact documenting technical analysis and decisions
+ */
+export type ResearchArtifact = SpecArtifactBase & {
+  /**
+   * Structured technology decisions with rationale
+   */
+  decisions: TechDecision[];
+};
+
+/**
+ * Technical implementation plan artifact defining strategy and file changes
+ */
+export type TechnicalPlanArtifact = SpecArtifactBase & {
+  /**
+   * Structured implementation phases
+   */
+  phases: PlanPhase[];
+  /**
+   * New files planned to be created
+   */
+  filesToCreate: string[];
+  /**
+   * Existing files planned to be modified
+   */
+  filesToModify: string[];
+};
+
+/**
+ * Task breakdown artifact defining implementation tasks grouped into phases
+ */
+export type TasksArtifact = SpecArtifactBase & {
+  /**
+   * Structured task list with acceptance criteria and TDD phases
+   */
+  tasks: SpecTask[];
+  /**
+   * Overall effort estimate for all tasks combined
+   */
+  totalEstimate: string;
+};
+
+/**
+ * Feature identity metadata in feature.yaml
+ */
+export type FeatureIdentity = {
+  /**
+   * Feature ID slug (e.g., '012-autonomous-pr-review-loop')
+   */
+  id: string;
+  /**
+   * Human-readable feature name
+   */
+  name: string;
+  /**
+   * Feature number (e.g., 12)
+   */
+  number: number;
+  /**
+   * Git branch for this feature
+   */
+  branch: string;
+  /**
+   * Current lifecycle phase (e.g., 'research', 'implementation', 'complete')
+   */
+  lifecycle: string;
+  /**
+   * When the feature was created
+   */
+  createdAt: string;
+};
+
+/**
+ * Task completion progress counters
+ */
+export type FeatureStatusProgress = {
+  /**
+   * Number of completed tasks
+   */
+  completed: number;
+  /**
+   * Total number of tasks
+   */
+  total: number;
+  /**
+   * Completion percentage (0-100)
+   */
+  percentage: number;
+};
+
+/**
+ * Feature execution status
+ */
+export type FeatureStatusInfo = {
+  /**
+   * Current SDLC phase
+   */
+  phase: string;
+  /**
+   * Phases that have been completed
+   */
+  completedPhases?: string[];
+  /**
+   * Task completion progress
+   */
+  progress: FeatureStatusProgress;
+  /**
+   * ID of the task currently being executed (null if none)
+   */
+  currentTask?: string;
+  /**
+   * ISO timestamp of last status update
+   */
+  lastUpdated: string;
+  /**
+   * Agent or skill that last updated the status
+   */
+  lastUpdatedBy: string;
+};
+
+/**
+ * Validation gate results
+ */
+export type FeatureValidation = {
+  /**
+   * ISO timestamp of last validation run (null if never run)
+   */
+  lastRun?: string;
+  /**
+   * Names of validation gates that passed
+   */
+  gatesPassed: string[];
+  /**
+   * Descriptions of auto-fixes that were applied
+   */
+  autoFixesApplied: string[];
+};
+
+/**
+ * Task execution tracking state
+ */
+export type FeatureTaskTracking = {
+  /**
+   * ID of the task currently being worked on (null if none)
+   */
+  current?: string;
+  /**
+   * IDs of tasks blocked by unmet dependencies
+   */
+  blocked: string[];
+  /**
+   * IDs of tasks that failed execution
+   */
+  failed: string[];
+};
+
+/**
+ * Milestone checkpoint for phase completion
+ */
+export type FeatureCheckpoint = {
+  /**
+   * Phase name (e.g., 'feature-created', 'research-complete')
+   */
+  phase: string;
+  /**
+   * ISO timestamp when this checkpoint was reached
+   */
+  completedAt: string;
+  /**
+   * Agent or skill that completed this phase
+   */
+  completedBy: string;
+};
+
+/**
+ * Error tracking for feature execution
+ */
+export type FeatureErrors = {
+  /**
+   * Current error message (null if no active error)
+   */
+  current?: string;
+  /**
+   * History of past error messages
+   */
+  history: string[];
+};
+
+/**
+ * Feature status tracking artifact (feature.yaml)
+ */
+export type FeatureStatus = BaseEntity & {
+  /**
+   * Feature identity metadata
+   */
+  feature: FeatureIdentity;
+  /**
+   * Current execution status and progress
+   */
+  status: FeatureStatusInfo;
+  /**
+   * PR URL if a pull request has been created
+   */
+  prUrl?: string;
+  /**
+   * ISO timestamp when the feature was merged
+   */
+  mergedAt?: string;
+  /**
+   * Validation gate results
+   */
+  validation: FeatureValidation;
+  /**
+   * Task execution tracking
+   */
+  tasks: FeatureTaskTracking;
+  /**
+   * Milestone checkpoints recording phase completions
+   */
+  checkpoints: FeatureCheckpoint[];
+  /**
+   * Error tracking state
+   */
+  errors: FeatureErrors;
+};
+export enum ToolType {
+  VsCode = 'vscode',
+  Cursor = 'cursor',
+  Windsurf = 'windsurf',
+  Zed = 'zed',
+  Antigravity = 'antigravity',
+  CursorCli = 'cursor-cli',
+  ClaudeCode = 'claude-code',
+}
+
+/**
+ * IDE or CLI tool entity with installation tracking
+ */
+export type Tool = BaseEntity & {
+  /**
+   * Display name of the tool
+   */
+  toolName: string;
+  /**
+   * Tool type classification
+   */
+  type: ToolType;
+  /**
+   * Installed version number
+   */
+  installedVersion?: string;
+  /**
+   * Tool installation timestamp
+   */
+  installedAt?: any;
+};
+export enum ApplicationStatus {
+  Idle = 'Idle',
+  Active = 'Active',
+  Error = 'Error',
+}
+export enum CloudDeploymentProvider {
+  CloudflarePages = 'CloudflarePages',
+}
+
+/**
+ * Scoped payload for an ApplicationUpdated notification — carries only the fields the client patches in-place. Deltas for unchanged fields are omitted.
+ */
+export type ApplicationUpdatePayload = {
+  /**
+   * The application whose row changed
+   */
+  applicationId: string;
+  /**
+   * Current setup_complete flag (after the transition)
+   */
+  setupComplete: boolean;
+  /**
+   * Current application status (after the transition)
+   */
+  status: ApplicationStatus;
+  /**
+   * Current git remote URL, if one is set
+   */
+  gitRemoteUrl?: string;
+  /**
+   * Selected cloud deployment provider, if one is set
+   */
+  cloudDeploymentProvider?: CloudDeploymentProvider;
+};
+export enum OperationLogKind {
+  CloudDeploy = 'CloudDeploy',
+  GitRemoteCreate = 'GitRemoteCreate',
+  RepoSync = 'RepoSync',
+  ApplicationSetup = 'ApplicationSetup',
+}
+export enum OperationLogLevel {
+  Debug = 'Debug',
+  Info = 'Info',
+  Warn = 'Warn',
+  Error = 'Error',
+}
+
+/**
+ * A single timestamped line of progress for a long-running operation
+ */
+export type OperationLogEntry = BaseEntity & {
+  /**
+   * Kind of operation this entry belongs to
+   */
+  operationKind: OperationLogKind;
+  /**
+   * Stable id that scopes the operation — typically the application id
+   */
+  operationId: string;
+  /**
+   * Severity / level of this entry
+   */
+  level: OperationLogLevel;
+  /**
+   * Human-readable single-line message
+   */
+  message: string;
+  /**
+   * Optional structured detail (JSON-serialised) — multi-line stderr, error codes, etc.
+   */
+  detail?: string;
+};
+
+/**
+ * Scoped payload for an OperationLogAppended notification — carries the newly-appended entry so clients can patch their log list in-place without a refetch.
+ */
+export type OperationLogAppendPayload = {
+  /**
+   * The newly-appended operation log entry
+   */
+  entry: OperationLogEntry;
+};
+export enum NotificationEventType {
+  AgentStarted = 'agent_started',
+  PhaseCompleted = 'phase_completed',
+  WaitingApproval = 'waiting_approval',
+  AgentCompleted = 'agent_completed',
+  AgentFailed = 'agent_failed',
+  PrMerged = 'pr_merged',
+  PrClosed = 'pr_closed',
+  PrChecksPassed = 'pr_checks_passed',
+  PrChecksFailed = 'pr_checks_failed',
+  PrBlocked = 'pr_blocked',
+  MergeReviewReady = 'merge_review_ready',
+  CloudDeploymentUpdated = 'cloud_deployment_updated',
+  ApplicationUpdated = 'application_updated',
+  OperationLogAppended = 'operation_log_appended',
+  AgentQuestionPending = 'agent_question_pending',
+  AgentQuestionBlocking = 'agent_question_blocking',
+  AgentMessageBlocked = 'agent_message_blocked',
+  SupervisorEscalated = 'supervisor_escalated',
+  SupervisorFailed = 'supervisor_failed',
+  WorkflowStarted = 'workflow_started',
+  WorkflowCompleted = 'workflow_completed',
+  WorkflowFailed = 'workflow_failed',
+}
+export enum NotificationSeverity {
+  Info = 'info',
+  Warning = 'warning',
+  Success = 'success',
+  Error = 'error',
+}
+
+/**
+ * Notification event emitted for agent lifecycle transitions
+ */
+export type NotificationEvent = {
+  /**
+   * Type of lifecycle event
+   */
+  eventType: NotificationEventType;
+  /**
+   * ID of the agent run that triggered this event
+   */
+  agentRunId: string;
+  /**
+   * ID of the feature that triggered this event
+   */
+  featureId: string;
+  /**
+   * Human-readable feature name
+   */
+  featureName: string;
+  /**
+   * Phase name (only for phaseCompleted events)
+   */
+  phaseName?: string;
+  /**
+   * Human-readable event description
+   */
+  message: string;
+  /**
+   * Display severity for notification rendering
+   */
+  severity: NotificationSeverity;
+  /**
+   * When the event occurred
+   */
+  timestamp: any;
+  /**
+   * Scoped payload for ApplicationUpdated events — present iff eventType === ApplicationUpdated
+   */
+  applicationUpdate?: ApplicationUpdatePayload;
+  /**
+   * Scoped payload for OperationLogAppended events — present iff eventType === OperationLogAppended
+   */
+  operationLogAppend?: OperationLogAppendPayload;
+};
+export enum CloudDeploymentStatus {
+  NotDeployed = 'NotDeployed',
+  Building = 'Building',
+  Uploading = 'Uploading',
+  Deploying = 'Deploying',
+  Deployed = 'Deployed',
+  Failed = 'Failed',
+}
+export enum Criticality {
+  Tier1 = 'Tier1',
+  Tier2 = 'Tier2',
+  Tier3 = 'Tier3',
+}
+export enum Exposure {
+  Internet = 'Internet',
+  Internal = 'Internal',
+  Airgapped = 'Airgapped',
+  Unknown = 'Unknown',
+}
+export enum DataClassification {
+  Public = 'Public',
+  Internal = 'Internal',
+  Confidential = 'Confidential',
+  Restricted = 'Restricted',
+}
+export enum ScanStageName {
+  Sbom = 'sbom',
+  Sca = 'sca',
+  Secrets = 'secrets',
+  Sast = 'sast',
+  Container = 'container',
+  Iac = 'iac',
+}
+
+/**
+ * Per-application scanner configuration (stage toggles, excludes, schedule)
+ */
+export type ScannerProfile = {
+  /**
+   * Stages that should run during a scan. Empty array = scan nothing.
+   */
+  enabledStages: ScanStageName[];
+  /**
+   * Glob patterns to exclude from every stage (node_modules, dist, build artifacts)
+   */
+  pathExcludes: string[];
+  /**
+   * Whether the nightly auto-rescan scheduler should include this application
+   */
+  autoRescan: boolean;
+};
+
+/**
+ * A persistent AI-powered application workspace
+ */
+export type Application = SoftDeletableEntity & {
+  /**
+   * Human-readable application name
+   */
+  name: string;
+  /**
+   * URL-friendly identifier (unique)
+   */
+  slug: string;
+  /**
+   * Original user prompt / purpose description
+   */
+  description: string;
+  /**
+   * Absolute path to the primary repository
+   */
+  repositoryPath: string;
+  /**
+   * Additional linked repository/directory paths (JSON array)
+   */
+  additionalPaths: string[];
+  /**
+   * Chosen agent executor type override
+   */
+  agentType?: string;
+  /**
+   * Chosen model override
+   */
+  modelOverride?: string;
+  /**
+   * Current application status
+   */
+  status: ApplicationStatus;
+  /**
+   * Whether the initial setup workflow has completed successfully
+   */
+  setupComplete: boolean;
+  /**
+   * Persistent agent SDK session ID — set once on first session boot, never changes
+   */
+  agentSessionId?: string;
+  /**
+   * Git remote URL (e.g. https://github.com/user/repo) once a remote is attached
+   */
+  gitRemoteUrl?: string;
+  /**
+   * Selected cloud deployment provider for this application
+   */
+  cloudDeploymentProvider?: CloudDeploymentProvider;
+  /**
+   * Current lifecycle state of the cloud deployment
+   */
+  cloudDeploymentStatus?: CloudDeploymentStatus;
+  /**
+   * Provider-specific deployment id used to poll status
+   */
+  cloudDeploymentId?: string;
+  /**
+   * Public URL of the most recent successful deployment
+   */
+  cloudDeploymentUrl?: string;
+  /**
+   * Error message from the last failed deployment attempt
+   */
+  cloudDeploymentError?: string;
+  /**
+   * Timestamp of the last deployment attempt (success or failure)
+   */
+  lastDeployedAt?: any;
+  /**
+   * Whether project-bedrock memory integration is enabled for this application
+   */
+  bedrockEnabled: boolean;
+  /**
+   * ASPM: business criticality tier of this application
+   */
+  criticality?: Criticality;
+  /**
+   * ASPM: network exposure classification of this application
+   */
+  exposure?: Exposure;
+  /**
+   * ASPM: data sensitivity classification of this application
+   */
+  dataClassification?: DataClassification;
+  /**
+   * ASPM: business unit grouping (free-form string, used for posture rollups)
+   */
+  businessUnit?: string;
+  /**
+   * ASPM: per-application scanner configuration (stage toggles, excludes, schedule)
+   */
+  scannerProfile?: ScannerProfile;
+  /**
+   * ASPM: timestamp of the last completed scan run (any status) for this application
+   */
+  lastScannedAt?: any;
+};
+
+/**
+ * A code repository tracked by the Shep platform
+ */
+export type Repository = SoftDeletableEntity & {
+  /**
+   * Human-readable name for the repository (typically the directory name)
+   */
+  name: string;
+  /**
+   * Absolute file system path to the repository root (unique)
+   */
+  path: string;
+  /**
+   * Remote GitHub URL this repository was cloned from (normalized: lowercase, no .git suffix)
+   */
+  remoteUrl?: string;
+  /**
+   * Whether this repository was auto-forked by shep because the user lacked push access
+   */
+  isFork?: boolean;
+  /**
+   * Original upstream URL when isFork is true (normalized: lowercase, no .git suffix)
+   */
+  upstreamUrl?: string;
+  /**
+   * Whether project-bedrock memory integration is enabled for this repository (defaults to false in persistence)
+   */
+  bedrockEnabled?: boolean;
+};
+export enum SecurityActionCategory {
+  DependencyInstall = 'DependencyInstall',
+  PackageScriptExec = 'PackageScriptExec',
+  CiWorkflowModify = 'CiWorkflowModify',
+  PublishRelease = 'PublishRelease',
+  SandboxEscalation = 'SandboxEscalation',
+}
+export enum SecurityActionDisposition {
+  Allowed = 'Allowed',
+  Denied = 'Denied',
+  ApprovalRequired = 'ApprovalRequired',
+}
+
+/**
+ * Mapping of an action category to its enforcement disposition
+ */
+export type ActionDispositionEntry = {
+  /**
+   * The action category
+   */
+  category: SecurityActionCategory;
+  /**
+   * How this action should be handled
+   */
+  disposition: SecurityActionDisposition;
+};
+
+/**
+ * Dependency risk evaluation policy rules
+ */
+export type DependencyRules = {
+  /**
+   * Check manifest-lockfile consistency (default: true)
+   */
+  checkLockfileConsistency: boolean;
+  /**
+   * Flag packages with lifecycle scripts (default: true)
+   */
+  checkLifecycleScripts: boolean;
+  /**
+   * Flag non-registry dependency sources (default: true)
+   */
+  checkNonRegistrySource: boolean;
+  /**
+   * Enforce strict version ranges — no ^ or * (default: false)
+   */
+  enforceStrictVersionRanges: boolean;
+  /**
+   * Packages explicitly allowed (empty = allow all)
+   */
+  allowlist: string[];
+  /**
+   * Packages explicitly denied
+   */
+  denylist: string[];
+};
+
+/**
+ * Release integrity policy rules
+ */
+export type ReleaseRules = {
+  /**
+   * Require publishing from CI only, not local (default: true)
+   */
+  requireCiOnlyPublishing: boolean;
+  /**
+   * Require npm provenance flags on publish (default: true)
+   */
+  requireProvenance: boolean;
+  /**
+   * Check that release workflow has not been tampered with (default: true)
+   */
+  checkWorkflowIntegrity: boolean;
+};
+
+/**
+ * Security policy configuration from shep.security.yaml
+ */
+export type SupplyChainSecurityPolicy = {
+  /**
+   * Desired security mode for this repository
+   */
+  mode: SecurityMode;
+  /**
+   * Per-action-category enforcement dispositions
+   */
+  actionDispositions: ActionDispositionEntry[];
+  /**
+   * Dependency risk evaluation rules
+   */
+  dependencyRules: DependencyRules;
+  /**
+   * Release integrity check rules
+   */
+  releaseRules: ReleaseRules;
+};
+export enum SecuritySeverity {
+  Low = 'Low',
+  Medium = 'Medium',
+  High = 'High',
+  Critical = 'Critical',
+}
+
+/**
+ * Persisted security event for audit and observability
+ */
+export type SecurityEvent = BaseEntity & {
+  /**
+   * Absolute path to the repository this event belongs to
+   */
+  repositoryPath: string;
+  /**
+   * Feature ID if this event occurred during a feature run
+   */
+  featureId?: string;
+  /**
+   * Severity of this security event
+   */
+  severity: SecuritySeverity;
+  /**
+   * Action category that triggered this event
+   */
+  category: SecurityActionCategory;
+  /**
+   * How the action was handled (allowed, denied, approval-required)
+   */
+  disposition: SecurityActionDisposition;
+  /**
+   * Actor or source that triggered this event (agent, user, CI)
+   */
+  actor?: string;
+  /**
+   * Human-readable event description
+   */
+  message?: string;
+  /**
+   * Actionable remediation guidance
+   */
+  remediationSummary?: string;
+};
+export enum DependencyRiskType {
+  LockfileInconsistency = 'LockfileInconsistency',
+  NonRegistrySource = 'NonRegistrySource',
+  LifecycleScript = 'LifecycleScript',
+  DenylistViolation = 'DenylistViolation',
+  AllowlistViolation = 'AllowlistViolation',
+  VersionRangePolicy = 'VersionRangePolicy',
+}
+
+/**
+ * Single dependency risk finding
+ */
+export type DependencyFinding = {
+  /**
+   * Package name (e.g. 'lodash', '@types/node')
+   */
+  packageName: string;
+  /**
+   * Package version or range (e.g. '^4.17.0')
+   */
+  version?: string;
+  /**
+   * Severity of this finding
+   */
+  severity: SecuritySeverity;
+  /**
+   * Type of dependency risk detected
+   */
+  riskType: DependencyRiskType;
+  /**
+   * Human-readable description of the finding
+   */
+  message: string;
+  /**
+   * Actionable remediation guidance
+   */
+  remediation?: string;
+};
+export enum ReleaseIntegrityCheckType {
+  CiOnlyPublishing = 'CiOnlyPublishing',
+  SecretConfiguration = 'SecretConfiguration',
+  ProvenanceConfiguration = 'ProvenanceConfiguration',
+  WorkflowIntegrity = 'WorkflowIntegrity',
+}
+
+/**
+ * Result of a single release integrity check
+ */
+export type ReleaseIntegrityCheck = {
+  /**
+   * Type of check performed
+   */
+  checkType: ReleaseIntegrityCheckType;
+  /**
+   * Whether this check passed
+   */
+  passed: boolean;
+  /**
+   * Human-readable description of the result
+   */
+  message: string;
+  /**
+   * Severity when this check fails
+   */
+  severity: SecuritySeverity;
+};
+
+/**
+ * Aggregated release integrity evaluation result
+ */
+export type ReleaseIntegrityResult = {
+  /**
+   * Individual check results
+   */
+  checks: ReleaseIntegrityCheck[];
+  /**
+   * Whether all checks passed
+   */
+  passed: boolean;
+};
+
+/**
+ * Computed effective security policy snapshot
+ */
+export type EffectivePolicySnapshot = {
+  /**
+   * Resolved effective security mode
+   */
+  mode: SecurityMode;
+  /**
+   * Where the policy was sourced from (e.g. 'shep.security.yaml', 'settings-default')
+   */
+  source: string;
+  /**
+   * ISO timestamp when this snapshot was computed
+   */
+  evaluatedAt: string;
+  /**
+   * Resolved per-action-category enforcement dispositions
+   */
+  actionDispositions: ActionDispositionEntry[];
+};
+export enum MessagingFrameType {
+  Command = 'command',
+  ChatMessage = 'chat_message',
+  ChatControl = 'chat_control',
+}
+export enum MessagingCommandType {
+  New = 'new',
+  Approve = 'approve',
+  Reject = 'reject',
+  Stop = 'stop',
+  Resume = 'resume',
+  Status = 'status',
+  Mute = 'mute',
+  Unmute = 'unmute',
+  List = 'list',
+  Chat = 'chat',
+  End = 'end',
+  Help = 'help',
+}
+export enum MessagingPlatform {
+  Telegram = 'telegram',
+  WhatsApp = 'whatsapp',
+}
+
+/**
+ * A parsed command received from a messaging platform via the Gateway tunnel
+ */
+export type MessagingCommand = {
+  /**
+   * Type of frame: command, chat_message, or chat_control
+   */
+  type: MessagingFrameType;
+  /**
+   * The slash command name (new, approve, reject, stop, resume, status)
+   */
+  command: MessagingCommandType;
+  /**
+   * Target feature ID (short numeric or full UUID)
+   */
+  featureId?: string;
+  /**
+   * Free-text arguments (feature description, rejection feedback, chat text)
+   */
+  args?: string;
+  /**
+   * Chat ID for routing responses back to the correct conversation
+   */
+  chatId: string;
+  /**
+   * Platform for routing responses back (telegram or whatsapp)
+   */
+  platform: MessagingPlatform;
+};
+
+/**
+ * A notification or response sent from Shep to a messaging platform via the Gateway tunnel
+ */
+export type MessagingNotification = {
+  /**
+   * Event type: feature lifecycle, CI status, gate waiting, command response, chat response
+   */
+  event: string;
+  /**
+   * ID of the feature this notification relates to
+   */
+  featureId: string;
+  /**
+   * Human-readable feature name or title
+   */
+  title: string;
+  /**
+   * Human-readable notification body (sanitized, no code or secrets)
+   */
+  message: string;
+};
+export enum EstimateType {
+  None = 'None',
+  Category = 'Category',
+  Points = 'Points',
+}
+
+/**
+ * A project management container for work items, cycles, and modules
+ */
+export type PmProject = SoftDeletableEntity & {
+  /**
+   * Human-readable project name
+   */
+  name: string;
+  /**
+   * URL-friendly identifier derived from name
+   */
+  slug: string;
+  /**
+   * Project description
+   */
+  description?: string;
+  /**
+   * Short prefix for work item IDs (2-5 uppercase letters, e.g., PROJ)
+   */
+  identifierPrefix: string;
+  /**
+   * Atomic counter for sequential work item ID generation
+   */
+  workItemCounter: number;
+  /**
+   * Estimation system used by this project
+   */
+  estimateType: EstimateType;
+  /**
+   * Optional link to an Application (AI workspace)
+   */
+  applicationId?: UUID;
+  /**
+   * Project start date
+   */
+  startDate?: any;
+  /**
+   * Project end date
+   */
+  endDate?: any;
+  /**
+   * Feature toggles JSON — enables/disables cycles, modules, epics, pages, intake, time tracking
+   */
+  featureToggles?: string;
+};
+export enum Priority {
+  Urgent = 'Urgent',
+  High = 'High',
+  Medium = 'Medium',
+  Low = 'Low',
+  None = 'None',
+}
+
+/**
+ * A unit of work within a project — issue, task, bug, or story
+ */
+export type WorkItem = SoftDeletableEntity & {
+  /**
+   * Project this work item belongs to
+   */
+  projectId: UUID;
+  /**
+   * Sequential number within the project (e.g., 42 in PROJ-42)
+   */
+  sequenceId: number;
+  /**
+   * Denormalized project prefix for display (e.g., 'PROJ')
+   */
+  identifierPrefix: string;
+  /**
+   * Work item title (required)
+   */
+  title: string;
+  /**
+   * Rich text description stored as JSON (TipTap/ProseMirror format)
+   */
+  description?: string;
+  /**
+   * Current workflow state ID
+   */
+  stateId: UUID;
+  /**
+   * Priority level
+   */
+  priority: Priority;
+  /**
+   * Parent work item ID for sub-item hierarchy (max 3 levels)
+   */
+  parentId?: UUID;
+  /**
+   * Manual sort order (float64 for insertion between items)
+   */
+  sortOrder: float64;
+  /**
+   * Planned start date
+   */
+  startDate?: any;
+  /**
+   * Target due date
+   */
+  dueDate?: any;
+  /**
+   * Estimate value — category label (XS/S/M/L/XL) or numeric string
+   */
+  estimateValue?: string;
+  /**
+   * Custom property values as JSON object keyed by property ID
+   */
+  customPropertyValues?: string;
+};
+export enum StateGroup {
+  Backlog = 'Backlog',
+  Unstarted = 'Unstarted',
+  Started = 'Started',
+  Completed = 'Completed',
+  Cancelled = 'Cancelled',
+}
+
+/**
+ * A customizable workflow state within a project, belonging to a fixed semantic group
+ */
+export type WorkItemState = SoftDeletableEntity & {
+  /**
+   * Project this state belongs to
+   */
+  projectId: UUID;
+  /**
+   * Display name for the state (e.g., 'In Review', 'QA Testing')
+   */
+  name: string;
+  /**
+   * Hex color code for UI rendering (e.g., '#3b82f6')
+   */
+  color: string;
+  /**
+   * Position in the state list for ordering
+   */
+  displayOrder: number;
+  /**
+   * Semantic group this state belongs to — used for analytics and burndown
+   */
+  stateGroup: StateGroup;
+  /**
+   * Whether this is the default state for new work items in the project
+   */
+  isDefault: boolean;
+};
+export enum WorkItemTypeName {
+  Task = 'Task',
+  Bug = 'Bug',
+  Story = 'Story',
+  Feature = 'Feature',
+}
+
+/**
+ * A work item type classification within a project
+ */
+export type WorkItemType = SoftDeletableEntity & {
+  /**
+   * Project this type belongs to
+   */
+  projectId: UUID;
+  /**
+   * Type name (Task, Bug, Story, Feature)
+   */
+  name: WorkItemTypeName;
+  /**
+   * Optional description of when to use this type
+   */
+  description?: string;
+  /**
+   * Optional icon identifier for UI rendering
+   */
+  icon?: string;
+  /**
+   * Whether this is the default type for new work items
+   */
+  isDefault: boolean;
+};
+
+/**
+ * A project-scoped label for categorizing work items
+ */
+export type Label = SoftDeletableEntity & {
+  /**
+   * Project this label belongs to
+   */
+  projectId: UUID;
+  /**
+   * Label display name
+   */
+  name: string;
+  /**
+   * Hex color code for UI rendering (e.g., '#ef4444')
+   */
+  color: string;
+  /**
+   * Optional parent label ID for one-level grouping
+   */
+  parentId?: UUID;
+};
+
+/**
+ * A threaded comment on a work item
+ */
+export type Comment = SoftDeletableEntity & {
+  /**
+   * Work item this comment belongs to
+   */
+  workItemId: UUID;
+  /**
+   * Parent comment ID for threading (null for top-level comments)
+   */
+  parentId?: UUID;
+  /**
+   * Comment content — rich text JSON or plain text
+   */
+  content: string;
+  /**
+   * ID of the comment author
+   */
+  authorId: string;
+};
+export enum ViewLayout {
+  List = 'List',
+  Board = 'Board',
+  Table = 'Table',
+  Calendar = 'Calendar',
+  Timeline = 'Timeline',
+}
+
+/**
+ * A saved view configuration for work items in a project
+ */
+export type SavedView = SoftDeletableEntity & {
+  /**
+   * Project this view belongs to
+   */
+  projectId: UUID;
+  /**
+   * Display name for the saved view
+   */
+  name: string;
+  /**
+   * Optional description
+   */
+  description?: string;
+  /**
+   * Whether this view is visible to all project members
+   */
+  isPublic: boolean;
+  /**
+   * Layout type for this view
+   */
+  layout: ViewLayout;
+  /**
+   * Full view configuration as JSON (filters, grouping, sorting, display properties)
+   */
+  configuration: string;
+  /**
+   * ID of the user who created this view
+   */
+  createdBy?: string;
+};
+export enum CycleStatus {
+  Upcoming = 'Upcoming',
+  Active = 'Active',
+  Completed = 'Completed',
+}
+
+/**
+ * A time-boxed iteration (sprint) within a project
+ */
+export type Cycle = SoftDeletableEntity & {
+  /**
+   * Parent project this cycle belongs to
+   */
+  projectId: UUID;
+  /**
+   * Human-readable cycle name (e.g., Sprint 1)
+   */
+  name: string;
+  /**
+   * Optional description of sprint goals
+   */
+  description?: string;
+  /**
+   * Current lifecycle status
+   */
+  status: CycleStatus;
+  /**
+   * Sprint start date
+   */
+  startDate?: any;
+  /**
+   * Sprint end date
+   */
+  endDate?: any;
+};
+export enum ModuleStatus {
+  Backlog = 'Backlog',
+  Planned = 'Planned',
+  InProgress = 'InProgress',
+  Paused = 'Paused',
+  Completed = 'Completed',
+  Cancelled = 'Cancelled',
+}
+
+/**
+ * An epic-like grouping of related work items within a project
+ */
+export type PmModule = SoftDeletableEntity & {
+  /**
+   * Parent project this module belongs to
+   */
+  projectId: UUID;
+  /**
+   * Human-readable module name
+   */
+  name: string;
+  /**
+   * Optional description of module scope and goals
+   */
+  description?: string;
+  /**
+   * Current lifecycle status
+   */
+  status: ModuleStatus;
+  /**
+   * Optional lead/owner for this module
+   */
+  leadId?: string;
+  /**
+   * Module start date
+   */
+  startDate?: any;
+  /**
+   * Module end date
+   */
+  endDate?: any;
+};
+
+/**
+ * A wiki/documentation page within a project
+ */
+export type Page = SoftDeletableEntity & {
+  /**
+   * Project this page belongs to
+   */
+  projectId: UUID;
+  /**
+   * Page title
+   */
+  title: string;
+  /**
+   * Rich text content stored as TipTap JSON (ProseMirror document model)
+   */
+  content?: string;
+  /**
+   * Parent page ID for hierarchical nesting (null for top-level pages)
+   */
+  parentId?: UUID;
+  /**
+   * Display order among sibling pages
+   */
+  sortOrder: float64;
+  /**
+   * Whether this page is marked as a favorite
+   */
+  isFavorite: boolean;
+};
+
+/**
+ * An immutable content snapshot of a page at a specific version
+ */
+export type PageVersion = BaseEntity & {
+  /**
+   * Page this version belongs to
+   */
+  pageId: UUID;
+  /**
+   * Sequential version number within the page
+   */
+  versionNumber: number;
+  /**
+   * Page title at this version
+   */
+  title: string;
+  /**
+   * Full content snapshot as TipTap JSON
+   */
+  content?: string;
+};
+export enum EpicStatus {
+  Backlog = 'Backlog',
+  Planned = 'Planned',
+  InProgress = 'InProgress',
+  Completed = 'Completed',
+  Cancelled = 'Cancelled',
+}
+
+/**
+ * A large container within a project that groups related work items
+ */
+export type Epic = SoftDeletableEntity & {
+  /**
+   * Project this epic belongs to
+   */
+  projectId: UUID;
+  /**
+   * Epic name
+   */
+  name: string;
+  /**
+   * Optional description of the epic's scope and goals
+   */
+  description?: string;
+  /**
+   * Current lifecycle status
+   */
+  status: EpicStatus;
+  /**
+   * Planned start date
+   */
+  startDate?: any;
+  /**
+   * Target end date
+   */
+  endDate?: any;
+};
+
+/**
+ * File attachment metadata for a work item — file stored on local filesystem
+ */
+export type PmAttachment = SoftDeletableEntity & {
+  /**
+   * Work item this attachment belongs to
+   */
+  workItemId: UUID;
+  /**
+   * Original filename as provided by the user
+   */
+  filename: string;
+  /**
+   * MIME type of the file (validated via magic bytes)
+   */
+  mimeType: string;
+  /**
+   * File size in bytes (max 25MB = 26214400)
+   */
+  fileSize: number;
+  /**
+   * Absolute path to the file on disk
+   */
+  storagePath: string;
+};
+export enum IntakeStatus {
+  Pending = 'Pending',
+  Accepted = 'Accepted',
+  Declined = 'Declined',
+  Duplicate = 'Duplicate',
+}
+
+/**
+ * Incoming request awaiting triage — separate from committed WorkItems
+ */
+export type IntakeItem = SoftDeletableEntity & {
+  /**
+   * Project this intake item belongs to
+   */
+  projectId: UUID;
+  /**
+   * Title of the incoming request
+   */
+  title: string;
+  /**
+   * Description of the incoming request (plain text or rich text JSON)
+   */
+  description?: string;
+  /**
+   * Source of the intake (e.g., 'manual', 'email', 'api')
+   */
+  source: string;
+  /**
+   * Triage status of the intake item
+   */
+  status: IntakeStatus;
+  /**
+   * Notes from the triage process (AI or human)
+   */
+  triageNotes?: string;
+  /**
+   * Suggested state ID from AI triage
+   */
+  suggestedStateId?: UUID;
+  /**
+   * Suggested priority from AI triage
+   */
+  suggestedPriority?: string;
+  /**
+   * Suggested label IDs from AI triage (JSON array)
+   */
+  suggestedLabels?: string;
+  /**
+   * Suggested assignee ID from AI triage
+   */
+  suggestedAssigneeId?: string;
+  /**
+   * ID of the work item created on acceptance
+   */
+  resultingWorkItemId?: UUID;
+  /**
+   * Reason for declining the intake item
+   */
+  declineReason?: string;
+  /**
+   * ID of the existing work item this is a duplicate of
+   */
+  duplicateOfWorkItemId?: UUID;
+};
+export enum PmNotificationType {
+  Assignment = 'Assignment',
+  Mention = 'Mention',
+  StateChange = 'StateChange',
+  Comment = 'Comment',
+  DueDateApproaching = 'DueDateApproaching',
+}
+
+/**
+ * In-app notification for project management events
+ */
+export type PmNotification = SoftDeletableEntity & {
+  /**
+   * Project this notification belongs to
+   */
+  projectId: UUID;
+  /**
+   * User ID of the notification recipient
+   */
+  recipientId: string;
+  /**
+   * Type of notification event
+   */
+  type: PmNotificationType;
+  /**
+   * Short title for the notification
+   */
+  title: string;
+  /**
+   * Detailed notification body text
+   */
+  body?: string;
+  /**
+   * Whether the notification has been read
+   */
+  isRead: boolean;
+  /**
+   * Whether the notification has been archived
+   */
+  isArchived: boolean;
+  /**
+   * ID of the referenced entity (work item, comment, etc.)
+   */
+  referenceId?: UUID;
+  /**
+   * Type of the referenced entity (e.g., 'WorkItem', 'Comment', 'IntakeItem')
+   */
+  referenceType?: string;
+};
+
+/**
+ * A user account in the project management system
+ */
+export type PmUser = SoftDeletableEntity & {
+  /**
+   * User's email address — unique identifier for login
+   */
+  email: string;
+  /**
+   * Bcrypt-hashed password — never exposed to presentation layer
+   */
+  passwordHash: string;
+  /**
+   * Display name shown in UI (avatars, assignments, comments)
+   */
+  displayName: string;
+  /**
+   * Whether this is the default system user created for single-user backward compatibility
+   */
+  isSystemUser: boolean;
+};
+
+/**
+ * An authenticated user session with a secure token and expiry
+ */
+export type PmSession = SoftDeletableEntity & {
+  /**
+   * ID of the user who owns this session
+   */
+  userId: UUID;
+  /**
+   * Secure session token used for authentication
+   */
+  token: string;
+  /**
+   * When this session expires — after this time, the session is invalid
+   */
+  expiresAt: any;
+};
+export enum ProjectRole {
+  Admin = 'Admin',
+  Member = 'Member',
+  Guest = 'Guest',
+}
+
+/**
+ * Links a user to a project with a specific role for access control
+ */
+export type PmProjectMember = SoftDeletableEntity & {
+  /**
+   * ID of the project this membership belongs to
+   */
+  projectId: UUID;
+  /**
+   * ID of the user who is a member
+   */
+  userId: UUID;
+  /**
+   * Role determining the user's permissions within the project
+   */
+  role: ProjectRole;
+};
+export enum AuditAction {
+  UserRegistered = 'UserRegistered',
+  UserLoggedIn = 'UserLoggedIn',
+  UserLoggedOut = 'UserLoggedOut',
+  SessionInvalidated = 'SessionInvalidated',
+  MemberAdded = 'MemberAdded',
+  MemberRemoved = 'MemberRemoved',
+  RoleChanged = 'RoleChanged',
+  ProjectSettingsChanged = 'ProjectSettingsChanged',
+  ProjectDeleted = 'ProjectDeleted',
+  BulkOperation = 'BulkOperation',
+}
+
+/**
+ * Immutable audit log entry recording a security-relevant action
+ */
+export type PmAuditLog = BaseEntity & {
+  /**
+   * ID of the user who performed the action
+   */
+  actorId: UUID;
+  /**
+   * Category of the audited action
+   */
+  action: AuditAction;
+  /**
+   * ID of the target entity (project, user, etc.) — optional
+   */
+  targetId?: UUID;
+  /**
+   * Type of the target entity (e.g., 'PmProject', 'PmUser', 'PmProjectMember')
+   */
+  targetType?: string;
+  /**
+   * JSON metadata with action-specific details (old/new values, etc.)
+   */
+  metadata?: string;
+  /**
+   * IP address or client identifier of the actor — optional
+   */
+  ipAddress?: string;
+};
+
+/**
+ * Token usage tracking for an AI agent invocation
+ */
+export type TokenUsage = {
+  /**
+   * Number of input tokens consumed by the agent
+   */
+  inputTokens: number;
+  /**
+   * Number of output tokens produced by the agent
+   */
+  outputTokens: number;
+};
+export enum CommentSide {
+  Left = 'LEFT',
+  Right = 'RIGHT',
+}
+
+/**
+ * Inline review comment targeting a specific file and line in the diff
+ */
+export type ReviewComment = {
+  /**
+   * File path relative to the repository root
+   */
+  path: string;
+  /**
+   * Line number in the file where the comment applies
+   */
+  line: number;
+  /**
+   * Comment body describing the finding (markdown)
+   */
+  body: string;
+  /**
+   * Which side of the diff the comment targets (LEFT = old, RIGHT = new)
+   */
+  side: CommentSide;
+  /**
+   * Suggested replacement code (rendered as GitHub suggestion block)
+   */
+  suggestion?: string;
+  /**
+   * Start line for multi-line comments (used with line as the end line)
+   */
+  startLine?: number;
+  /**
+   * Whether the comment targets a line within the actual diff range
+   */
+  inDiffRange: boolean;
+};
+export enum CodeReviewStatus {
+  Pending = 'Pending',
+  InProgress = 'InProgress',
+  Completed = 'Completed',
+  Posted = 'Posted',
+  Failed = 'Failed',
+}
+
+/**
+ * AI-powered code review of a pull request
+ */
+export type CodeReview = BaseEntity & {
+  /**
+   * Optional link to the Shep Feature that owns this PR
+   */
+  featureId?: UUID;
+  /**
+   * Absolute path to the repository being reviewed
+   */
+  repositoryPath: string;
+  /**
+   * Pull request number on GitHub
+   */
+  prNumber: number;
+  /**
+   * Full GitHub pull request URL
+   */
+  prUrl?: string;
+  /**
+   * Current lifecycle status of the review
+   */
+  status: CodeReviewStatus;
+  /**
+   * Agent's overall summary assessment of the PR
+   */
+  summary?: string;
+  /**
+   * Inline review comments targeting specific diff lines
+   */
+  comments?: ReviewComment[];
+  /**
+   * GitHub review URL after findings are posted
+   */
+  reviewUrl?: string;
+  /**
+   * AI model identifier used for the review (e.g. claude-sonnet-4-6)
+   */
+  agentModel?: string;
+  /**
+   * Token usage tracking for cost monitoring
+   */
+  tokenUsage?: TokenUsage;
+  /**
+   * Error details when status is Failed
+   */
+  errorMessage?: string;
+};
+export enum ContributorLane {
+  Docs = 'docs',
+  Agents = 'agents',
+  Ui = 'ui',
+  Cli = 'cli',
+  Infra = 'infra',
+}
+export enum ContributorLevel {
+  User = 'user',
+  Contributor = 'contributor',
+  Core = 'core',
+  Maintainer = 'maintainer',
+}
+
+/**
+ * External OSS contributor to a repository Shep is helping run
+ */
+export type Contributor = BaseEntity & {
+  /**
+   * GitHub login (e.g., 'octocat') — unique across contributors
+   */
+  githubLogin: string;
+  /**
+   * Display name — public profile name on GitHub if available
+   */
+  displayName?: string;
+  /**
+   * Avatar URL from GitHub's public profile
+   */
+  avatarUrl?: string;
+  /**
+   * Primary lane the contributor works in (set by classify-into-lane or manually)
+   */
+  lane?: ContributorLane;
+  /**
+   * Position on the contributor ladder
+   */
+  level: ContributorLevel;
+  /**
+   * ISO timestamp of the contributor's first interaction (first PR or issue)
+   */
+  firstContributionAt: any;
+  /**
+   * ISO timestamp of the contributor's most recent interaction
+   */
+  lastContributionAt: any;
+  /**
+   * Number of merged PRs authored by this contributor in this repository
+   */
+  prCount: number;
+  /**
+   * Number of accepted issues opened by this contributor in this repository
+   */
+  issueCount: number;
+};
+export enum RecognitionKind {
+  FirstPR = 'firstPR',
+  NthPR = 'nthPR',
+  FirstIssue = 'firstIssue',
+  MonthlyShoutout = 'monthlyShoutout',
+}
+
+/**
+ * Durable record that a contributor was recognized for a specific contribution
+ */
+export type RecognitionEvent = BaseEntity & {
+  /**
+   * Contributor this recognition event belongs to
+   */
+  contributorId: UUID;
+  /**
+   * Kind of recognition
+   */
+  kind: RecognitionKind;
+  /**
+   * ISO timestamp when the recognition was awarded
+   */
+  occurredAt: any;
+  /**
+   * PR number for PR-bound kinds (FirstPR, NthPR); 0 for non-PR kinds
+   */
+  prNumber: number;
+  /**
+   * Identifier of the monthly recap artifact when kind = MonthlyShoutout
+   */
+  monthRecapId?: string;
+};
+
+/**
+ * A first-class persisted SDLC task within a Feature (epic) tracked on the SDLC Board
+ */
+export type SdlcTask = BaseEntity & {
+  /**
+   * FK to the parent Feature (epic) that owns this task
+   */
+  featureId: string;
+  /**
+   * Stable idempotency key within the feature (e.g. 'task-1'); unique per featureId
+   */
+  taskKey: string;
+  /**
+   * Human-readable title of the task shown on the kanban card
+   */
+  title: string;
+  /**
+   * Optional detailed description or acceptance criteria for the task
+   */
+  description?: string;
+  /**
+   * Current kanban status of the task (Todo, WIP, Review, Done)
+   */
+  status: TaskState;
+  /**
+   * Manual sort order within the column (float64 for gap-free insertion)
+   */
+  sortOrder: float64;
+  /**
+   * Git branch where implementation work for this task occurs
+   */
+  branch?: string;
+  /**
+   * taskKeys within the same feature that this task depends on
+   */
+  dependsOnKeys?: string[];
+  /**
+   * ID of the agent run executing or that last executed this task
+   */
+  agentRunId?: string;
+};
+
+/**
+ * A persisted granular sub-task step within an SdlcTask, tracked on the SDLC Board
+ */
+export type SdlcSubTask = BaseEntity & {
+  /**
+   * FK to the parent SdlcTask that owns this sub-task
+   */
+  taskId: string;
+  /**
+   * Denormalized FK to the parent Feature for efficient board-level queries
+   */
+  featureId: string;
+  /**
+   * Stable idempotency key within the task (e.g. 'subtask-1'); unique per taskId
+   */
+  subTaskKey: string;
+  /**
+   * Human-readable name of the sub-task step shown in the card progress list
+   */
+  name: string;
+  /**
+   * Optional additional detail or acceptance criteria for this sub-task
+   */
+  description?: string;
+  /**
+   * Current execution status of this sub-task (Todo, WIP, Review, Done)
+   */
+  status: TaskState;
+  /**
+   * Manual sort order within the parent task (float64 for gap-free insertion)
+   */
+  sortOrder: float64;
+};
+export enum MemoryCategory {
+  Convention = 'Convention',
+  Library = 'Library',
+  NamingPattern = 'NamingPattern',
+  ArchitectureDecision = 'ArchitectureDecision',
+  CiFixResolution = 'CiFixResolution',
+}
+export enum MemoryScope {
+  Project = 'Project',
+  Organization = 'Organization',
+  Space = 'Space',
+  ProductLine = 'ProductLine',
+}
+
+/**
+ * A durable, categorised unit of per-repository project knowledge (Shep Brain)
+ */
+export type ProjectMemory = BaseEntity & {
+  /**
+   * Normalised repository path that scopes this memory entry
+   */
+  repositoryPath: string;
+  /**
+   * Category of knowledge captured by this entry
+   */
+  category: MemoryCategory;
+  /**
+   * Stable upsert key within (repositoryPath, category)
+   */
+  entryKey: string;
+  /**
+   * Concise, actionable memory text injected into agent prompts
+   */
+  content: string;
+  /**
+   * Optional ID of the feature whose merge produced this entry
+   */
+  sourceFeatureId?: string;
+  /**
+   * Reach of this entry: Project (default), ProductLine, or Space; Organization is legacy Space
+   */
+  scope?: MemoryScope;
+  /**
+   * Space the entry belongs to, stamped from the repository's resolved space
+   */
+  spaceId?: string;
+  /**
+   * Product line the entry belongs to, when its repository has one
+   */
+  productLineId?: string;
+};
+export enum HarnessComponentKind {
+  Instructions = 'instructions',
+  Guardrails = 'guardrails',
+  Memory = 'memory',
+  ToolGuidance = 'tool-guidance',
+  Skill = 'skill',
+  Script = 'script',
+  Subagent = 'subagent',
+  Hook = 'hook',
+}
+
+/**
+ * One file of a learned harness overlay
+ */
+export type HarnessComponent = {
+  /**
+   * Kind of component
+   */
+  kind: HarnessComponentKind;
+  /**
+   * Path on the editable surface, e.g. skills/db-migration/SKILL.md
+   */
+  path: string;
+  /**
+   * File content
+   */
+  content: string;
+  /**
+   * SHA-256 of the content, for diff and provenance
+   */
+  sha256: string;
+};
+export enum HarnessScanRule {
+  Secret = 'secret',
+  Network = 'network',
+  Destructive = 'destructive',
+  OutsideWorktree = 'outside-worktree',
+}
+
+/**
+ * One finding of the static scan of a candidate harness
+ */
+export type HarnessScanFinding = {
+  /**
+   * Component path
+   */
+  path: string;
+  /**
+   * 1-based line number
+   */
+  line: number;
+  /**
+   * What was flagged
+   */
+  rule: HarnessScanRule;
+  /**
+   * The flagged line, trimmed
+   */
+  excerpt: string;
+};
+export enum LearnedHarnessStatus {
+  Candidate = 'candidate',
+  Adopted = 'adopted',
+  Rejected = 'rejected',
+  RolledBack = 'rolled-back',
+  Superseded = 'superseded',
+}
+export enum HarnessOrigin {
+  Base = 'base',
+  Reflect = 'reflect',
+  Explore = 'explore',
+  Manual = 'manual',
+}
+
+/**
+ * A version of the learned harness overlay for one scope
+ */
+export type LearnedHarnessVersion = BaseEntity & {
+  /**
+   * Reach of this version: Project (default), ProductLine or Space
+   */
+  scope: MemoryScope;
+  /**
+   * Normalised repository path the version was learned in
+   */
+  repositoryPath: string;
+  /**
+   * Space of the version, when its repository has one
+   */
+  spaceId?: string;
+  /**
+   * Product line of the version, when its repository has one
+   */
+  productLineId?: string;
+  /**
+   * Version this one was derived from; the rollback target
+   */
+  parentVersionId?: string;
+  /**
+   * Where the version is in its life
+   */
+  status: LearnedHarnessStatus;
+  /**
+   * How the version was produced
+   */
+  origin: HarnessOrigin;
+  /**
+   * The overlay's components; empty for the base version
+   */
+  components: HarnessComponent[];
+  /**
+   * Composer notes: each kept, revised or dropped edit with the trajectory moment behind it
+   */
+  notes?: string;
+  /**
+   * Feature whose run produced this version
+   */
+  sourceFeatureId?: string;
+  /**
+   * Refinement that produced this version
+   */
+  refinementRunId?: string;
+  /**
+   * Feedback given when the candidate was rejected, or why it was rolled back
+   */
+  statusReason?: string;
+};
+export enum HarnessEditDimension {
+  Inv = 'inv',
+  Dom = 'dom',
+  Compose = 'compose',
+}
+export enum HarnessEditVerdict {
+  Helped = 'helped',
+  Hurt = 'hurt',
+  NoObservedEffect = 'no-observed-effect',
+  Confounded = 'confounded',
+  Untested = 'untested',
+}
+
+/**
+ * What one harness edit did, recorded by the reflector
+ */
+export type HarnessEditRecord = BaseEntity & {
+  /**
+   * Candidate version the edit belongs to
+   */
+  versionId: string;
+  /**
+   * Refinement that produced the edit
+   */
+  refinementRunId: string;
+  /**
+   * Editor that produced the edit
+   */
+  dimension: HarnessEditDimension;
+  /**
+   * Changed component path
+   */
+  componentPath: string;
+  /**
+   * What the edit changed
+   */
+  change: string;
+  /**
+   * The execution difference it produced, and where it was seen
+   */
+  observed: string;
+  /**
+   * Verdict on the edit
+   */
+  verdict: HarnessEditVerdict;
+};
+export enum LessonConfidence {
+  High = 'high',
+  Medium = 'medium',
+  Low = 'low',
+}
+
+/**
+ * A transferable lesson about harness edits, read by later refinements in the same scope
+ */
+export type HarnessLesson = BaseEntity & {
+  /**
+   * Reach of the lesson; same isolation as harness versions
+   */
+  scope: MemoryScope;
+  /**
+   * Normalised repository path the lesson was learned in
+   */
+  repositoryPath: string;
+  /**
+   * Space of the lesson, when its repository has one
+   */
+  spaceId?: string;
+  /**
+   * Product line of the lesson, when its repository has one
+   */
+  productLineId?: string;
+  /**
+   * The shape of situation the lesson applies to
+   */
+  cue: string;
+  /**
+   * The operation to perform on a harness, naming the component
+   */
+  lesson: string;
+  /**
+   * The edit records and execution contrast the lesson rests on
+   */
+  evidence: string;
+  /**
+   * How strongly the evidence supports the lesson
+   */
+  confidence: LessonConfidence;
+  /**
+   * Feature whose run taught the lesson
+   */
+  sourceFeatureId: string;
+  /**
+   * Version whose refinement wrote the lesson
+   */
+  versionId: string;
+};
+export enum HarnessRefinementStatus {
+  Running = 'running',
+  Proposed = 'proposed',
+  KeptBase = 'kept-base',
+  FellBack = 'fell-back',
+  OverBudget = 'over-budget',
+  Failed = 'failed',
+}
+
+/**
+ * One harness refinement of one feature run, with its budget ledger
+ */
+export type HarnessRefinementRun = BaseEntity & {
+  /**
+   * Feature whose run is being learned from
+   */
+  featureId: string;
+  /**
+   * Normalised repository path of the feature
+   */
+  repositoryPath: string;
+  /**
+   * Reflect (no probes) or Explore (probes)
+   */
+  mode: LearningMode;
+  /**
+   * Recursion shape, for Explore runs
+   */
+  recursion?: HarnessRecursion;
+  /**
+   * Task-level recursion budget; 0 for Reflect
+   */
+  k: number;
+  /**
+   * Executions performed (4k in Explore)
+   */
+  rollouts: number;
+  /**
+   * Improver sessions performed (3k in Explore, 3 in Reflect)
+   */
+  sessions: number;
+  /**
+   * Total cost of improvement sessions and probes in USD
+   */
+  costUsd: float64;
+  /**
+   * What became of the refinement
+   */
+  status: HarnessRefinementStatus;
+  /**
+   * Candidate version produced, when any
+   */
+  candidateVersionId?: string;
+  /**
+   * Label of the output chosen by blind selection
+   */
+  chosenLabel?: string;
+  /**
+   * Why the selector chose it
+   */
+  selectionReason?: string;
+  /**
+   * Error text when the refinement failed
+   */
+  error?: string;
+};
+
+/**
+ * How one finished feature did on the harness version it ran with
+ */
+export type HarnessVersionOutcome = BaseEntity & {
+  /**
+   * Version the feature ran on
+   */
+  versionId: string;
+  /**
+   * The feature
+   */
+  featureId: string;
+  /**
+   * CI-fix attempts in the merge phase
+   */
+  ciFixAttempts: number;
+  /**
+   * Approval-gate rejections across the run
+   */
+  gateRejections: number;
+  /**
+   * Schema validation repairs across the run
+   */
+  validationRepairs: number;
+  /**
+   * Agent turns across the run
+   */
+  numTurns: number;
+  /**
+   * Agent cost across the run in USD
+   */
+  costUsd: float64;
+  /**
+   * Whether the feature merged
+   */
+  merged: boolean;
+};
+export enum PrCommentTrigger {
+  Off = 'Off',
+  Mention = 'Mention',
+  All = 'All',
+}
+export enum RuntimeActionKind {
+  Restart = 'Restart',
+  Rollback = 'Rollback',
+  Scale = 'Scale',
+}
+
+/**
+ * Agent credentials, identity and allowed agents for the repositories of a space
+ */
+export type SpaceAgentSettings = {
+  /**
+   * Absolute path used as CLAUDE_CONFIG_DIR, giving the space its own Claude login
+   */
+  claudeConfigDir?: string;
+  /**
+   * Absolute path used as GH_CONFIG_DIR, giving the space its own GitHub CLI login
+   */
+  ghConfigDir?: string;
+  /**
+   * Git author and committer name for commits made by agents
+   */
+  gitAuthorName?: string;
+  /**
+   * Git author and committer email for commits made by agents
+   */
+  gitAuthorEmail?: string;
+  /**
+   * AWS profile used as AWS_PROFILE, for example for Bedrock
+   */
+  awsProfile?: string;
+  /**
+   * Route Claude Code through Amazon Bedrock (true), never (false), or inherit the host (unset)
+   */
+  useBedrock?: boolean;
+  /**
+   * Agent types allowed to run for this space; empty or unset allows every agent
+   */
+  allowedAgentTypes?: AgentType[];
+  /**
+   * Which pull request comments shep addresses without being asked (spec 124); unset means Mention
+   */
+  prCommentTrigger?: PrCommentTrigger;
+  /**
+   * Resolve an inline review thread after changing code for it (spec 124); unset means no
+   */
+  prCommentResolveThreads?: boolean;
+  /**
+   * Runtime action kinds shep may run on an incident without asking (spec 129); unset means none
+   */
+  autoRuntimeActions?: RuntimeActionKind[];
+  /**
+   * Agents write user-facing docs while planning and a change without docs waits for a person before merging (spec 131)
+   */
+  docsFirst?: boolean;
+  /**
+   * Repository path prefixes that hold documentation, such as docs/ or README.md; docs/ and README.md when unset
+   */
+  docsPaths?: string[];
+};
+
+/**
+ * A hard knowledge boundary such as a company or personal context
+ */
+export type Space = BaseEntity & {
+  /**
+   * Display name
+   */
+  name: string;
+  /**
+   * URL- and CLI-friendly identifier, unique across spaces
+   */
+  slug: string;
+  /**
+   * Optional description
+   */
+  description?: string;
+  /**
+   * Optional display colour as a CSS hex value
+   */
+  color?: string;
+  /**
+   * Whether repositories that match nothing fall back to this space; exactly one space is the default
+   */
+  isDefault: boolean;
+  /**
+   * How agents run for the space's repositories (spec 121); unset inherits the host
+   */
+  agentSettings?: SpaceAgentSettings;
+};
+
+/**
+ * A group of related repositories inside one space
+ */
+export type ProductLine = BaseEntity & {
+  /**
+   * The space this product line belongs to
+   */
+  spaceId: string;
+  /**
+   * Display name
+   */
+  name: string;
+  /**
+   * Identifier unique within its space
+   */
+  slug: string;
+  /**
+   * Optional description
+   */
+  description?: string;
+};
+export enum SpaceRuleKind {
+  Path = 'Path',
+  Remote = 'Remote',
+}
+
+/**
+ * Maps repositories to a space, and optionally a product line, by path or remote pattern
+ */
+export type SpaceRule = BaseEntity & {
+  /**
+   * Space the matching repositories belong to
+   */
+  spaceId: string;
+  /**
+   * Optional product line inside that space
+   */
+  productLineId?: string;
+  /**
+   * Whether the pattern matches the repository path or its git remote
+   */
+  kind: SpaceRuleKind;
+  /**
+   * Path prefix or remote pattern, stored normalised
+   */
+  pattern: string;
+  /**
+   * Tie-breaker between equally specific rules; lower wins
+   */
+  priority: number;
+};
+
+/**
+ * An explicit repository placement that overrides every space rule
+ */
+export type RepositorySpaceAssignment = {
+  /**
+   * Normalised repository path (forward slashes, no trailing slash)
+   */
+  repositoryPath: string;
+  /**
+   * Space the repository belongs to
+   */
+  spaceId: string;
+  /**
+   * Optional product line inside that space
+   */
+  productLineId?: string;
+  /**
+   * When the assignment was created
+   */
+  createdAt: any;
+  /**
+   * When the assignment was last changed
+   */
+  updatedAt: any;
+};
+export enum PrCommentKind {
+  Inline = 'Inline',
+  Conversation = 'Conversation',
+  Review = 'Review',
+}
+export enum PrCommentStatus {
+  Pending = 'Pending',
+  Addressing = 'Addressing',
+  Addressed = 'Addressed',
+  Declined = 'Declined',
+  Failed = 'Failed',
+}
+
+/**
+ * A review comment on the pull request a feature opened
+ */
+export type PrComment = BaseEntity & {
+  /**
+   * The feature whose pull request it is on
+   */
+  featureId: string;
+  /**
+   * GitHub's id for the comment, unique per kind
+   */
+  githubId: string;
+  /**
+   * Where it was written
+   */
+  kind: PrCommentKind;
+  /**
+   * GitHub login of the author
+   */
+  author: string;
+  /**
+   * Markdown body
+   */
+  body: string;
+  /**
+   * File the comment is on (inline comments)
+   */
+  path?: string;
+  /**
+   * Line the comment is on (inline comments)
+   */
+  line?: number;
+  /**
+   * The diff around the line (inline comments)
+   */
+  diffHunk?: string;
+  /**
+   * GraphQL id of the review thread (inline comments)
+   */
+  threadId?: string;
+  /**
+   * Link to the comment
+   */
+  url: string;
+  /**
+   * When it was written on GitHub
+   */
+  writtenAt: any;
+  /**
+   * What has happened to it
+   */
+  status: PrCommentStatus;
+  /**
+   * The reply shep posted
+   */
+  reply?: string;
+  /**
+   * Link to that reply
+   */
+  replyUrl?: string;
+  /**
+   * The round that last handled it
+   */
+  roundId?: string;
+  /**
+   * Why the last round could not address it
+   */
+  error?: string;
+};
+export enum PrCommentRoundStatus {
+  Running = 'Running',
+  Completed = 'Completed',
+  Failed = 'Failed',
+}
+
+/**
+ * One agent turn addressing a feature's pending pull request comments
+ */
+export type PrCommentRound = BaseEntity & {
+  /**
+   * The feature
+   */
+  featureId: string;
+  /**
+   * The comments addressed
+   */
+  commentIds: string[];
+  /**
+   * Where the round is
+   */
+  status: PrCommentRoundStatus;
+  /**
+   * The agent used
+   */
+  agentType?: AgentType;
+  /**
+   * The commit pushed, when code changed
+   */
+  commitSha?: string;
+  /**
+   * The agent's summary of what it did
+   */
+  summary?: string;
+  /**
+   * Why the round failed
+   */
+  error?: string;
+  /**
+   * When the round finished
+   */
+  finishedAt?: any;
+};
+export enum IncidentSeverity {
+  Critical = 'Critical',
+  Major = 'Major',
+  Minor = 'Minor',
+}
+export enum IncidentStatus {
+  Open = 'Open',
+  Mitigated = 'Mitigated',
+  Resolved = 'Resolved',
+}
+export enum IncidentSource {
+  Manual = 'Manual',
+  Alert = 'Alert',
+}
+
+/**
+ * Something broke in production
+ */
+export type Incident = BaseEntity & {
+  /**
+   * The space the incident belongs to
+   */
+  spaceId: string;
+  /**
+   * One-line summary
+   */
+  title: string;
+  /**
+   * How bad it is
+   */
+  severity: IncidentSeverity;
+  /**
+   * Where it stands
+   */
+  status: IncidentStatus;
+  /**
+   * Who opened it
+   */
+  source: IncidentSource;
+  /**
+   * The alert text or a person's description
+   */
+  detail?: string;
+  /**
+   * Link to the alert, dashboard or report
+   */
+  url?: string;
+  /**
+   * The alerting tool's id; a repeat while open adds a note
+   */
+  externalId?: string;
+  /**
+   * Kubernetes context of the workload; the current context when unset
+   */
+  runtimeContext?: string;
+  /**
+   * Kubernetes namespace of the workload
+   */
+  runtimeNamespace?: string;
+  /**
+   * The deployment the incident concerns
+   */
+  runtimeWorkload?: string;
+  /**
+   * The Incident signal it raised
+   */
+  signalId?: string;
+  /**
+   * When the workload recovered
+   */
+  mitigatedAt?: any;
+  /**
+   * When it was closed
+   */
+  resolvedAt?: any;
+  /**
+   * The postmortem, Markdown
+   */
+  postmortem?: string;
+};
+export enum IncidentEventKind {
+  Opened = 'Opened',
+  Note = 'Note',
+  Evidence = 'Evidence',
+  Hypothesis = 'Hypothesis',
+  ActionProposed = 'ActionProposed',
+  ActionApproved = 'ActionApproved',
+  ActionRejected = 'ActionRejected',
+  ActionSucceeded = 'ActionSucceeded',
+  ActionFailed = 'ActionFailed',
+  Recovered = 'Recovered',
+  NotRecovered = 'NotRecovered',
+  Resolved = 'Resolved',
+}
+
+/**
+ * One entry on an incident's timeline
+ */
+export type IncidentEvent = {
+  /**
+   * Unique id
+   */
+  id: string;
+  /**
+   * The incident
+   */
+  incidentId: string;
+  /**
+   * What it records
+   */
+  kind: IncidentEventKind;
+  /**
+   * What happened, in words
+   */
+  text: string;
+  /**
+   * When
+   */
+  createdAt: any;
+};
+export enum RuntimeActionStatus {
+  Proposed = 'Proposed',
+  Approved = 'Approved',
+  Rejected = 'Rejected',
+  Succeeded = 'Succeeded',
+  Failed = 'Failed',
+}
+export enum ActionProposer {
+  Agent = 'Agent',
+  Person = 'Person',
+}
+
+/**
+ * A restart, rollback or scale of an incident's workload
+ */
+export type RuntimeAction = BaseEntity & {
+  /**
+   * The incident it answers
+   */
+  incidentId: string;
+  /**
+   * What it does
+   */
+  kind: RuntimeActionKind;
+  /**
+   * Replica count, for a scale
+   */
+  replicas?: number;
+  /**
+   * Where it stands
+   */
+  status: RuntimeActionStatus;
+  /**
+   * Who proposed it
+   */
+  proposedBy: ActionProposer;
+  /**
+   * Why
+   */
+  reason: string;
+  /**
+   * The command's output or error
+   */
+  output?: string;
+  /**
+   * Whether the workload's rollout was ready afterwards
+   */
+  recovered?: boolean;
+  /**
+   * When it was approved or rejected
+   */
+  decidedAt?: any;
+  /**
+   * When it ran
+   */
+  executedAt?: any;
+};
+
+/**
+ * Top-level rollup grouping for ASPM (e.g. division, product line)
+ */
+export type BusinessUnit = SoftDeletableEntity & {
+  /**
+   * Human-readable business unit name
+   */
+  name: string;
+  /**
+   * Optional short identifier for URL slugs and CLI usage
+   */
+  slug?: string;
+};
+
+/**
+ * Team groups owners and rolls up ASPM posture
+ */
+export type Team = SoftDeletableEntity & {
+  /**
+   * Human-readable team name
+   */
+  name: string;
+  /**
+   * Optional short identifier for URL slugs and CLI usage
+   */
+  slug?: string;
+  /**
+   * Business unit this team rolls up into
+   */
+  businessUnitId?: UUID;
+};
+
+/**
+ * Owner of ASPM assets and findings (person or team identifier)
+ */
+export type Owner = SoftDeletableEntity & {
+  /**
+   * Human-readable owner name
+   */
+  name: string;
+  /**
+   * Optional contact handle (e.g. email, Slack handle, GitHub login)
+   */
+  handle?: string;
+  /**
+   * Team this owner belongs to
+   */
+  teamId?: UUID;
+  /**
+   * Free-form notes about this owner (e.g. on-call rotation, escalation)
+   */
+  notes?: string;
+};
+
+/**
+ * Service — adjacent asset attached to an Application
+ */
+export type Service = SoftDeletableEntity & {
+  /**
+   * Human-readable service name
+   */
+  name: string;
+  /**
+   * Optional short identifier for URL slugs and CLI usage
+   */
+  slug?: string;
+  /**
+   * Application this service belongs to
+   */
+  applicationId: UUID;
+  /**
+   * Optional owner override (otherwise inherits from Application)
+   */
+  ownerId?: UUID;
+  /**
+   * Optional exposure override (otherwise inherits from Application)
+   */
+  exposure?: Exposure;
+};
+
+/**
+ * API asset — external or internal API surface attached to an Application
+ */
+export type ApiAsset = SoftDeletableEntity & {
+  /**
+   * Human-readable API asset name
+   */
+  name: string;
+  /**
+   * Base URL of the API (e.g. https://api.example.com/v1)
+   */
+  baseUrl?: string;
+  /**
+   * Application this API asset belongs to
+   */
+  applicationId: UUID;
+  /**
+   * Optional owner override (otherwise inherits from Application)
+   */
+  ownerId?: UUID;
+  /**
+   * Optional exposure override (otherwise inherits from Application)
+   */
+  exposure?: Exposure;
+  /**
+   * Optional path to the API schema file (POSIX separators, repo-relative)
+   */
+  schemaPath?: string;
+};
+
+/**
+ * Cloud environment — deployment target / account / project
+ */
+export type CloudEnvironment = SoftDeletableEntity & {
+  /**
+   * Human-readable environment name (e.g. payments-prod, web-staging)
+   */
+  name: string;
+  /**
+   * Cloud provider identifier (free-form; e.g. aws, gcp, azure, cloudflare)
+   */
+  provider: string;
+  /**
+   * Provider-specific account / project / subscription id
+   */
+  accountId?: string;
+  /**
+   * Application this cloud environment belongs to
+   */
+  applicationId: UUID;
+  /**
+   * Optional owner override (otherwise inherits from Application)
+   */
+  ownerId?: UUID;
+  /**
+   * Optional region identifier
+   */
+  region?: string;
+};
+export enum ComplianceFramework {
+  OwaspAsvs = 'OwaspAsvs',
+  CweTop25 = 'CweTop25',
+}
+
+/**
+ * Single control within a compliance framework (OWASP ASVS / CWE Top 25 / ...)
+ */
+export type ComplianceControl = SoftDeletableEntity & {
+  /**
+   * Compliance framework this control belongs to
+   */
+  frameworkId: ComplianceFramework;
+  /**
+   * Framework-specific control identifier (e.g. V2.1.1, CWE-79)
+   */
+  controlId: string;
+  /**
+   * Short human-readable title
+   */
+  title: string;
+  /**
+   * Long-form description of what the control covers
+   */
+  description: string;
+};
+export enum CanonicalSeverity {
+  Critical = 'Critical',
+  High = 'High',
+  Medium = 'Medium',
+  Low = 'Low',
+  Info = 'Info',
+}
+
+/**
+ * SLA window (calendar days) for a single canonical severity
+ */
+export type SLAWindow = {
+  /**
+   * Canonical severity this window applies to
+   */
+  severity: CanonicalSeverity;
+  /**
+   * SLA window in calendar days from discoveredAt
+   */
+  windowDays: number;
+};
+
+/**
+ * Workspace-wide ASPM security policy (SLA windows + ingestion limits)
+ */
+export type SecurityPolicy = SoftDeletableEntity & {
+  /**
+   * Human-readable policy name
+   */
+  name: string;
+  /**
+   * Whether this is the active policy for the workspace (only one active)
+   */
+  active: boolean;
+  /**
+   * SLA windows per canonical severity (calendar days)
+   */
+  slaWindows: SLAWindow[];
+  /**
+   * Maximum ingestion document size in bytes (default 100MB)
+   */
+  maxIngestBytes: bigint;
+};
+export enum FindingDomain {
+  Code = 'Code',
+  Dependency = 'Dependency',
+  Secret = 'Secret',
+  Container = 'Container',
+  Cloud = 'Cloud',
+  Api = 'Api',
+  Identity = 'Identity',
+  Runtime = 'Runtime',
+  Compliance = 'Compliance',
+  Ai = 'Ai',
+}
+export enum FindingState {
+  Open = 'Open',
+  Triaged = 'Triaged',
+  InProgress = 'InProgress',
+  Resolved = 'Resolved',
+  Closed = 'Closed',
+  Exception = 'Exception',
+}
+
+/**
+ * Unified security finding produced by ingestion adapters across every ASPM domain
+ */
+export type SecurityFinding = SoftDeletableEntity & {
+  /**
+   * Primary asset anchor — the Application this finding attaches to
+   */
+  applicationId: UUID;
+  /**
+   * Optional Service this finding attaches to (sub-asset of Application)
+   */
+  serviceId?: UUID;
+  /**
+   * Optional ApiAsset this finding attaches to
+   */
+  apiAssetId?: UUID;
+  /**
+   * Optional CloudEnvironment this finding attaches to
+   */
+  cloudEnvironmentId?: UUID;
+  /**
+   * Finding domain (Code/Dependency/Secret/Container/Cloud/Api/Identity/Runtime/Compliance/Ai)
+   */
+  findingDomain: FindingDomain;
+  /**
+   * Scanner rule identifier (e.g. semgrep.rule.id, codeql.query.id, trivy CVE id)
+   */
+  ruleId: string;
+  /**
+   * Short human-readable title
+   */
+  title: string;
+  /**
+   * Long-form description (post-redaction)
+   */
+  description: string;
+  /**
+   * Repo-relative path of the finding location (POSIX separators)
+   */
+  locationPath?: string;
+  /**
+   * 1-based line number of the finding location
+   */
+  locationLine?: number;
+  /**
+   * Raw scanner output (JSON-serialized, post-redaction)
+   */
+  scannerRaw?: string;
+  /**
+   * SHA-256 hash of the original scanner-supplied raw document (audit-only)
+   */
+  scannerRawHash?: string;
+  /**
+   * Raw scanner severity string as emitted (e.g. HIGH, error, 8.1) — preserved for audit
+   */
+  rawSeverity: string;
+  /**
+   * Canonical severity used for filtering, SLAs, and posture rollups
+   */
+  canonicalSeverity: CanonicalSeverity;
+  /**
+   * CVE identifier when applicable (e.g. CVE-2024-12345)
+   */
+  cveId?: string;
+  /**
+   * CWE identifier when applicable (e.g. CWE-79)
+   */
+  cweId?: string;
+  /**
+   * OWASP ASVS control id when the scanner emitted a taxa reference
+   */
+  owaspAsvsControlId?: string;
+  /**
+   * True iff the finding's CVE is present in CISA's Known Exploited Vulnerabilities catalog
+   */
+  kev?: boolean;
+  /**
+   * FIRST EPSS exploit-probability percentile (0..1) when known; null when EPSS lookup is unavailable
+   */
+  epssPercentile?: float64;
+  /**
+   * Resolved owner of the finding
+   */
+  ownerId?: UUID;
+  /**
+   * Lifecycle state of the finding (see also: read-time effective state w/ exceptions)
+   */
+  state: FindingState;
+  /**
+   * Foreign key to the latest RiskScore for this finding (O(1) dashboard reads)
+   */
+  currentRiskScoreId?: UUID;
+  /**
+   * Optional link to a Shep WorkItem this finding has been routed into
+   */
+  workItemId?: UUID;
+  /**
+   * Source of ingestion (e.g. sarif:semgrep, sarif:codeql, cyclonedx:1.5)
+   */
+  source: string;
+  /**
+   * When the finding was first discovered (used for SLA math)
+   */
+  discoveredAt: any;
+  /**
+   * When the finding was most recently re-observed by a scanner
+   */
+  lastSeenAt: any;
+  /**
+   * When the finding was first observed as fixed
+   */
+  firstFixedAt?: any;
+};
+
+/**
+ * Per-dimension breakdown of a composite RiskScore total
+ */
+export type RiskScoreBreakdown = {
+  /**
+   * Total composite score, 0-100 inclusive
+   */
+  total: number;
+  /**
+   * Contribution from CVSS base severity
+   */
+  cvssContribution: float64;
+  /**
+   * Contribution from EPSS exploitability percentile
+   */
+  epssContribution: float64;
+  /**
+   * Contribution from CISA KEV membership
+   */
+  kevContribution: float64;
+  /**
+   * Contribution from asset exposure
+   */
+  exposureContribution: float64;
+  /**
+   * Contribution from asset criticality tier
+   */
+  criticalityContribution: float64;
+  /**
+   * Contribution from data classification
+   */
+  dataClassificationContribution: float64;
+};
+
+/**
+ * Append-only composite risk-score row for a SecurityFinding
+ */
+export type RiskScore = BaseEntity & {
+  /**
+   * SecurityFinding this score row belongs to
+   */
+  findingId: UUID;
+  /**
+   * Total composite score (0-100)
+   */
+  total: number;
+  /**
+   * Per-dimension breakdown — sum equals total (modulo rounding)
+   */
+  breakdown: RiskScoreBreakdown;
+  /**
+   * When the score was computed
+   */
+  computedAt: any;
+  /**
+   * Stable hash of the scoring inputs (used to dedupe identical recomputes)
+   */
+  inputsHash: string;
+};
+export enum ExceptionReason {
+  FalsePositive = 'FalsePositive',
+  AcceptedRisk = 'AcceptedRisk',
+  CompensatingControl = 'CompensatingControl',
+  NotApplicable = 'NotApplicable',
+  Other = 'Other',
+}
+export enum RiskExceptionStatus {
+  Active = 'Active',
+  Expired = 'Expired',
+  Revoked = 'Revoked',
+}
+
+/**
+ * Self-declared risk exception masking a finding from posture and SLA math
+ */
+export type RiskException = SoftDeletableEntity & {
+  /**
+   * Finding this exception applies to
+   */
+  findingId: UUID;
+  /**
+   * Typed reason from the exception taxonomy
+   */
+  reason: ExceptionReason;
+  /**
+   * Human-readable justification (free-form)
+   */
+  justification: string;
+  /**
+   * Who declared the exception (owner id)
+   */
+  declaredBy: UUID;
+  /**
+   * When the exception was declared
+   */
+  declaredAt: any;
+  /**
+   * Expiry date — once passed the finding re-enters posture rollups
+   */
+  expiresAt: any;
+  /**
+   * Current lifecycle status
+   */
+  status: RiskExceptionStatus;
+};
+
+/**
+ * Reusable filter shape for findings list / ranking / campaign queries
+ */
+export type FindingFilter = {
+  /**
+   * Restrict to these canonical severities
+   */
+  severities?: CanonicalSeverity[];
+  /**
+   * Restrict to these finding domains
+   */
+  findingDomains?: FindingDomain[];
+  /**
+   * Restrict to findings on these applications
+   */
+  applicationIds?: UUID[];
+  /**
+   * Restrict to findings owned by these owners
+   */
+  ownerIds?: UUID[];
+  /**
+   * Restrict to findings with KEV-listed CVEs (true) or non-KEV (false)
+   */
+  kev?: boolean;
+  /**
+   * Restrict to these finding states
+   */
+  states?: FindingState[];
+  /**
+   * Restrict to these scanner rule identifiers
+   */
+  ruleIds?: string[];
+  /**
+   * Restrict to these CVE identifiers
+   */
+  cveIds?: string[];
+};
+export enum CampaignStatus {
+  Draft = 'Draft',
+  Active = 'Active',
+  Paused = 'Paused',
+  Completed = 'Completed',
+  Cancelled = 'Cancelled',
+}
+
+/**
+ * Remediation campaign with a query-shaped target and read-time progress
+ */
+export type RemediationCampaign = SoftDeletableEntity & {
+  /**
+   * Human-readable campaign name
+   */
+  name: string;
+  /**
+   * Long-form description / sprint goal
+   */
+  description: string;
+  /**
+   * Serialized target query — same shape as list-findings filter
+   */
+  targetQuery: FindingFilter;
+  /**
+   * Lifecycle state of the campaign
+   */
+  status: CampaignStatus;
+  /**
+   * Owner accountable for the campaign
+   */
+  ownerId?: UUID;
+  /**
+   * Target completion date
+   */
+  dueDate?: any;
+  /**
+   * When the campaign transitioned to Completed or Cancelled
+   */
+  closedAt?: any;
+};
+export enum AiSignalType {
+  SecretInDiff = 'SecretInDiff',
+  HighRiskDependencyAdded = 'HighRiskDependencyAdded',
+  LargeUnreviewedDiff = 'LargeUnreviewedDiff',
+  LicenseViolation = 'LicenseViolation',
+  PromptInjectionShape = 'PromptInjectionShape',
+  Other = 'Other',
+}
+export enum AiSignalState {
+  Open = 'Open',
+  Acknowledged = 'Acknowledged',
+  GraduatedToFinding = 'GraduatedToFinding',
+  Dismissed = 'Dismissed',
+  Resolved = 'Resolved',
+}
+
+/**
+ * AI-generated change risk signal — Shep's differentiating triage record
+ */
+export type AiChangeRiskSignal = SoftDeletableEntity & {
+  /**
+   * Application this signal attaches to
+   */
+  applicationId: UUID;
+  /**
+   * Originating Shep agent session id (so reviewers can navigate to the run)
+   */
+  agentSessionId?: string;
+  /**
+   * Type of AI-change risk signal
+   */
+  signalType: AiSignalType;
+  /**
+   * Canonical severity for posture rollups when graduated
+   */
+  severity: CanonicalSeverity;
+  /**
+   * Short human-readable summary of the signal
+   */
+  summary: string;
+  /**
+   * Free-form evidence payload (JSON-serialized — diff snippets, dep name, etc.)
+   */
+  evidence?: string;
+  /**
+   * Lifecycle state in the AI-review queue
+   */
+  state: AiSignalState;
+  /**
+   * Optional owner of the signal (otherwise inherits from Application)
+   */
+  ownerId?: UUID;
+  /**
+   * If graduated, the resulting SecurityFinding id
+   */
+  graduatedFindingId?: UUID;
+  /**
+   * When the signal was first recorded
+   */
+  discoveredAt: any;
+  /**
+   * When the signal was resolved, dismissed, or graduated
+   */
+  resolvedAt?: any;
+};
+export enum ScanTrigger {
+  User = 'User',
+  Schedule = 'Schedule',
+  Event = 'Event',
+}
+export enum ScanStatus {
+  Pending = 'Pending',
+  Running = 'Running',
+  Succeeded = 'Succeeded',
+  Failed = 'Failed',
+  Partial = 'Partial',
+}
+export enum ScanStageStatus {
+  Pending = 'Pending',
+  Running = 'Running',
+  Succeeded = 'Succeeded',
+  Failed = 'Failed',
+  Skipped = 'Skipped',
+}
+
+/**
+ * One stage of a ScanRun, with timing + outcome metadata
+ */
+export type ScanStage = {
+  /**
+   * Which stage this is (sbom/sca/secrets/sast/container/iac)
+   */
+  name: ScanStageName;
+  /**
+   * Lifecycle state of this stage
+   */
+  status: ScanStageStatus;
+  /**
+   * When this stage transitioned to Running
+   */
+  startedAt?: any;
+  /**
+   * When this stage transitioned to a terminal state
+   */
+  finishedAt?: any;
+  /**
+   * Number of findings this stage produced (after dedup)
+   */
+  findingsCount?: number;
+  /**
+   * Number of components this stage produced (only meaningful for sbom)
+   */
+  componentsCount?: number;
+  /**
+   * Short human-readable error summary when status=Failed
+   */
+  errorMessage?: string;
+};
+
+/**
+ * A single execution of the ASPM scanner over one application
+ */
+export type ScanRun = BaseEntity & {
+  /**
+   * Application this scan targeted
+   */
+  applicationId: UUID;
+  /**
+   * Origin of this scan invocation
+   */
+  triggeredBy: ScanTrigger;
+  /**
+   * Lifecycle state of the run
+   */
+  status: ScanStatus;
+  /**
+   * When the run transitioned to Running
+   */
+  startedAt: any;
+  /**
+   * When the run transitioned to a terminal state (Succeeded/Failed/Partial)
+   */
+  finishedAt?: any;
+  /**
+   * Per-stage progress. Order matches ScannerProfile.enabledStages.
+   */
+  stages: ScanStage[];
+  /**
+   * Total findings produced across all stages of this run (after dedup)
+   */
+  findingsCount: number;
+};
+export enum ClusterStatus {
+  Provisioning = 'Provisioning',
+  Ready = 'Ready',
+  Stopping = 'Stopping',
+  Stopped = 'Stopped',
+  Error = 'Error',
+  Destroying = 'Destroying',
+}
+
+/**
+ * A managed Kubernetes cluster provisioned via k3s-in-Docker
+ */
+export type Cluster = SoftDeletableEntity & {
+  /**
+   * Human-readable cluster name
+   */
+  name: string;
+  /**
+   * URL-friendly identifier (unique among non-deleted clusters)
+   */
+  slug: string;
+  /**
+   * Optional description of the cluster's purpose
+   */
+  description?: string;
+  /**
+   * Current operational status of the cluster
+   */
+  status: ClusterStatus;
+  /**
+   * The k3d-internal cluster name (set during provisioning)
+   */
+  k3dClusterName?: string;
+  /**
+   * Absolute path to the kubeconfig file
+   */
+  kubeconfigPath?: string;
+  /**
+   * Whether ArgoCD is enabled for this cluster
+   */
+  argoCdEnabled: boolean;
+  /**
+   * Kubernetes namespace where ArgoCD is installed
+   */
+  argoCdNamespace: string;
+  /**
+   * Number of k3s nodes (default 1, reserved for future multi-node support)
+   */
+  nodeCount: number;
+  /**
+   * Timestamp when the cluster was last successfully provisioned
+   */
+  lastProvisionedAt?: any;
+  /**
+   * Timestamp of the most recent health check
+   */
+  lastHealthCheckAt?: any;
+  /**
+   * OS process ID of the spawned cluster-agent worker (set at provisioning time)
+   */
+  workerPid?: number;
+  /**
+   * Error message from the last failed operation (set when status = Error)
+   */
+  errorMessage?: string;
+};
+
+/**
+ * Junction entity linking Clusters to Repositories (many-to-many)
+ */
+export type ClusterRepository = BaseEntity & {
+  /**
+   * The cluster ID
+   */
+  clusterId: UUID;
+  /**
+   * The repository ID
+   */
+  repositoryId: UUID;
+};
+
+/**
+ * Junction entity linking Clusters to Applications (many-to-many)
+ */
+export type ClusterApplication = BaseEntity & {
+  /**
+   * The cluster ID
+   */
+  clusterId: UUID;
+  /**
+   * The application ID
+   */
+  applicationId: UUID;
+};
+
+/**
+ * User-defined reusable automation that runs on demand or on a cron schedule
+ */
+export type ScheduledWorkflow = SoftDeletableEntity & {
+  /**
+   * Unique human-readable name identifying this workflow within the repository
+   */
+  name: string;
+  /**
+   * Optional human-readable description of what this workflow does
+   */
+  description?: string;
+  /**
+   * Agent prompt instruction that the AI agent will execute when the workflow runs
+   */
+  prompt: string;
+  /**
+   * Optional allowlist of tool names the workflow agent is permitted to use
+   */
+  toolConstraints?: string[];
+  /**
+   * Cron expression defining the schedule (5-field format: min hour dom month dow)
+   */
+  cronExpression?: string;
+  /**
+   * IANA timezone for cron evaluation (e.g. America/New_York). Defaults to UTC
+   */
+  timezone?: string;
+  /**
+   * Whether the workflow schedule is active. Disabled workflows retain their cron expression but do not auto-execute
+   */
+  enabled: boolean;
+  /**
+   * Timestamp of the most recent execution (manual or scheduled)
+   */
+  lastRunAt?: any;
+  /**
+   * Calculated timestamp of the next scheduled execution based on cron expression
+   */
+  nextRunAt?: any;
+  /**
+   * Absolute file system path to the repository this workflow operates on
+   */
+  repositoryPath: string;
+};
+export enum WorkflowTriggerType {
+  Manual = 'manual',
+  Scheduled = 'scheduled',
+}
+export enum WorkflowExecutionStatus {
+  Queued = 'queued',
+  Running = 'running',
+  Completed = 'completed',
+  Failed = 'failed',
+  Cancelled = 'cancelled',
+}
+
+/**
+ * A single execution record for a scheduled workflow run
+ */
+export type WorkflowExecution = BaseEntity & {
+  /**
+   * ID of the ScheduledWorkflow that was executed
+   */
+  workflowId: UUID;
+  /**
+   * How this execution was triggered (manual or scheduled)
+   */
+  triggerType: WorkflowTriggerType;
+  /**
+   * Current lifecycle status of this execution
+   */
+  status: WorkflowExecutionStatus;
+  /**
+   * Timestamp when the execution started running
+   */
+  startedAt: any;
+  /**
+   * Timestamp when the execution completed or failed (null if still running)
+   */
+  completedAt?: any;
+  /**
+   * Duration of the execution in milliseconds (null if still running)
+   */
+  durationMs?: integer;
+  /**
+   * Summary of the execution output (truncated if too long)
+   */
+  outputSummary?: string;
+  /**
+   * Error message if the execution failed
+   */
+  errorMessage?: string;
+};
+
+/**
+ * Logical grouping of MCP tools within a plugin for selective activation
+ */
+export type ToolGroup = {
+  /**
+   * Group identifier used for activation and filtering
+   */
+  name: string;
+  /**
+   * Human-readable description of what this tool group provides
+   */
+  description?: string;
+  /**
+   * List of individual tool names belonging to this group
+   */
+  tools?: string[];
+};
+export enum PluginType {
+  Mcp = 'Mcp',
+  Hook = 'Hook',
+  Cli = 'Cli',
+}
+export enum PluginTransport {
+  Stdio = 'Stdio',
+  Http = 'Http',
+}
+export enum PluginHealthStatus {
+  Healthy = 'Healthy',
+  Degraded = 'Degraded',
+  Unavailable = 'Unavailable',
+  Unknown = 'Unknown',
+}
+
+/**
+ * External AI-native tool registered in Shep's plugin system
+ */
+export type Plugin = BaseEntity & {
+  /**
+   * Unique plugin name used as identifier (e.g., 'mempalace', 'ruflo')
+   */
+  name: string;
+  /**
+   * Human-readable display name for UI presentation
+   */
+  displayName: string;
+  /**
+   * Integration type determining how the plugin connects to Shep workflows
+   */
+  type: PluginType;
+  /**
+   * Installed version of the plugin package
+   */
+  version?: string;
+  /**
+   * Installation source: 'catalog' for curated plugins, 'custom' for user-added
+   */
+  installSource?: string;
+  /**
+   * MCP transport protocol (only for Mcp type plugins)
+   */
+  transport?: PluginTransport;
+  /**
+   * Command to start the MCP server process (only for Mcp type plugins)
+   */
+  serverCommand?: string;
+  /**
+   * Arguments passed to the MCP server command (only for Mcp type plugins)
+   */
+  serverArgs?: string[];
+  /**
+   * Environment variable names required by this plugin (names only, never values)
+   */
+  requiredEnvVars?: string[];
+  /**
+   * Available tool groups defined by this plugin for selective activation
+   */
+  toolGroups?: ToolGroup[];
+  /**
+   * Names of currently enabled tool groups from the available set
+   */
+  activeToolGroups?: string[];
+  /**
+   * Whether this plugin is globally enabled for use in features
+   */
+  enabled: boolean;
+  /**
+   * Current operational health status based on multi-tier health checks
+   */
+  healthStatus: PluginHealthStatus;
+  /**
+   * Human-readable details from the most recent health check
+   */
+  healthMessage?: string;
+  /**
+   * Hook event type for lifecycle integration (only for Hook type plugins)
+   */
+  hookType?: string;
+  /**
+   * Path to the hook script file (only for Hook type plugins)
+   */
+  scriptPath?: string;
+  /**
+   * Executable command for CLI tool invocation (only for Cli type plugins)
+   */
+  binaryCommand?: string;
+  /**
+   * Required runtime environment: 'python' or 'node'
+   */
+  runtimeType?: string;
+  /**
+   * Minimum required version of the runtime (e.g., '3.9' for Python, '20' for Node.js)
+   */
+  runtimeMinVersion?: string;
+  /**
+   * Plugin homepage or repository URL for reference
+   */
+  homepageUrl?: string;
+  /**
+   * Brief description of what this plugin provides
+   */
+  description?: string;
+};
+export enum FleetTriagePriority {
+  p1 = 'P1',
+  p2 = 'P2',
+  p3 = 'P3',
+}
+export enum FleetTriageCategory {
+  gate = 'gate',
+  question = 'question',
+  ci_failed = 'ci_failed',
+  conflict = 'conflict',
+  crash = 'crash',
+  warning = 'warning',
+}
+
+/**
+ * Actionable exception requiring human attention in the fleet triage queue
+ */
+export type FleetTriageItem = {
+  /**
+   * Feature ID
+   */
+  featureId: string;
+  /**
+   * Human readable feature name
+   */
+  featureName: string;
+  /**
+   * Feature slug identifier
+   */
+  slug: string;
+  /**
+   * Priority tier (P1, P2, or P3)
+   */
+  priority: FleetTriagePriority;
+  /**
+   * Exception category
+   */
+  category: FleetTriageCategory;
+  /**
+   * Human-readable reason for the triage item
+   */
+  reason: string;
+  /**
+   * Agent run ID that must be approved or retried, when the item maps to a run
+   */
+  runId?: string;
+  /**
+   * Lifecycle gate type (prd, plan, merge) if category is gate
+   */
+  gateType?: string;
+  /**
+   * Worktree path
+   */
+  worktreePath?: string;
+  /**
+   * Timestamp when this exception was created or observed
+   */
+  createdAt: any;
+};
+
+/**
+ * Rollup counts across all fleet features
+ */
+export type FleetStatusCounts = {
+  /**
+   * Total features in fleet (active + queued)
+   */
+  total: number;
+  /**
+   * Features running smoothly without blockers
+   */
+  cruising: number;
+  /**
+   * Features that have not started yet (lifecycle = Pending)
+   */
+  queued: number;
+  /**
+   * Features requiring human attention (P1/P2/P3)
+   */
+  attentionNeeded: number;
+  /**
+   * Features in failed or crashed state
+   */
+  failed: number;
+  /**
+   * Features waiting at approval gates
+   */
+  waitingApproval: number;
+  /**
+   * Features with unanswered blocking questions
+   */
+  blockedQuestions: number;
+};
+
+/**
+ * Complete health and triage snapshot of the agent fleet
+ */
+export type FleetOverview = {
+  /**
+   * Aggregated status counts
+   */
+  counts: FleetStatusCounts;
+  /**
+   * True if the fleet circuit breaker has tripped
+   */
+  circuitBreakerTripped: boolean;
+  /**
+   * Reason why circuit breaker was tripped if active
+   */
+  circuitBreakerReason?: string;
+  /**
+   * Present while the fleet admission queue is parked, absent while it is draining
+   */
+  queuePaused?: FleetQueuePause;
+  /**
+   * Number of unresolved triage items
+   */
+  activeTriageCount: number;
+  /**
+   * Consecutive failed agent runs observed in the current window
+   */
+  consecutiveFailures: number;
+  /**
+   * Timestamp of this snapshot
+   */
+  timestamp: any;
+};
+
+/**
+ * Fleet safety settings to prevent runaway loops and cascade failures
+ */
+export type FleetCircuitBreakerSettings = {
+  /**
+   * Whether the circuit breaker is active
+   */
+  enabled: boolean;
+  /**
+   * Consecutive failed agent runs that trip the circuit breaker
+   */
+  consecutiveFailureThreshold: number;
+  /**
+   * Percentage failure rate in rolling 15m window that trips the circuit breaker
+   */
+  failureRateThresholdPercent: number;
+  /**
+   * Whether tripping the breaker pauses the admission queue. When true, a tripped breaker parks new work instead of only reporting a status signal.
+   */
+  autoPauseQueue: boolean;
+};
+
+/**
+ * Cost, time and token limits for one harness task
+ */
+export type HarnessBudget = {
+  /**
+   * Maximum spend in USD for the task (unset: no limit)
+   */
+  maxUsd?: float64;
+  /**
+   * Maximum wall time in milliseconds (unset: the caller's timeout)
+   */
+  maxWallTimeMs?: number;
+  /**
+   * Maximum input tokens per model call
+   */
+  maxInputTokens?: number;
+  /**
+   * Maximum output tokens per model call
+   */
+  maxOutputTokens?: number;
+  /**
+   * Budget mode controlling quality/cost trade-offs
+   */
+  quality: HarnessBudgetMode;
+};
+export enum HarnessSessionStatus {
+  Active = 'active',
+  Idle = 'idle',
+  Completed = 'completed',
+  Failed = 'failed',
+  Discarded = 'discarded',
+}
+export enum HarnessSessionOrigin {
+  Feature = 'feature',
+  Standalone = 'standalone',
+  Eval = 'eval',
+}
+
+/**
+ * A logical harness work session (a feature run, a standalone task, or an eval case)
+ */
+export type HarnessSession = BaseEntity & {
+  /**
+   * Lifecycle status of the session
+   */
+  status: HarnessSessionStatus;
+  /**
+   * Where the session came from
+   */
+  origin: HarnessSessionOrigin;
+  /**
+   * Context-assembly mode used by the session
+   */
+  mode: HarnessMode;
+  /**
+   * Repository root (or worktree) the session operates in
+   */
+  repoRoot: string;
+  /**
+   * Human-readable goal of the session
+   */
+  title: string;
+  /**
+   * Agent run this session belongs to (feature sessions)
+   */
+  agentRunId?: string;
+  /**
+   * Feature this session belongs to (feature sessions)
+   */
+  featureId?: string;
+  /**
+   * Original repository path when the session runs in a dedicated worktree
+   */
+  sourceRepoPath?: string;
+  /**
+   * Dedicated worktree path of a standalone session
+   */
+  worktreePath?: string;
+  /**
+   * Branch of the dedicated worktree of a standalone session
+   */
+  worktreeBranch?: string;
+  /**
+   * Root task of the session
+   */
+  rootTaskId?: string;
+  /**
+   * Model id used by the session
+   */
+  modelId?: string;
+  /**
+   * Whether shadow context planning is on for this session
+   */
+  shadowContext: boolean;
+  /**
+   * Commit a standalone session's worktree started from (the base of its patch)
+   */
+  baseCommit?: string;
+  /**
+   * When a person asked to stop the session; the running task stops before its next turn
+   */
+  stopRequestedAt?: any;
+};
+export enum HarnessTaskType {
+  ReadOnly = 'read_only',
+  Write = 'write',
+  SideEffect = 'side_effect',
+}
+export enum HarnessTaskStatus {
+  Pending = 'pending',
+  Running = 'running',
+  Blocked = 'blocked',
+  Completed = 'completed',
+  Failed = 'failed',
+  Cancelled = 'cancelled',
+}
+export enum HarnessTaskOutcome {
+  Success = 'success',
+  Partial = 'partial',
+  Failure = 'failure',
+}
+
+/**
+ * A reference to repository evidence bound to a snapshot or content hash
+ */
+export type HarnessEvidenceRef = {
+  /**
+   * Repository-relative path or resource identifier
+   */
+  resource: string;
+  /**
+   * Snapshot the evidence refers to
+   */
+  repoSnapshotId?: string;
+  /**
+   * First line of the referenced range
+   */
+  startLine?: number;
+  /**
+   * Last line of the referenced range
+   */
+  endLine?: number;
+  /**
+   * Content hash of the referenced content
+   */
+  contentHash?: string;
+};
+
+/**
+ * Structured result of a harness task, returned instead of a transcript
+ */
+export type HarnessTaskResult = {
+  /**
+   * Outcome
+   */
+  status: HarnessTaskOutcome;
+  /**
+   * Short summary of what was done
+   */
+  summary: string;
+  /**
+   * Evidence supporting the result
+   */
+  evidence: HarnessEvidenceRef[];
+  /**
+   * Chunks produced by the task
+   */
+  producedChunkIds: string[];
+  /**
+   * Blob reference of the produced patch, if any
+   */
+  patchRef?: string;
+  /**
+   * Chunks holding test results
+   */
+  testResultChunkIds?: string[];
+  /**
+   * Self-reported confidence between 0 and 1
+   */
+  confidence?: float64;
+};
+
+/**
+ * The canonical unit of harness work
+ */
+export type HarnessTask = BaseEntity & {
+  /**
+   * Owning session
+   */
+  sessionId: string;
+  /**
+   * Parent task, for child tasks
+   */
+  parentTaskId?: string;
+  /**
+   * Goal as given by the caller
+   */
+  goal: string;
+  /**
+   * Normalized goal used for fingerprints and dedupe
+   */
+  normalizedGoal: string;
+  /**
+   * Read-only, write or side-effect task
+   */
+  type: HarnessTaskType;
+  /**
+   * Lifecycle status
+   */
+  status: HarnessTaskStatus;
+  /**
+   * SDLC phase label when the task is a feature-node call (e.g. implement:phase-2)
+   */
+  phase?: string;
+  /**
+   * Repository snapshot the task started from
+   */
+  repoSnapshotId?: string;
+  /**
+   * Budget for the task
+   */
+  budget: HarnessBudget;
+  /**
+   * Stable dedupe key over normalized goal, scope, snapshot and type
+   */
+  dedupeKey: string;
+  /**
+   * Monotonic state version, bumped whenever task state that feeds context changes
+   */
+  stateVersion: number;
+  /**
+   * Number of model calls made so far
+   */
+  turnCount: number;
+  /**
+   * Structured result once completed or failed
+   */
+  result?: HarnessTaskResult;
+  /**
+   * Failure reason when status is failed
+   */
+  failureReason?: string;
+  /**
+   * OS process running the task; lets a stop cancel a task whose process has exited
+   */
+  ownerPid?: number;
+};
+
+/**
+ * An immutable fingerprint of a repository working tree
+ */
+export type RepoSnapshot = BaseEntity & {
+  /**
+   * Owning session
+   */
+  sessionId: string;
+  /**
+   * Repository root
+   */
+  root: string;
+  /**
+   * HEAD commit, if the root is a git repository
+   */
+  gitCommit?: string;
+  /**
+   * Hash over tracked and untracked non-ignored file contents
+   */
+  workingTreeHash: string;
+  /**
+   * Hash of the staged diff
+   */
+  stagedDiffHash?: string;
+  /**
+   * Hash of the unstaged diff
+   */
+  unstagedDiffHash?: string;
+  /**
+   * Blob reference of the per-file hash map, used to compute drift
+   */
+  fileHashesRef?: string;
+  /**
+   * Number of files in the snapshot
+   */
+  fileCount: number;
+};
+export enum HarnessEventType {
+  SessionCreated = 'session.created',
+  SessionResumed = 'session.resumed',
+  TaskCreated = 'task.created',
+  TaskStatusChanged = 'task.status_changed',
+  RepoSnapshotCreated = 'repo_snapshot.created',
+  RepoDriftDetected = 'repo.drift_detected',
+  InstructionActivated = 'instruction.activated',
+  ContextPlanCreated = 'context_plan.created',
+  DecisionRecorded = 'decision.recorded',
+  ModelCallStarted = 'model_call.started',
+  ModelCallCompleted = 'model_call.completed',
+  ToolSelected = 'tool.selected',
+  PermissionRequested = 'permission.requested',
+  PermissionResolved = 'permission.resolved',
+  ToolExecutionStarted = 'tool.execution_started',
+  ToolExecutionCompleted = 'tool.execution_completed',
+  ChunkExpanded = 'chunk.expanded',
+  TaskCompleted = 'task.completed',
+  TaskFailed = 'task.failed',
+}
+
+/**
+ * An append-only harness event; sequence is monotonic within a session
+ */
+export type HarnessEvent = BaseEntity & {
+  /**
+   * Owning session
+   */
+  sessionId: string;
+  /**
+   * Task the event concerns
+   */
+  taskId?: string;
+  /**
+   * Monotonic sequence number within the session
+   */
+  sequence: number;
+  /**
+   * Event type
+   */
+  type: HarnessEventType;
+  /**
+   * Small JSON payload (larger payloads live in payloadRef)
+   */
+  payload: Record<string, unknown>;
+  /**
+   * Blob reference for payloads larger than the inline limit
+   */
+  payloadRef?: string;
+};
+export enum ChunkKind {
+  UserMessage = 'user_message',
+  AssistantMessage = 'assistant_message',
+  PromptSection = 'prompt_section',
+  File = 'file',
+  FileExcerpt = 'file_excerpt',
+  SearchResult = 'search_result',
+  ToolInput = 'tool_input',
+  ToolOutput = 'tool_output',
+  CommandOutput = 'command_output',
+  Diff = 'diff',
+  TestResult = 'test_result',
+  Instruction = 'instruction',
+  Plan = 'plan',
+  Decision = 'decision',
+  SubagentResult = 'subagent_result',
+  BackgroundResult = 'background_result',
+  Documentation = 'documentation',
+}
+export enum SensitivityLabel {
+  Public = 'public',
+  Internal = 'internal',
+  Confidential = 'confidential',
+  Secret = 'secret',
+  Regulated = 'regulated',
+}
+
+/**
+ * An addressable unit of harness state whose raw content lives in the blob store
+ */
+export type ContextChunk = BaseEntity & {
+  /**
+   * Owning session
+   */
+  sessionId: string;
+  /**
+   * Task that produced the chunk
+   */
+  taskId?: string;
+  /**
+   * Chunk kind; selects the renderer
+   */
+  kind: ChunkKind;
+  /**
+   * Short human label (a path, a command, a section title)
+   */
+  label: string;
+  /**
+   * Where the chunk came from (tool call id, file path, prompt section id)
+   */
+  source: string;
+  /**
+   * Blob reference of the raw content
+   */
+  contentRef: string;
+  /**
+   * SHA-256 of the raw content; immutable
+   */
+  contentHash: string;
+  /**
+   * Estimated tokens of the raw content
+   */
+  tokenEstimate: number;
+  /**
+   * Sensitivity label; secret chunks are never rendered into model context
+   */
+  sensitivity: SensitivityLabel;
+  /**
+   * Repository path the chunk refers to, if any
+   */
+  path?: string;
+  /**
+   * Snapshot the chunk's content was captured from
+   */
+  repoSnapshotId?: string;
+  /**
+   * Chunk this one replaces (a newer read of the same file)
+   */
+  supersedes?: string;
+  /**
+   * Chunk that replaced this one
+   */
+  supersededBy?: string;
+  /**
+   * Pinned chunks are always visible while active
+   */
+  pinned: boolean;
+  /**
+   * Free-form tags used by candidate retrieval
+   */
+  tags: string[];
+};
+
+/**
+ * A rendering of a chunk at one visibility level for one query
+ */
+export type ChunkView = BaseEntity & {
+  /**
+   * Rendered chunk
+   */
+  chunkId: string;
+  /**
+   * Fingerprint of the query the view was rendered for
+   */
+  queryFingerprint: string;
+  /**
+   * Visibility level
+   */
+  visibility: ChunkVisibility;
+  /**
+   * Rendered text (absent for hidden views)
+   */
+  content?: string;
+  /**
+   * Estimated tokens of the rendered text
+   */
+  estimatedTokens: number;
+  /**
+   * Renderer id and version, e.g. test-result@1
+   */
+  rendererId: string;
+  /**
+   * Content hash of the chunk the view was rendered from
+   */
+  sourceHash: string;
+  /**
+   * Whether the renderer cut content to fit; recorded, never silent
+   */
+  truncated: boolean;
+};
+export enum VisibilitySource {
+  Deterministic = 'deterministic',
+  Ai = 'ai',
+  Policy = 'policy',
+  Degraded = 'degraded',
+  Escalation = 'escalation',
+  User = 'user',
+  Budget = 'budget',
+}
+
+/**
+ * One candidate's outcome inside a context plan
+ */
+export type PlannedChunk = {
+  /**
+   * Chunk id
+   */
+  chunkId: string;
+  /**
+   * Chunk kind
+   */
+  kind: ChunkKind;
+  /**
+   * Chunk label
+   */
+  label: string;
+  /**
+   * Chosen visibility
+   */
+  visibility: ChunkVisibility;
+  /**
+   * Relevance score between 0 and 1, if one was computed
+   */
+  relevance?: float64;
+  /**
+   * Class probabilities, only when the provider really returned them
+   */
+  probabilities?: Record<string, float64>;
+  /**
+   * Estimated tokens of the chosen view
+   */
+  tokens: number;
+  /**
+   * Estimated tokens of the raw content
+   */
+  rawTokens: number;
+  /**
+   * Why the chunk was a candidate or got this visibility
+   */
+  reasonCode: string;
+  /**
+   * Who set the visibility
+   */
+  source: VisibilitySource;
+  /**
+   * Decision that scored this chunk, if any
+   */
+  decisionId?: string;
+  /**
+   * Renderer id and version
+   */
+  rendererId?: string;
+};
+export enum CacheStrategyMode {
+  Reuse = 'reuse',
+  Rebuild = 'rebuild',
+  StablePrefix = 'stable_prefix',
+}
+
+/**
+ * How a plan expects to use provider prompt caching
+ */
+export type CacheStrategy = {
+  /**
+   * Cache mode
+   */
+  mode: CacheStrategyMode;
+  /**
+   * Fingerprint of the stable prompt prefix
+   */
+  prefixFingerprint?: string;
+  /**
+   * Estimated tokens of the stable prefix
+   */
+  prefixTokens?: number;
+};
+
+/**
+ * The persisted, query-specific projection of state used for one model call
+ */
+export type ContextPlan = BaseEntity & {
+  /**
+   * Task the plan belongs to
+   */
+  taskId: string;
+  /**
+   * Turn number (1-based) the plan was built for
+   */
+  turn: number;
+  /**
+   * Query the plan was built for
+   */
+  query: string;
+  /**
+   * Fingerprint over query, goal, snapshot, renderer versions and instruction set
+   */
+  queryFingerprint: string;
+  /**
+   * Task state version the plan was built from
+   */
+  stateVersion: number;
+  /**
+   * Repository snapshot the plan was built against
+   */
+  repoSnapshotId?: string;
+  /**
+   * Every candidate with its outcome
+   */
+  chunks: PlannedChunk[];
+  /**
+   * Active instruction ids
+   */
+  instructionIds: string[];
+  /**
+   * Capability ids whose Tier-1 snippet was included
+   */
+  capabilityIds: string[];
+  /**
+   * Implementation ids whose Tier-2 schema was loaded
+   */
+  loadedSchemaIds: string[];
+  /**
+   * Estimated tokens of the materialized input
+   */
+  estimatedTokens: number;
+  /**
+   * Token budget available for context
+   */
+  tokenBudget: number;
+  /**
+   * Number of candidates considered
+   */
+  candidateCount: number;
+  /**
+   * Cache strategy
+   */
+  cacheStrategy: CacheStrategy;
+  /**
+   * Decision provider failed and conservative fallback was used
+   */
+  degraded: boolean;
+  /**
+   * Computed but not enforced (shadow mode)
+   */
+  shadow: boolean;
+  /**
+   * Over budget even after downgrading everything that may be downgraded
+   */
+  overBudget: boolean;
+  /**
+   * Provider id that scored the candidates
+   */
+  decidedBy?: string;
+};
+
+/**
+ * A rule the agent follows while its condition holds (CLAUDE.md, rules files, harness instructions)
+ */
+export type Instruction = {
+  /**
+   * Stable id (from frontmatter or derived from the path)
+   */
+  id: string;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Repository-relative source path
+   */
+  source: string;
+  /**
+   * Priority; higher wins ordering
+   */
+  priority: number;
+  /**
+   * Always included while active
+   */
+  pinWhileActive: boolean;
+  /**
+   * Blob reference of the body
+   */
+  contentRef: string;
+  /**
+   * SHA-256 of the body
+   */
+  contentHash: string;
+  /**
+   * Enabled flag
+   */
+  enabled: boolean;
+  /**
+   * Raw `when` condition, if any (conditional activation arrives in V1)
+   */
+  condition?: Record<string, unknown>;
+  /**
+   * Whether the instruction is active for the current task
+   */
+  active: boolean;
+  /**
+   * Why the instruction is inactive, if it is
+   */
+  inactiveReason?: string;
+};
+export enum HarnessDecisionKind {
+  ChunkVisibility = 'chunk_visibility',
+  CacheStrategy = 'cache_strategy',
+  ModelRoute = 'model_route',
+  CapabilityChoice = 'capability_choice',
+  ToolChoice = 'tool_choice',
+  PermissionRisk = 'permission_risk',
+  Sensitivity = 'sensitivity',
+  InstructionActivation = 'instruction_activation',
+}
+
+/**
+ * A persisted, typed decision made by a decision provider
+ */
+export type HarnessDecision = BaseEntity & {
+  /**
+   * Task the decision belongs to
+   */
+  taskId?: string;
+  /**
+   * Decision kind
+   */
+  kind: HarnessDecisionKind;
+  /**
+   * Configured provider id that answered
+   */
+  providerId: string;
+  /**
+   * Provider implementation family
+   */
+  providerKind: DecisionProviderKind;
+  /**
+   * Model the provider used, if any
+   */
+  model?: string;
+  /**
+   * Short question the decision answered
+   */
+  question: string;
+  /**
+   * Blob reference of the full decision input
+   */
+  inputRef: string;
+  /**
+   * Decision result
+   */
+  result: Record<string, unknown>;
+  /**
+   * Alternatives with scores or probabilities, when available
+   */
+  alternatives?: Record<string, unknown>[];
+  /**
+   * Confidence between 0 and 1, when available
+   */
+  confidence?: float64;
+  /**
+   * Latency in milliseconds
+   */
+  latencyMs: number;
+  /**
+   * Estimated cost in USD, when known
+   */
+  estimatedCostUsd?: float64;
+  /**
+   * Whether the result was enforced
+   */
+  enforced: boolean;
+  /**
+   * Computed in shadow mode; never enforced
+   */
+  shadow: boolean;
+  /**
+   * A fallback provider answered because the routed one failed
+   */
+  degraded: boolean;
+  /**
+   * Providers that failed before this one answered
+   */
+  failedProviders?: string[];
+  /**
+   * Context plan the decision fed, if any
+   */
+  contextPlanId?: string;
+};
+export enum ModelCallStatus {
+  Pending = 'pending',
+  Running = 'running',
+  Completed = 'completed',
+  Failed = 'failed',
+}
+
+/**
+ * One call to the coding model
+ */
+export type ModelCall = BaseEntity & {
+  /**
+   * Task
+   */
+  taskId: string;
+  /**
+   * Turn number (1-based)
+   */
+  turn: number;
+  /**
+   * Model id
+   */
+  modelId: string;
+  /**
+   * Context plan the input was materialized from (query-aware mode)
+   */
+  contextPlanId?: string;
+  /**
+   * Status
+   */
+  status: ModelCallStatus;
+  /**
+   * Provider-reported input tokens (including cached)
+   */
+  inputTokens?: number;
+  /**
+   * Provider-reported output tokens
+   */
+  outputTokens?: number;
+  /**
+   * Provider-reported cached input tokens (counted once, inside inputTokens)
+   */
+  cachedInputTokens?: number;
+  /**
+   * Cost in USD when the provider reports it
+   */
+  costUsd?: float64;
+  /**
+   * Latency in milliseconds
+   */
+  latencyMs?: number;
+  /**
+   * Estimated tokens of the materialized input
+   */
+  estimatedInputTokens: number;
+  /**
+   * Chunk holding the model response
+   */
+  responseChunkId?: string;
+  /**
+   * Finish reason reported by the provider
+   */
+  finishReason?: string;
+  /**
+   * Error message when the call failed
+   */
+  error?: string;
+};
+export enum RiskClass {
+  Low = 'low',
+  Medium = 'medium',
+  High = 'high',
+}
+
+/**
+ * What can be done, independent of how (Tier-1 is the snippet)
+ */
+export type Capability = {
+  /**
+   * Stable id, e.g. search_source_code
+   */
+  id: string;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Tier-1 snippet; always cheap
+   */
+  snippet: string;
+  /**
+   * Tags for candidate retrieval
+   */
+  tags: string[];
+  /**
+   * Risk class
+   */
+  risk: RiskClass;
+  /**
+   * Implementations satisfying the capability
+   */
+  implementationIds: string[];
+};
+export enum ToolSourceKind {
+  Builtin = 'builtin',
+  Mcp = 'mcp',
+  Plugin = 'plugin',
+  Custom = 'custom',
+}
+export enum ToolReadWriteMode {
+  Read = 'read',
+  Write = 'write',
+  SideEffect = 'side_effect',
+}
+
+/**
+ * A concrete tool satisfying a capability (Tier-2 schema, optional Tier-3 docs)
+ */
+export type ToolImplementation = {
+  /**
+   * Stable id, e.g. builtin.search_source
+   */
+  id: string;
+  /**
+   * Capability satisfied
+   */
+  capabilityId: string;
+  /**
+   * Source of the implementation
+   */
+  source: ToolSourceKind;
+  /**
+   * Tool name exposed to the model once its schema is loaded
+   */
+  toolName: string;
+  /**
+   * Snippet
+   */
+  snippet: string;
+  /**
+   * JSON Schema of the arguments (Tier-2)
+   */
+  inputSchema: Record<string, unknown>;
+  /**
+   * Long-form docs (Tier-3), loaded only on demand
+   */
+  docs?: string;
+  /**
+   * Risk class
+   */
+  risk: RiskClass;
+  /**
+   * Read, write or side effect
+   */
+  readWriteMode: ToolReadWriteMode;
+};
+export enum HarnessToolCallStatus {
+  Pending = 'pending',
+  Running = 'running',
+  Completed = 'completed',
+  Failed = 'failed',
+  Cancelled = 'cancelled',
+  Denied = 'denied',
+  Invalid = 'invalid',
+  Unknown = 'unknown',
+}
+
+/**
+ * One tool execution with its permission record
+ */
+export type HarnessToolCall = BaseEntity & {
+  /**
+   * Task
+   */
+  taskId: string;
+  /**
+   * Turn number (1-based)
+   */
+  turn: number;
+  /**
+   * Capability
+   */
+  capabilityId: string;
+  /**
+   * Implementation
+   */
+  implementationId: string;
+  /**
+   * Validated arguments
+   */
+  arguments: Record<string, unknown>;
+  /**
+   * SHA-256 of the canonical arguments
+   */
+  argumentsHash: string;
+  /**
+   * Idempotency key (task + turn + arguments hash)
+   */
+  idempotencyKey: string;
+  /**
+   * Permission decision that allowed or denied the call
+   */
+  permissionDecisionId?: string;
+  /**
+   * Status
+   */
+  status: HarnessToolCallStatus;
+  /**
+   * Chunk holding the raw output (persisted before rendering)
+   */
+  rawOutputChunkId?: string;
+  /**
+   * Short status line for UIs
+   */
+  summary?: string;
+  /**
+   * When execution started
+   */
+  startedAt?: any;
+  /**
+   * When execution finished
+   */
+  completedAt?: any;
+};
+
+/**
+ * A normalized action under permission evaluation
+ */
+export type ActionDescriptor = {
+  /**
+   * Capability id
+   */
+  capabilityId: string;
+  /**
+   * Read, write or side effect
+   */
+  actionClass: ToolReadWriteMode;
+  /**
+   * Human summary, e.g. the command line
+   */
+  summary: string;
+  /**
+   * Agent's stated reason for the action
+   */
+  intent?: string;
+};
+
+/**
+ * A resource an action touches
+ */
+export type ResourceDescriptor = {
+  /**
+   * Kind of resource: path, host, remote, process
+   */
+  kind: string;
+  /**
+   * Resource value (absolute path, host name, …)
+   */
+  value: string;
+  /**
+   * Access: read, write, delete, connect, execute
+   */
+  access: string;
+  /**
+   * Whether the resource lies outside the repository/worktree
+   */
+  outsideRepo: boolean;
+};
+
+/**
+ * A predicted effect of an action, phrased for a person
+ */
+export type EffectDescriptor = {
+  /**
+   * Effect category: network, write, delete, dependency, git_push, script, privilege, secret, unknown
+   */
+  category: string;
+  /**
+   * Sentence shown in the permission prompt
+   */
+  description: string;
+};
+export enum PermissionRequestStatus {
+  Pending = 'pending',
+  Resolved = 'resolved',
+}
+export enum GrantScope {
+  Once = 'once',
+  Task = 'task',
+  Session = 'session',
+}
+
+/**
+ * The persisted permission result for one action
+ */
+export type PermissionDecision = BaseEntity & {
+  /**
+   * Task
+   */
+  taskId: string;
+  /**
+   * Session
+   */
+  sessionId: string;
+  /**
+   * Tool call this decision gates
+   */
+  toolCallId?: string;
+  /**
+   * Action
+   */
+  action: ActionDescriptor;
+  /**
+   * Resources touched
+   */
+  resources: ResourceDescriptor[];
+  /**
+   * Predicted effects
+   */
+  effects: EffectDescriptor[];
+  /**
+   * Final (or pending) effect
+   */
+  result: PermissionEffect;
+  /**
+   * Pending while waiting for a person
+   */
+  status: PermissionRequestStatus;
+  /**
+   * Deterministic policy rule ids that matched
+   */
+  matchedRuleIds: string[];
+  /**
+   * Whether a matched rule is hard (never approvable)
+   */
+  hard: boolean;
+  /**
+   * Shadow AI risk decision, if any (never enforced in V0)
+   */
+  aiDecisionId?: string;
+  /**
+   * Reason code, e.g. policy_match, grant, approval_timeout, user
+   */
+  reasonCode: string;
+  /**
+   * Who resolved it: policy, grant, user, timeout, non_interactive
+   */
+  resolvedBy?: string;
+  /**
+   * Grant scope chosen by the user
+   */
+  scope?: GrantScope;
+  /**
+   * Note from the user returned to the agent with the decision
+   */
+  note?: string;
+};
+
+/**
+ * A temporary user grant; hard policy still wins
+ */
+export type PermissionGrant = BaseEntity & {
+  /**
+   * Session
+   */
+  sessionId: string;
+  /**
+   * Task, for task-scoped grants
+   */
+  taskId?: string;
+  /**
+   * Scope
+   */
+  scope: GrantScope;
+  /**
+   * Capability id the grant covers
+   */
+  capabilityId: string;
+  /**
+   * Normalized action summary the grant covers (e.g. the command)
+   */
+  actionPattern: string;
+  /**
+   * Whether the once-grant was consumed
+   */
+  consumed: boolean;
+};
+export enum ConnectionProvider {
+  Linear = 'Linear',
+  Jira = 'Jira',
+  Notion = 'Notion',
+}
+export enum ConnectionStatus {
+  Connected = 'Connected',
+  Error = 'Error',
+}
+
+/**
+ * An account in an outside tool shep can read and write; the secret is stored encrypted outside the entity
+ */
+export type Connection = BaseEntity & {
+  /**
+   * Which tool
+   */
+  provider: ConnectionProvider;
+  /**
+   * Display name
+   */
+  name: string;
+  /**
+   * CLI-friendly identifier, unique across connections
+   */
+  slug: string;
+  /**
+   * The space the connection belongs to
+   */
+  spaceId: string;
+  /**
+   * Jira site URL such as https://acme.atlassian.net; unset for other tools
+   */
+  siteUrl?: string;
+  /**
+   * Jira account email used with the API token; unset for other tools
+   */
+  accountEmail?: string;
+  /**
+   * The account name reported by the last successful check
+   */
+  accountName?: string;
+  /**
+   * Whether the credentials last worked
+   */
+  status: ConnectionStatus;
+  /**
+   * Why the last check or sync failed
+   */
+  lastError?: string;
+  /**
+   * When the credentials were last checked
+   */
+  lastCheckedAt?: any;
+};
+
+/**
+ * What one sync of a knowledge source did
+ */
+export type KnowledgeSyncSummary = {
+  /**
+   * Documents created from new pages
+   */
+  added: number;
+  /**
+   * Documents refreshed from edited pages
+   */
+  updated: number;
+  /**
+   * Documents deleted because their pages are gone
+   */
+  removed: number;
+  /**
+   * Pages that could not be read this run
+   */
+  failed: number;
+};
+export enum KnowledgeScopeKind {
+  Page = 'Page',
+  Database = 'Database',
+}
+
+/**
+ * A page tree or database of a knowledge tool kept in sync as a space's knowledge
+ */
+export type KnowledgeSource = BaseEntity & {
+  /**
+   * The knowledge connection to read
+   */
+  connectionId: string;
+  /**
+   * The space the documents belong to (the connection's space)
+   */
+  spaceId: string;
+  /**
+   * Limit the documents to one product line of the space; unset makes them space-wide
+   */
+  productLineId?: string;
+  /**
+   * The tool's id of the page or database
+   */
+  scopeId: string;
+  /**
+   * Whether the scope is a page tree or a database
+   */
+  scopeKind: KnowledgeScopeKind;
+  /**
+   * The page or database title when the source was added
+   */
+  scopeTitle: string;
+  /**
+   * Minutes between automatic syncs
+   */
+  intervalMinutes: number;
+  /**
+   * Whether the daemon syncs this source
+   */
+  enabled: boolean;
+  /**
+   * When the source last synced
+   */
+  lastRunAt?: any;
+  /**
+   * What the last sync did
+   */
+  lastRun?: KnowledgeSyncSummary;
+  /**
+   * Why the last sync failed, when it did
+   */
+  lastError?: string;
+};
+
+/**
+ * One page of a knowledge source, as Markdown
+ */
+export type KnowledgeDocument = BaseEntity & {
+  /**
+   * The source it was synced by
+   */
+  sourceId: string;
+  /**
+   * The space it belongs to
+   */
+  spaceId: string;
+  /**
+   * The product line it is limited to; unset when space-wide
+   */
+  productLineId?: string;
+  /**
+   * The tool's id of the page; unique per source
+   */
+  pageId: string;
+  /**
+   * Page title
+   */
+  title: string;
+  /**
+   * Link to the page
+   */
+  url: string;
+  /**
+   * The page as Markdown
+   */
+  content: string;
+  /**
+   * When the page was last edited in the tool
+   */
+  pageEditedAt: any;
+};
+export enum SignalKind {
+  Feedback = 'Feedback',
+  Incident = 'Incident',
+  Tracker = 'Tracker',
+  Discovery = 'Discovery',
+  Manual = 'Manual',
+}
+
+/**
+ * One piece of evidence of what users need: a request, an incident, an issue or a finding
+ */
+export type Signal = BaseEntity & {
+  /**
+   * The space the signal belongs to
+   */
+  spaceId: string;
+  /**
+   * The product line it concerns, if known
+   */
+  productLineId?: string;
+  /**
+   * Where the signal came from
+   */
+  kind: SignalKind;
+  /**
+   * One-line summary
+   */
+  title: string;
+  /**
+   * Longer text: the request, the error, the finding
+   */
+  detail?: string;
+  /**
+   * The customer (account) behind it, if any
+   */
+  customer?: string;
+  /**
+   * Revenue at stake per month for that customer, in the team's currency
+   */
+  monthlyRevenue?: float64;
+  /**
+   * Whether it needs attention soon
+   */
+  urgent: boolean;
+  /**
+   * Link to the original: ticket, message, issue, dashboard
+   */
+  url?: string;
+  /**
+   * The opportunity this signal supports, if linked
+   */
+  opportunityId?: string;
+  /**
+   * The sending tool's id for it; a second signal with the same id in a space is refused
+   */
+  externalId?: string;
+  /**
+   * When its customer was told the opportunity it supports shipped
+   */
+  toldAt?: any;
+};
+export enum OpportunityStatus {
+  Proposed = 'Proposed',
+  Accepted = 'Accepted',
+  Building = 'Building',
+  Shipped = 'Shipped',
+  Dropped = 'Dropped',
+}
+export enum OpportunitySource {
+  Manual = 'Manual',
+  Theme = 'Theme',
+  Discovery = 'Discovery',
+}
+
+/**
+ * A bet worth building, backed by signals and scored by value per review hour
+ */
+export type Opportunity = BaseEntity & {
+  /**
+   * The space the opportunity belongs to
+   */
+  spaceId: string;
+  /**
+   * The product line it concerns, if any
+   */
+  productLineId?: string;
+  /**
+   * One-line name of the bet
+   */
+  title: string;
+  /**
+   * The problem it solves, in the users' terms
+   */
+  problem?: string;
+  /**
+   * Where the opportunity stands
+   */
+  status: OpportunityStatus;
+  /**
+   * Estimated hours of human review to merge it
+   */
+  reviewHours: float64;
+  /**
+   * Confidence that it delivers the value, from 0 to 1
+   */
+  confidence: float64;
+  /**
+   * Whether it advances a strategic goal of the space
+   */
+  strategic: boolean;
+  /**
+   * The work item it became when built
+   */
+  workItemId?: string;
+  /**
+   * When it was accepted, dropped or built
+   */
+  decidedAt?: any;
+  /**
+   * Why it was dropped
+   */
+  dropReason?: string;
+  /**
+   * How it came to be; Manual when unset
+   */
+  source?: OpportunitySource;
+  /**
+   * What the discovery agent suggested building, and why now
+   */
+  brief?: string;
+  /**
+   * When it shipped
+   */
+  shippedAt?: any;
+};
+
+/**
+ * How a space values evidence, and how many review hours it has each week
+ */
+export type OpportunityWeights = {
+  /**
+   * The space these weights belong to
+   */
+  spaceId: string;
+  /**
+   * Value of each customer behind an opportunity
+   */
+  reach: float64;
+  /**
+   * Value of each 1,000 a month of revenue at stake
+   */
+  revenue: float64;
+  /**
+   * Value of each urgent signal
+   */
+  urgency: float64;
+  /**
+   * Value added once for a strategic opportunity
+   */
+  strategic: float64;
+  /**
+   * Hours of human review available each week
+   */
+  weeklyReviewHours: float64;
+  /**
+   * Hours between automatic discovery runs; unset turns discovery off
+   */
+  discoveryEveryHours?: float64;
+};
+
+/**
+ * A key that lets a tool post feedback into one space; only its hash is stored
+ */
+export type FeedbackKey = BaseEntity & {
+  /**
+   * The space feedback posted with this key lands in
+   */
+  spaceId: string;
+  /**
+   * Which tool or script uses it
+   */
+  name: string;
+  /**
+   * The first characters of the key, to recognise it
+   */
+  prefix: string;
+  /**
+   * SHA-256 of the key, hex
+   */
+  keyHash: string;
+  /**
+   * When feedback was last posted with it
+   */
+  lastUsedAt?: any;
+  /**
+   * When it was revoked; a revoked key is refused
+   */
+  revokedAt?: any;
+};
+export enum DiscoveryRunStatus {
+  Running = 'Running',
+  Succeeded = 'Succeeded',
+  Failed = 'Failed',
+}
+
+/**
+ * One discovery pass over a space's evidence
+ */
+export type DiscoveryRun = BaseEntity & {
+  /**
+   * The space whose evidence was read
+   */
+  spaceId: string;
+  /**
+   * Where the run stands
+   */
+  status: DiscoveryRunStatus;
+  /**
+   * The agent that read the evidence
+   */
+  agentType?: AgentType;
+  /**
+   * Unlinked signals the agent was shown
+   */
+  signalsRead: number;
+  /**
+   * Opportunities created from the agent's proposals
+   */
+  proposed: number;
+  /**
+   * Proposals dropped because they cited no real signal or repeated an open title
+   */
+  dropped: number;
+  /**
+   * When the run ended
+   */
+  finishedAt?: any;
+  /**
+   * Why the run failed
+   */
+  error?: string;
+};
+export enum OutcomeVerdict {
+  Pending = 'Pending',
+  Solved = 'Solved',
+  Persisting = 'Persisting',
+}
+
+/**
+ * The outcome of one shipped opportunity
+ */
+export type OpportunityOutcome = BaseEntity & {
+  /**
+   * The opportunity that shipped
+   */
+  opportunityId: string;
+  /**
+   * Its space
+   */
+  spaceId: string;
+  /**
+   * When it shipped
+   */
+  shippedAt: any;
+  /**
+   * When the window after shipping ends and the outcome is judged
+   */
+  reviewAt: any;
+  /**
+   * Where the outcome stands
+   */
+  verdict: OutcomeVerdict;
+  /**
+   * Similar signals in the window before shipping
+   */
+  signalsBefore?: number;
+  /**
+   * Similar signals in the window after shipping
+   */
+  signalsAfter?: number;
+  /**
+   * When it was judged
+   */
+  judgedAt?: any;
+  /**
+   * Hours of human review it really took, when someone recorded them
+   */
+  actualReviewHours?: float64;
+};
+
+/**
+ * What shep starts on its own in a space; everything is off by default
+ */
+export type AutopilotPolicy = {
+  /**
+   * The space
+   */
+  spaceId: string;
+  /**
+   * Investigate open Urgent work items of the space's projects that have no investigation
+   */
+  investigateUrgent: boolean;
+  /**
+   * Start the fix when an investigation's most likely hypothesis has High confidence
+   */
+  fixConfident: boolean;
+  /**
+   * Let fixes started by autopilot merge without a person
+   */
+  mergeFixes: boolean;
+  /**
+   * Build the accepted opportunities inside the week's line
+   */
+  fillLine: boolean;
+  /**
+   * The project the line is built into
+   */
+  projectId?: string;
+  /**
+   * Most fixes autopilot starts in the space in 24 hours
+   */
+  dailyFixBudget: number;
+  /**
+   * When the policy last changed
+   */
+  updatedAt: any;
+};
+
+/**
+ * One autopilot pass over a space: what it started and what failed
+ */
+export type AutopilotRun = BaseEntity & {
+  /**
+   * The space
+   */
+  spaceId: string;
+  /**
+   * Keys of the work items it started investigating
+   */
+  investigated: string[];
+  /**
+   * Keys of the work items it started fixing
+   */
+  fixed: string[];
+  /**
+   * Titles of the opportunities it built
+   */
+  built: string[];
+  /**
+   * What failed, one line each
+   */
+  errors: string[];
+};
+
+/**
+ * What one run of a tracker sync rule did
+ */
+export type TrackerSyncRunSummary = {
+  /**
+   * Work items created from new issues
+   */
+  created: number;
+  /**
+   * Work items updated from tracker changes
+   */
+  updated: number;
+  /**
+   * Issues updated from shep changes (two-way rules)
+   */
+  pushed: number;
+  /**
+   * Fields changed on both sides; the tracker's value was kept
+   */
+  conflicts: number;
+  /**
+   * Issues that could not be synced this run
+   */
+  failed: number;
+  /**
+   * Whether the tracker rate-limited the run before it finished
+   */
+  rateLimited: boolean;
+};
+export enum TrackerSyncDirection {
+  Import = 'Import',
+  TwoWay = 'TwoWay',
+}
+
+/**
+ * Keeps one tracker scope (Linear team or Jira JQL) in one shep project
+ */
+export type TrackerSyncRule = BaseEntity & {
+  /**
+   * The connection to read and write
+   */
+  connectionId: string;
+  /**
+   * The shep project issues become work items in
+   */
+  projectId: string;
+  /**
+   * Linear team key (for example ENG) or Jira JQL query
+   */
+  scope: string;
+  /**
+   * Import only, or two-way
+   */
+  direction: TrackerSyncDirection;
+  /**
+   * Minutes between automatic runs
+   */
+  intervalMinutes: number;
+  /**
+   * Whether the daemon runs this rule
+   */
+  enabled: boolean;
+  /**
+   * Newest tracker update time applied; the next run asks for issues updated after it
+   */
+  cursor?: any;
+  /**
+   * When the rule last ran
+   */
+  lastRunAt?: any;
+  /**
+   * What the last run did
+   */
+  lastRun?: TrackerSyncRunSummary;
+  /**
+   * Why the last run failed, when it did
+   */
+  lastError?: string;
+};
+
+/**
+ * Links a work item to a tracker issue, with the values both sides had at the last sync
+ */
+export type TrackerIssueLink = {
+  /**
+   * The linked work item; one link per work item
+   */
+  workItemId: string;
+  /**
+   * The rule that created the link
+   */
+  ruleId: string;
+  /**
+   * The connection of that rule
+   */
+  connectionId: string;
+  /**
+   * The tracker's id for the issue
+   */
+  externalId: string;
+  /**
+   * The human key such as ENG-42 or PAY-7
+   */
+  externalKey: string;
+  /**
+   * Link to the issue in the tracker
+   */
+  externalUrl: string;
+  /**
+   * Title at the last sync
+   */
+  syncedTitle: string;
+  /**
+   * Description at the last sync
+   */
+  syncedDescription?: string;
+  /**
+   * Status group at the last sync
+   */
+  syncedStateGroup: StateGroup;
+  /**
+   * Priority at the last sync
+   */
+  syncedPriority: Priority;
+  /**
+   * The tracker's update time at the last sync
+   */
+  remoteUpdatedAt: any;
+  /**
+   * When the link was created
+   */
+  createdAt: any;
+  /**
+   * When the link was last synced
+   */
+  updatedAt: any;
+};
+
+/**
+ * A tracker issue in shep's terms, whichever tracker it came from
+ */
+export type ExternalIssue = {
+  /**
+   * The tracker's id
+   */
+  externalId: string;
+  /**
+   * The human key such as ENG-42
+   */
+  key: string;
+  /**
+   * Link to the issue
+   */
+  url: string;
+  title: string;
+  /**
+   * Markdown description
+   */
+  description?: string;
+  /**
+   * The tracker status, mapped to shep's status group
+   */
+  stateGroup: StateGroup;
+  /**
+   * The tracker's own status name
+   */
+  stateName: string;
+  priority: Priority;
+  /**
+   * When the tracker last changed the issue
+   */
+  updatedAt: any;
+};
+
+/**
+ * A place in the code that supports a hypothesis
+ */
+export type HypothesisEvidence = {
+  /**
+   * Repository-relative path with forward slashes
+   */
+  file: string;
+  /**
+   * 1-based line, when the evidence is a specific line
+   */
+  line?: number;
+  /**
+   * What this place shows
+   */
+  note: string;
+};
+export enum HypothesisConfidence {
+  High = 'High',
+  Medium = 'Medium',
+  Low = 'Low',
+}
+
+/**
+ * One candidate root cause for a bug, with its evidence and how to fix it
+ */
+export type Hypothesis = {
+  /**
+   * Rank from 1 (most likely)
+   */
+  number: number;
+  /**
+   * Short name of the cause
+   */
+  title: string;
+  /**
+   * What goes wrong and why
+   */
+  rootCause: string;
+  /**
+   * How strongly the evidence supports it
+   */
+  confidence: HypothesisConfidence;
+  /**
+   * Places in the code that support it
+   */
+  evidence: HypothesisEvidence[];
+  /**
+   * The failing test that would prove it
+   */
+  testPlan: string;
+  /**
+   * How to fix it
+   */
+  fixPlan: string;
+};
+export enum InvestigationStatus {
+  Pending = 'Pending',
+  Running = 'Running',
+  Completed = 'Completed',
+  Failed = 'Failed',
+}
+
+/**
+ * An agent's investigation of a work item in one repository, and the fix it led to
+ */
+export type WorkItemInvestigation = BaseEntity & {
+  /**
+   * The work item investigated
+   */
+  workItemId: string;
+  /**
+   * The repository read
+   */
+  repositoryPath: string;
+  /**
+   * The commit read
+   */
+  commitSha?: string;
+  /**
+   * Where the investigation is
+   */
+  status: InvestigationStatus;
+  /**
+   * The agent's overall reading of the bug
+   */
+  summary?: string;
+  /**
+   * Candidate root causes, most likely first
+   */
+  hypotheses: Hypothesis[];
+  /**
+   * The agent that investigated
+   */
+  agentType?: AgentType;
+  /**
+   * Why the investigation failed
+   */
+  error?: string;
+  /**
+   * When the agent started
+   */
+  startedAt?: any;
+  /**
+   * When the investigation completed or failed
+   */
+  finishedAt?: any;
+  /**
+   * The hypothesis approved for fixing
+   */
+  approvedHypothesisNumber?: number;
+  /**
+   * The feature created to fix it
+   */
+  featureId?: string;
+};
+
+/**
+ * Single installation suggestion for a tool
+ */
+export type InstallationSuggestion = {
+  /**
+   * Package manager or installation method
+   */
+  packageManager: string;
+  /**
+   * Installation command
+   */
+  command: string;
+  /**
+   * Official documentation URL
+   */
+  documentationUrl: string;
+  /**
+   * Additional notes for installation
+   */
+  notes?: string;
+};
+
+/**
+ * Installation status and suggestions for a tool
+ */
+export type ToolInstallationStatus = {
+  /**
+   * Current installation status
+   */
+  status: 'available' | 'missing' | 'error';
+  /**
+   * Tool name
+   */
+  toolName: string;
+  /**
+   * Error message if status is error
+   */
+  errorMessage?: string;
+  /**
+   * Installation suggestions
+   */
+  suggestions?: InstallationSuggestion[];
+};
+
+/**
+ * Executable installation command for a tool
+ */
+export type ToolInstallCommand = {
+  /**
+   * Shell command string to execute
+   */
+  command: string;
+  /**
+   * Target platform identifier
+   */
+  platform: string;
+  /**
+   * Execution timeout in milliseconds
+   */
+  timeout: number;
+  /**
+   * Tool name
+   */
+  toolName: string;
+  /**
+   * Package manager identifier
+   */
+  packageManager: string;
+};
+export enum EvidenceType {
+  Screenshot = 'Screenshot',
+  Video = 'Video',
+  TestOutput = 'TestOutput',
+  TerminalRecording = 'TerminalRecording',
+}
+
+/**
+ * Record of evidence captured to prove task completion
+ */
+export type Evidence = {
+  /**
+   * Category of evidence captured
+   */
+  type: EvidenceType;
+  /**
+   * ISO 8601 timestamp when the evidence was captured
+   */
+  capturedAt: string;
+  /**
+   * Human-readable description of what this evidence proves
+   */
+  description: string;
+  /**
+   * Path relative to repo root for GitHub rendering
+   */
+  relativePath: string;
+  /**
+   * Optional reference to the task this evidence proves
+   */
+  taskRef?: string;
+};
+
+/**
+ * An immutable record of a field change on a work item
+ */
+export type ActivityEntry = BaseEntity & {
+  /**
+   * Work item this activity belongs to
+   */
+  workItemId: UUID;
+  /**
+   * Name of the field that changed (e.g., 'state', 'priority', 'title')
+   */
+  fieldName: string;
+  /**
+   * Previous value as text (null for creation events)
+   */
+  oldValue?: string;
+  /**
+   * New value as text
+   */
+  newValue?: string;
+  /**
+   * ID of the actor who made the change
+   */
+  actorId: string;
+};
+export enum CustomPropertyType {
+  Text = 'Text',
+  Number = 'Number',
+  Dropdown = 'Dropdown',
+  Boolean = 'Boolean',
+  Date = 'Date',
+  MemberPicker = 'MemberPicker',
+}
+
+/**
+ * A user-defined custom field schema for work items in a project
+ */
+export type CustomProperty = SoftDeletableEntity & {
+  /**
+   * Project this property belongs to
+   */
+  projectId: UUID;
+  /**
+   * Display name for the property
+   */
+  name: string;
+  /**
+   * Data type of the property value
+   */
+  propertyType: CustomPropertyType;
+  /**
+   * JSON array of options for Dropdown type (e.g., '["Option A", "Option B"]')
+   */
+  options?: string;
+  /**
+   * Whether this property is required on work items
+   */
+  isRequired: boolean;
+  /**
+   * Position in the property list for ordering
+   */
+  displayOrder: number;
+};
+export enum RelationType {
+  Blocking = 'Blocking',
+  RelatesTo = 'RelatesTo',
+  Duplicate = 'Duplicate',
+  StartsBefore = 'StartsBefore',
+  FinishesBefore = 'FinishesBefore',
+}
+
+/**
+ * A directional relationship between two work items
+ */
+export type WorkItemRelation = BaseEntity & {
+  /**
+   * Source work item ID (the 'from' side)
+   */
+  sourceWorkItemId: UUID;
+  /**
+   * Target work item ID (the 'to' side)
+   */
+  targetWorkItemId: UUID;
+  /**
+   * Type of relationship
+   */
+  relationType: RelationType;
+};
+
+/**
+ * A record of time logged against a work item
+ */
+export type TimeEntry = BaseEntity & {
+  /**
+   * Work item this time entry is logged against
+   */
+  workItemId: UUID;
+  /**
+   * Duration of work in minutes
+   */
+  durationMinutes: number;
+  /**
+   * Optional note describing the work performed
+   */
+  note?: string;
+  /**
+   * When the work was performed
+   */
+  loggedAt: any;
+};
+
+/**
+ * Health status for a single bedrock prerequisite tier
+ */
+export type BedrockTierStatus = {
+  /**
+   * Name of the tier being checked (e.g. python, pipx, bedrock)
+   */
+  tier: string;
+  /**
+   * Status of this tier: ok, missing, or error
+   */
+  status: 'ok' | 'missing' | 'error';
+  /**
+   * Optional human-readable detail (e.g. detected version)
+   */
+  detail?: string;
+  /**
+   * Optional remediation hint shown to the user when status is missing or error
+   */
+  remediation?: string;
+};
+
+/**
+ * Aggregate health report for the bedrock prerequisite chain
+ */
+export type BedrockHealth = {
+  /**
+   * Health of the Python interpreter prerequisite
+   */
+  python: BedrockTierStatus;
+  /**
+   * Health of the pipx package manager prerequisite
+   */
+  pipx: BedrockTierStatus;
+  /**
+   * Health of the bedrock binary prerequisite
+   */
+  bedrock: BedrockTierStatus;
+  /**
+   * Rolled-up overall status across all three tiers
+   */
+  overall: 'ok' | 'missing' | 'error';
+};
+export enum BedrockTargetKind {
+  Application = 'application',
+  Repository = 'repository',
+  Feature = 'feature',
+}
+
+/**
+ * Typed reference to a bedrock-capable entity (kind + id)
+ */
+export type BedrockTargetRef = {
+  /**
+   * Which kind of entity owns the bedrock memory
+   */
+  kind: BedrockTargetKind;
+  /**
+   * Identifier of the owning entity (Application.id, Repository.id, or Feature.id)
+   */
+  id: string;
+};
+
+/**
+ * One file in the bedrock memory store
+ */
+export type BedrockMemoryFile = {
+  /**
+   * Path of the file relative to the target's worktree (forward slashes)
+   */
+  path: string;
+  /**
+   * File size in bytes
+   */
+  sizeBytes: bigint;
+  /**
+   * UTC timestamp of the most recent on-disk modification
+   */
+  modifiedAt: any;
+  /**
+   * Optional short UTF-8 preview of the file contents (truncated)
+   */
+  preview?: string;
+};
+
+/**
+ * Snapshot of the on-disk bedrock memory store at a target worktree
+ */
+export type BedrockMemorySnapshot = {
+  /**
+   * Absolute path to the worktree that was probed
+   */
+  cwd: string;
+  /**
+   * Whether a `.bedrock/` directory exists at cwd
+   */
+  present: boolean;
+  /**
+   * All bedrock memory files discovered at cwd
+   */
+  files: BedrockMemoryFile[];
+  /**
+   * Total size in bytes of all bedrock memory files combined
+   */
+  totalBytes: bigint;
+  /**
+   * UTC timestamp of the most recently modified bedrock memory file (if any)
+   */
+  mostRecentlyModifiedAt?: any;
+};
+
+/**
+ * Reference to a CVE record with optional CVSS / EPSS / KEV enrichment
+ */
+export type CVEReference = {
+  /**
+   * CVE identifier (e.g. CVE-2024-12345)
+   */
+  cveId: string;
+  /**
+   * CVSS v3.x base score (0.0-10.0)
+   */
+  cvssScore?: float64;
+  /**
+   * CVSS vector string (e.g. CVSS:3.1/AV:N/AC:L/...)
+   */
+  cvssVector?: string;
+  /**
+   * EPSS percentile (0.0-1.0)
+   */
+  epssPercentile?: float64;
+  /**
+   * Whether the CVE appears in the CISA KEV catalog
+   */
+  kev?: boolean;
+};
+
+/**
+ * A single ownership mapping (path glob -> owner/team/business unit)
+ */
+export type OwnershipPath = {
+  /**
+   * Path glob this mapping applies to (POSIX separators, repo-relative)
+   */
+  pathGlob: string;
+  /**
+   * Owner UUID assigned to this path
+   */
+  ownerId: UUID;
+  /**
+   * Team UUID assigned to this path
+   */
+  teamId?: UUID;
+  /**
+   * BusinessUnit UUID assigned to this path
+   */
+  businessUnitId?: UUID;
+  /**
+   * Source of the mapping (yaml | ui)
+   */
+  source: string;
+};
+export enum AgentStatus {
+  Idle = 'Idle',
+  Running = 'Running',
+  Paused = 'Paused',
+  Stopped = 'Stopped',
+}
+
+/**
+ * A running agent instance that processes work and responds to queries
+ */
+export type AgentInstance = {
+  /**
+   * Unique identifier for this agent instance
+   */
+  id: UUID;
+  /**
+   * Git branch this agent is operating on for code changes
+   */
+  branch: string;
+  /**
+   * Current operational status of the agent (Idle, Running, Paused, or Stopped)
+   */
+  status: AgentStatus;
+  /**
+   * Timestamp when this agent instance was created
+   */
+  createdAt: any;
+};
+
+/**
+ * Deployment target wrapping a single ActionItem for granular deployments
+ */
+export type DeployTargetActionItem = {
+  /**
+   * Discriminator indicating this is an action item target
+   */
+  kind: 'actionItem';
+  /**
+   * The action item to deploy - represents an atomic unit of work
+   */
+  actionItem: ActionItem;
+};
+
+/**
+ * Deployment target wrapping a single Task for task-level deployments
+ */
+export type DeployTargetTask = {
+  /**
+   * Discriminator indicating this is a task target
+   */
+  kind: 'task';
+  /**
+   * The task to deploy - includes all action items within the task
+   */
+  task: Task;
+};
+
+/**
+ * Deployment target wrapping multiple Tasks for batch deployments
+ */
+export type DeployTargetTasks = {
+  /**
+   * Discriminator indicating this is a multi-task target
+   */
+  kind: 'tasks';
+  /**
+   * The tasks to deploy - enables batch deployment of related work
+   */
+  tasks: Task[];
+};
+export enum FeatureAgentState {
+  GatheringRequirements = 'GatheringRequirements',
+  ClarificationsRequired = 'ClarificationsRequired',
+  DoingResearch = 'DoingResearch',
+  AwaitingReview = 'AwaitingReview',
+  ExecutingWorkPlan = 'ExecutingWorkPlan',
+  Ready = 'Ready',
+}
+
+/**
+ * Main orchestrating agent - the 'brain' that manages the complete SDLC workflow for a feature
+ */
+export type FeatureAgent = {
+  /**
+   * Unique identifier for this feature agent instance
+   */
+  id: UUID;
+  /**
+   * The feature being managed by this agent throughout its lifecycle
+   */
+  feature: Feature;
+  /**
+   * Sub-agents spawned to handle specific tasks within the workflow
+   */
+  agents: AgentInstance[];
+  /**
+   * Current operational state determining what the agent is doing
+   */
+  state: FeatureAgentState;
+  /**
+   * Timestamp when this feature agent was created
+   */
+  createdAt: any;
+};
+
+/**
+ * Agent for handling local deployment of features, tasks, or action items
+ */
+export type LocalDeployAgent = {
+  /**
+   * Unique identifier for this deployment agent instance
+   */
+  id: UUID;
+  /**
+   * URL where the deployment is accessible once available (null before deployment)
+   */
+  url?: string;
+  /**
+   * Timestamp when this deployment agent was created
+   */
+  createdAt: any;
+};
+export enum PortProtocol {
+  TCP = 'TCP',
+  UDP = 'UDP',
+}
+
+/**
+ * Port mapping configuration for exposing container services to the network
+ */
+export type PortMap = {
+  /**
+   * Service name identifier (e.g., 'web', 'api', 'db', 'redis')
+   */
+  name: string;
+  /**
+   * Port number to expose on the host or container network
+   */
+  port: number;
+  /**
+   * Network protocol for the port (defaults to TCP if not specified)
+   */
+  protocol?: PortProtocol;
+};
+export enum DeployMethod {
+  DockerCompose = 'DockerCompose',
+  Docker = 'Docker',
+  Kubernetes = 'Kubernetes',
+  Script = 'Script',
+  Manual = 'Manual',
+}
+
+/**
+ * Configuration defining how to deploy an application with method and instructions
+ */
+export type DeploySkill = {
+  /**
+   * Unique identifier for the deployment skill configuration
+   */
+  id: UUID;
+  /**
+   * List of port mappings for services to expose when deployed
+   */
+  ports: PortMap[];
+  /**
+   * Method to use for deployment (DockerCompose, Docker, Kubernetes, Script, or Manual)
+   */
+  method: DeployMethod;
+  /**
+   * Deployment instructions or commands to execute for this deployment method
+   */
+  instructions: string;
+  /**
+   * Timestamp when the deployment skill was created
+   */
+  createdAt: any;
+};
+export enum DeploymentState {
+  Analyzing = 'Analyzing',
+  Installing = 'Installing',
+  Booting = 'Booting',
+  Ready = 'Ready',
+  Stopped = 'Stopped',
+}
+
+/**
+ * A running deployment instance with network configuration and lifecycle management
+ */
+export type Deployment = {
+  /**
+   * Unique identifier for the deployment instance
+   */
+  id: UUID;
+  /**
+   * Current state of the deployment (Booting, Ready, or Stopped)
+   */
+  state: DeploymentState;
+  /**
+   * URL where the deployment is accessible (e.g., 'http://localhost:30100/' or 'http://172.33.0.20:5173')
+   */
+  url: string;
+  /**
+   * List of port mappings for services exposed by this deployment
+   */
+  ports: PortMap[];
+  /**
+   * Timestamp when the deployment was created
+   */
+  createdAt: any;
+  /**
+   * Timestamp when the deployment was stopped (only present when state is Stopped)
+   */
+  stoppedAt?: any;
+};
+export enum RunPlanSource {
+  Deterministic = 'Deterministic',
+  Agent = 'Agent',
+  Manual = 'Manual',
+}
+
+/**
+ * Persisted plan describing how to run a repository's dev server, keyed by repository path
+ */
+export type DevServerRunPlan = {
+  /**
+   * Absolute path of the repository/worktree the plan applies to (primary key)
+   */
+  repoPath: string;
+  /**
+   * How the plan was produced (Deterministic detection or Agent analysis)
+   */
+  source: RunPlanSource;
+  /**
+   * Exact command to spawn the dev server
+   */
+  command: string;
+  /**
+   * Working directory for the spawn (may be a subdirectory in monorepos)
+   */
+  cwd: string;
+  /**
+   * Package manager for installs (npm/pnpm/yarn/bun); absent for non-package stacks
+   */
+  packageManager?: string;
+  /**
+   * Port the server is expected to listen on (verify-node TCP fallback)
+   */
+  expectedPort?: number;
+  /**
+   * Detected primary language (informational/logging)
+   */
+  language?: string;
+  /**
+   * Detected framework (informational/logging)
+   */
+  framework?: string;
+  /**
+   * Ordered one-time setup commands to run before first start (may be empty)
+   */
+  setupCommands: string[];
+  /**
+   * Hash of the config-file set that produced this plan (cache invalidation)
+   */
+  configHash: string;
+  /**
+   * Lockfile/manifest hash stamped after the last successful install (staleness)
+   */
+  installStampHash?: string;
+  /**
+   * Timestamp when the plan was created
+   */
+  createdAt: any;
+  /**
+   * Timestamp when the plan was last updated
+   */
+  updatedAt: any;
+};
+export enum AgentRunStatus {
+  pending = 'pending',
+  running = 'running',
+  completed = 'completed',
+  failed = 'failed',
+  interrupted = 'interrupted',
+  cancelled = 'cancelled',
+  waitingApproval = 'waiting_approval',
+}
+
+/**
+ * Agent execution run record
+ */
+export type AgentRun = BaseEntity & {
+  /**
+   * Agent executor type used (claude-code, gemini-cli, etc.)
+   */
+  agentType: AgentType;
+  /**
+   * Agent workflow name (analyze-repository, requirements, etc.)
+   */
+  agentName: string;
+  /**
+   * Current execution status
+   */
+  status: AgentRunStatus;
+  /**
+   * Input prompt sent to agent executor
+   */
+  prompt: string;
+  /**
+   * Final result output (optional, populated on completion)
+   */
+  result?: string;
+  /**
+   * Executor session ID for resumption (optional)
+   */
+  sessionId?: string;
+  /**
+   * LangGraph thread_id for checkpoint lookup and crash resume
+   */
+  threadId: string;
+  /**
+   * Process ID for crash recovery (optional)
+   */
+  pid?: number;
+  /**
+   * Last heartbeat timestamp for crash detection (optional)
+   */
+  lastHeartbeat?: any;
+  /**
+   * Execution start timestamp (optional)
+   */
+  startedAt?: any;
+  /**
+   * Execution completion timestamp (optional)
+   */
+  completedAt?: any;
+  /**
+   * Error message if execution failed (optional)
+   */
+  error?: string;
+  /**
+   * Associated feature ID for feature agent runs (optional)
+   */
+  featureId?: string;
+  /**
+   * Repository path for context scoping (optional)
+   */
+  repositoryPath?: string;
+  /**
+   * Approval gate configuration for human-in-the-loop review (optional)
+   */
+  approvalGates?: ApprovalGates;
+  /**
+   * LLM model identifier used for this run (optional, set at creation)
+   */
+  modelId?: string;
+  /**
+   * Reasoning effort pinned for this run (optional, set at creation; absent = agent default)
+   */
+  effort?: AgentEffort;
+};
+
+/**
+ * Streaming event emitted during agent execution
+ */
+export type AgentRunEvent = {
+  /**
+   * Event type: progress, result, or error
+   */
+  type: 'progress' | 'result' | 'error';
+  /**
+   * Event content
+   */
+  content: string;
+  /**
+   * Event timestamp
+   */
+  timestamp: any;
+};
+
+/**
+ * Agent workflow registration metadata
+ */
+export type AgentDefinition = {
+  /**
+   * Unique agent workflow name (e.g., analyze-repository)
+   */
+  name: string;
+  /**
+   * Human-readable description of what this agent does
+   */
+  description: string;
+};
+
+/**
+ * Execution record for a single agent graph node. Tracks timing, prompt, token usage, and outcome.
+ */
+export type PhaseTiming = BaseEntity & {
+  /**
+   * Agent run this timing belongs to
+   */
+  agentRunId: string;
+  /**
+   * Graph node name: analyze, requirements, research, plan, implement
+   */
+  phase: string;
+  /**
+   * When the phase started executing
+   */
+  startedAt: any;
+  /**
+   * When the phase finished executing (null if still running)
+   */
+  completedAt?: any;
+  /**
+   * Duration in milliseconds (computed on completion)
+   */
+  durationMs?: bigint;
+  /**
+   * When the phase started waiting for user approval (null if no approval needed)
+   */
+  waitingApprovalAt?: any;
+  /**
+   * Duration in milliseconds the phase waited for user approval (null if no approval needed)
+   */
+  approvalWaitMs?: bigint;
+  /**
+   * The composed prompt sent to the agent for this phase
+   */
+  prompt?: string;
+  /**
+   * Model identifier used for this phase execution
+   */
+  modelId?: string;
+  /**
+   * Agent executor type: claude-code, cursor, gemini-cli
+   */
+  agentType?: string;
+  /**
+   * Number of input tokens consumed (prompt + context)
+   */
+  inputTokens?: bigint;
+  /**
+   * Number of output tokens generated by the agent
+   */
+  outputTokens?: bigint;
+  /**
+   * Tokens used to populate the prompt cache (cache misses)
+   */
+  cacheCreationInputTokens?: bigint;
+  /**
+   * Tokens served from the prompt cache (cache hits)
+   */
+  cacheReadInputTokens?: bigint;
+  /**
+   * Estimated cost in USD for this phase execution
+   */
+  costUsd?: float64;
+  /**
+   * Number of agentic turns (tool-call round-trips) in this phase
+   */
+  numTurns?: number;
+  /**
+   * Time spent waiting for the API (excludes tool execution)
+   */
+  durationApiMs?: bigint;
+  /**
+   * Execution outcome: success, error, timeout, interrupted
+   */
+  exitCode?: string;
+  /**
+   * Error details when exitCode is not success
+   */
+  errorMessage?: string;
+};
+export enum GitCheckpointKind {
+  Baseline = 'Baseline',
+  Step = 'Step',
+  PreRestore = 'PreRestore',
+}
+
+/**
+ * A hidden-ref snapshot of a feature's worktree after one feature-agent step
+ */
+export type GitCheckpoint = BaseEntity & {
+  /**
+   * Feature this checkpoint belongs to
+   */
+  featureId: string;
+  /**
+   * Agent run that produced the step, when one was running
+   */
+  agentRunId?: string;
+  /**
+   * Position within the feature's checkpoints; the baseline is 0
+   */
+  sequence: number;
+  /**
+   * Why the checkpoint was taken
+   */
+  kind: GitCheckpointKind;
+  /**
+   * Graph node name (implement, repair_research, merge, ...) or baseline / pre-restore
+   */
+  node: string;
+  /**
+   * Full hidden ref name, e.g. refs/shep/checkpoints/<featureId>/0003-implement
+   */
+  ref: string;
+  /**
+   * Checkpoint commit the ref points at
+   */
+  commitSha: string;
+  /**
+   * Tree of the checkpoint commit: the worktree content at capture time
+   */
+  treeSha: string;
+  /**
+   * Branch HEAD at capture time (absent on an unborn branch)
+   */
+  headSha?: string;
+  /**
+   * Files changed versus the previous checkpoint
+   */
+  filesChanged: number;
+  /**
+   * Lines added versus the previous checkpoint
+   */
+  additions: number;
+  /**
+   * Lines deleted versus the previous checkpoint
+   */
+  deletions: number;
+};
+
+/**
+ * Change to a question's selected option during PRD review
+ */
+export type QuestionSelectionChange = {
+  /**
+   * ID of the open question being changed (the question text)
+   */
+  questionId: string;
+  /**
+   * The option text that the user selected
+   */
+  selectedOption: string;
+};
+
+/**
+ * Payload sent when user approves a PRD with optional selection changes
+ */
+export type PrdApprovalPayload = {
+  /**
+   * Always true for approval payloads
+   */
+  approved: boolean;
+  /**
+   * List of selection changes the user made during review (empty if no changes)
+   */
+  changedSelections?: QuestionSelectionChange[];
+};
+
+/**
+ * Payload sent when user rejects a PRD with feedback for iteration
+ */
+export type PrdRejectionPayload = {
+  /**
+   * Always true for rejection payloads
+   */
+  rejected: boolean;
+  /**
+   * User's feedback explaining what needs to change
+   */
+  feedback: string;
+  /**
+   * Iteration number (1-based, derived from PhaseTiming row count)
+   */
+  iteration: number;
+  /**
+   * File attachment paths included with the rejection feedback
+   */
+  attachments?: string[];
+};
+
+/**
+ * A single question with its options as presented in the review TUI
+ */
+export type ReviewQuestion = {
+  /**
+   * The question text
+   */
+  question: string;
+  /**
+   * Available options with selection state
+   */
+  options: QuestionOption[];
+  /**
+   * The option text that was selected by the user
+   */
+  selectedOption: string;
+  /**
+   * Whether the user changed the selection from the AI default
+   */
+  changed: boolean;
+};
+
+/**
+ * Result of the PRD review TUI interaction
+ */
+export type PrdReviewResult = {
+  /**
+   * All questions with their final selection state
+   */
+  questions: ReviewQuestion[];
+  /**
+   * User action: approve or reject
+   */
+  action: string;
+  /**
+   * Rejection feedback (only present when action is 'reject')
+   */
+  feedback?: string;
+};
+
+/**
+ * A single message within an agent provider CLI session
+ */
+export type AgentSessionMessage = {
+  /**
+   * Provider-native message UUID
+   */
+  uuid: string;
+  /**
+   * Message role — user turn or assistant turn
+   */
+  role: 'user' | 'assistant';
+  /**
+   * Normalized message content as plain text (tool calls and thinking blocks excluded)
+   */
+  content: string;
+  /**
+   * Timestamp when the message was recorded
+   */
+  timestamp: any;
+};
+
+/**
+ * An agent provider CLI session (conversation record read from provider local storage)
+ */
+export type AgentSession = BaseEntity & {
+  /**
+   * Agent executor type that owns this session (e.g. claude-code)
+   */
+  agentType: AgentType;
+  /**
+   * Tilde-abbreviated working directory path for the session (e.g. ~/repos/my-project)
+   */
+  projectPath: string;
+  /**
+   * Total number of user and assistant messages in the session
+   */
+  messageCount: number;
+  /**
+   * Truncated first user message text used as a session summary preview (optional)
+   */
+  preview?: string;
+  /**
+   * Absolute path to the conversation file backing this session (optional)
+   */
+  filePath?: string;
+  /**
+   * Conversation messages — populated only in the detail view (shep session show)
+   */
+  messages?: AgentSessionMessage[];
+  /**
+   * Timestamp of the first message in the session (optional)
+   */
+  firstMessageAt?: any;
+  /**
+   * Timestamp of the most recent message in the session (optional)
+   */
+  lastMessageAt?: any;
+};
+export enum InteractiveSessionStatus {
+  booting = 'booting',
+  ready = 'ready',
+  stopped = 'stopped',
+  error = 'error',
+}
+
+/**
+ * Per-feature interactive agent session record
+ */
+export type InteractiveSession = BaseEntity & {
+  /**
+   * Polymorphic scope key: feature UUID, 'repo-<id>', or 'global'. Future: rename to scopeId + scopeType.
+   */
+  featureId: UUID;
+  /**
+   * Current lifecycle status of the interactive session
+   */
+  status: InteractiveSessionStatus;
+  /**
+   * Timestamp when the agent process was spawned
+   */
+  startedAt: any;
+  /**
+   * Timestamp when the session ended (null if still active)
+   */
+  stoppedAt?: any;
+  /**
+   * Timestamp of last user message or agent stdout activity
+   */
+  lastActivityAt: any;
+};
+export enum InteractiveMessageRole {
+  user = 'user',
+  assistant = 'assistant',
+}
+
+/**
+ * A single chat message in a per-feature interactive agent session
+ */
+export type InteractiveMessage = BaseEntity & {
+  /**
+   * Polymorphic scope key: feature UUID, 'repo-<id>', or 'global'. Future: rename to scopeId + scopeType.
+   */
+  featureId: string;
+  /**
+   * Session ID during which this message was sent (optional)
+   */
+  sessionId?: string;
+  /**
+   * Author role: user or assistant
+   */
+  role: InteractiveMessageRole;
+  /**
+   * Full message content (finalised after streaming for assistant messages)
+   */
+  content: string;
+  /**
+   * Optional workflow step ID this message was produced for
+   */
+  stepId?: string;
+};
+export enum ChatBlockType {
+  SpecReview = 'spec_review',
+  HtmlPreview = 'html_preview',
+  PlanCard = 'plan_card',
+}
+
+/**
+ * A rich block posted into a chat conversation
+ */
+export type ChatBlock = {
+  /**
+   * Stable identifier, unique within the conversation
+   */
+  id: string;
+  /**
+   * Kind of block
+   */
+  type: ChatBlockType;
+  /**
+   * Short title shown in the block header
+   */
+  title: string;
+  /**
+   * Markdown body (spec reviews and plan cards)
+   */
+  markdown?: string;
+  /**
+   * Self-contained HTML document (HTML previews)
+   */
+  html?: string;
+};
+export enum ChatBlockAction {
+  Approve = 'approve',
+  RequestChanges = 'request_changes',
+  Implement = 'implement',
+  Refine = 'refine',
+}
+
+/**
+ * The user's answer to a chat block
+ */
+export type ChatBlockResponse = {
+  /**
+   * Block this response answers
+   */
+  blockId: string;
+  /**
+   * What the user did
+   */
+  action: ChatBlockAction;
+  /**
+   * Optional note, e.g. the changes requested or what to refine
+   */
+  note?: string;
+};
+export enum WorkflowStepStatus {
+  pending = 'pending',
+  running = 'running',
+  done = 'done',
+  failed = 'failed',
+  interrupted = 'interrupted',
+}
+
+/**
+ * A persisted step of a multi-step workflow executed inside an interactive session
+ */
+export type WorkflowStep = BaseEntity & {
+  /**
+   * Parent interactive session id
+   */
+  sessionId: string;
+  /**
+   * Polymorphic scope key: matches InteractiveMessage.featureId
+   */
+  featureId: string;
+  /**
+   * Logical workflow id (e.g. 'application-creation-v1')
+   */
+  workflowId: string;
+  /**
+   * Stable key inside the workflow (e.g. 'scaffold', 'deps')
+   */
+  stepKey: string;
+  /**
+   * Order of this step within the workflow, starting at 0
+   */
+  stepIndex: number;
+  /**
+   * Non-technical title shown to the user
+   */
+  title: string;
+  /**
+   * Non-technical subtitle shown to the user
+   */
+  description: string;
+  /**
+   * Current lifecycle status
+   */
+  status: WorkflowStepStatus;
+  /**
+   * When the step transitioned to running
+   */
+  startedAt?: any;
+  /**
+   * When the step transitioned to done/failed/interrupted
+   */
+  finishedAt?: any;
+  /**
+   * JSON blob with summary, details, error — populated when done/failed
+   */
+  metadata?: string;
+};
+export enum AgentMessageKind {
+  status = 'status',
+  request = 'request',
+  reply = 'reply',
+  blocked = 'blocked',
+  info = 'info',
+}
+
+/**
+ * Inter-agent / agent↔user / agent↔supervisor message persisted on the bus
+ */
+export type AgentMessage = BaseEntity & {
+  /**
+   * App scope identifier (set when message originates in an app context)
+   */
+  appId?: string;
+  /**
+   * Repository scope identifier (set for standalone-repo agent work)
+   */
+  repositoryId?: string;
+  /**
+   * Optional feature scope identifier
+   */
+  featureId?: string;
+  /**
+   * Sending agent run id (omitted when sender is user or supervisor)
+   */
+  fromAgentRunId?: string;
+  /**
+   * Sender actor namespace: e.g. 'agent:<runId>', 'user:<id>', 'supervisor:<id>'
+   */
+  fromActor: string;
+  /**
+   * Target identifier — agent run id, 'broadcast', 'supervisor', or 'user'
+   */
+  toTarget: string;
+  /**
+   * Target kind: 'agent' | 'broadcast' | 'supervisor' | 'user'
+   */
+  toKind: string;
+  /**
+   * Discriminator for the meaning of the payload
+   */
+  messageKind: AgentMessageKind;
+  /**
+   * JSON-encoded payload (untrusted content, validated at boundaries)
+   */
+  payload: string;
+  /**
+   * Pairs a request with its reply (optional)
+   */
+  correlationId?: string;
+  /**
+   * Timestamp when the bus marked this message delivered to subscribers
+   */
+  deliveredAt?: any;
+};
+
+/**
+ * A selectable option within a decision question
+ */
+export type DecisionOption = {
+  /**
+   * Stable identifier, unique within its question
+   */
+  id: string;
+  /**
+   * Short label shown in bold
+   */
+  label: string;
+  /**
+   * One-line explanation shown under the label
+   */
+  description: string;
+  /**
+   * Optional preformatted preview (code, mockup, diff) shown when the option is focused
+   */
+  preview?: string;
+  /**
+   * True for the option the asker recommends; it is preselected and used when a deadline passes
+   */
+  recommended?: boolean;
+  /**
+   * True when the option was added since the user last saw this decision (e.g. after a refinement)
+   */
+  isNew?: boolean;
+};
+
+/**
+ * One question within a decision
+ */
+export type DecisionQuestion = {
+  /**
+   * Stable identifier, unique within its decision
+   */
+  id: string;
+  /**
+   * Short chip label (e.g. 'Auth method')
+   */
+  header: string;
+  /**
+   * The full question text
+   */
+  question: string;
+  /**
+   * Options in display order (1–9 are keyboard shortcuts)
+   */
+  options: DecisionOption[];
+  /**
+   * Whether more than one option may be selected
+   */
+  multiSelect: boolean;
+  /**
+   * Whether a typed answer is accepted instead of (or with) an option
+   */
+  allowCustom: boolean;
+};
+export enum DecisionKind {
+  ChatQuestion = 'chat_question',
+  PrdQuestionnaire = 'prd_questionnaire',
+  ApprovalGate = 'approval_gate',
+  AgentAsk = 'agent_ask',
+  Legacy = 'legacy',
+  HarnessChange = 'harness_change',
+}
+export enum DecisionResponseMode {
+  Live = 'live',
+  Async = 'async',
+  NotResumable = 'not_resumable',
+}
+
+/**
+ * A request for a person to choose, made of one or more questions
+ */
+export type Decision = {
+  /**
+   * Stable identifier
+   */
+  id: string;
+  /**
+   * Which producer raised the decision
+   */
+  kind: DecisionKind;
+  /**
+   * Optional one-line title shown above the questions
+   */
+  title?: string;
+  /**
+   * Questions answered together (paged n/N)
+   */
+  questions: DecisionQuestion[];
+  /**
+   * How the answer reaches the asker
+   */
+  responseMode: DecisionResponseMode;
+  /**
+   * When set, the recommended options are applied if nobody answers before this time
+   */
+  defaultAfter?: any;
+};
+
+/**
+ * The answer to one decision question
+ */
+export type DecisionResponse = {
+  /**
+   * Question this response answers
+   */
+  questionId: string;
+  /**
+   * Selected option ids (empty when only custom text was given)
+   */
+  optionIds: string[];
+  /**
+   * Typed answer; when non-empty it outranks the selected options
+   */
+  customText?: string;
+};
+export enum AgentQuestionKind {
+  info = 'info',
+  question = 'question',
+  blocking = 'blocking',
+}
+export enum AgentQuestionAnswerer {
+  user = 'user',
+  supervisor = 'supervisor',
+  either = 'either',
+}
+export enum AgentQuestionStatus {
+  pending = 'pending',
+  answered = 'answered',
+  expired = 'expired',
+  cancelled = 'cancelled',
+}
+
+/**
+ * A question raised by an agent toward the user, supervisor, or either
+ */
+export type AgentQuestion = BaseEntity & {
+  /**
+   * App scope identifier (set when question originates in app context)
+   */
+  appId?: string;
+  /**
+   * Repository scope identifier (set for standalone-repo agent work)
+   */
+  repositoryId?: string;
+  /**
+   * Optional feature scope identifier
+   */
+  featureId?: string;
+  /**
+   * Agent run that raised this question
+   */
+  agentRunId: string;
+  /**
+   * Three-tier urgency
+   */
+  kind: AgentQuestionKind;
+  /**
+   * Free-form question text shown to the answerer
+   */
+  prompt: string;
+  /**
+   * JSON-encoded array of multiple-choice options (optional)
+   */
+  optionsJson?: string;
+  /**
+   * Default answer used when expiresAt fires (non-blocking kinds only)
+   */
+  defaultAnswer?: string;
+  /**
+   * Who is permitted to answer this question
+   */
+  answerer: AgentQuestionAnswerer;
+  /**
+   * Current lifecycle state
+   */
+  status: AgentQuestionStatus;
+  /**
+   * Final answer text, set when status transitions to answered or expired
+   */
+  answer?: string;
+  /**
+   * Actor namespace of the answerer, e.g. 'user:<id>' or 'supervisor:<id>'
+   */
+  answeredBy?: string;
+  /**
+   * Timestamp when the answer was recorded
+   */
+  answeredAt?: any;
+  /**
+   * Auto-resolution deadline (optional, used with defaultAnswer)
+   */
+  expiresAt?: any;
+  /**
+   * Structured questions and options; when set, it is what every surface renders (spec 134)
+   */
+  decision?: Decision;
+  /**
+   * Structured answer to `decision`, set when status becomes answered or expired (spec 134)
+   */
+  responses?: DecisionResponse[];
+};
+export enum SupervisorVerdict {
+  approve = 'approve',
+  reject = 'reject',
+  escalate = 'escalate',
+  advise = 'advise',
+}
+
+/**
+ * Immutable audit record of a supervisor decision
+ */
+export type SupervisorDecision = BaseEntity & {
+  /**
+   * Scope level of the policy that triggered this decision (global, repo, app)
+   */
+  scopeType: string;
+  /**
+   * App or repo UUID from the triggering policy (null for global)
+   */
+  scopeId?: string;
+  /**
+   * Optional feature scope identifier
+   */
+  featureId?: string;
+  /**
+   * Agent run id of the supervisor that produced this decision
+   */
+  supervisorRunId: string;
+  /**
+   * Kind of source event: 'gate' | 'question' | 'message' | 'lifecycle'
+   */
+  sourceEventKind: string;
+  /**
+   * Id of the source event row this decision was about
+   */
+  sourceEventId: string;
+  /**
+   * Decision outcome
+   */
+  verdict: SupervisorVerdict;
+  /**
+   * Free-form rationale string written by the evaluator
+   */
+  rationale: string;
+  /**
+   * LLM model used at decision time (snapshot for reproducibility)
+   */
+  modelId: string;
+  /**
+   * Evaluator prompt version snapshot
+   */
+  promptVersion: string;
+  /**
+   * Optional reference to the policy rule that fired
+   */
+  ruleRef?: string;
+  /**
+   * Optional 0..1 confidence reported by the evaluator
+   */
+  confidence?: float64;
+};
+
+/**
+ * User-supplied override for a built-in agent prompt
+ */
+export type AgentPromptOverride = BaseEntity & {
+  /**
+   * Agent type the prompt belongs to (e.g. 'feature-agent')
+   */
+  agentType: string;
+  /**
+   * Stable prompt identifier within the agent (e.g. 'implement')
+   */
+  promptId: string;
+  /**
+   * Override prompt body
+   */
+  body: string;
+  /**
+   * Monotonic version counter, bumped on every upsert
+   */
+  version: number;
+  /**
+   * Author of the override
+   */
+  createdBy: string;
+};
+
+/**
+ * User-supplied override for a built-in agent LangGraph descriptor
+ */
+export type AgentGraphOverride = BaseEntity & {
+  /**
+   * Agent type the descriptor belongs to (e.g. 'feature-agent')
+   */
+  agentType: string;
+  /**
+   * JSON-encoded array of node descriptors ({id,label,description?})
+   */
+  nodesJson: string;
+  /**
+   * JSON-encoded array of edge descriptors ({from,to,label?})
+   */
+  edgesJson: string;
+  /**
+   * Monotonic version counter, bumped on every upsert
+   */
+  version: number;
+  /**
+   * Author of the override
+   */
+  createdBy: string;
+};
+
+/**
+ * User-created agent type, editable in the agent editor
+ */
+export type CustomAgent = BaseEntity & {
+  /**
+   * Stable agent type identifier (kebab-case, unique)
+   */
+  agentType: string;
+  /**
+   * Human-readable display name
+   */
+  name: string;
+  /**
+   * Short description of what this agent does
+   */
+  description: string;
+  /**
+   * Author of the agent
+   */
+  createdBy: string;
+};
+export enum ContributionDifficulty {
+  GoodFirst = 'goodFirst',
+  Easy = 'easy',
+  Medium = 'medium',
+  Hard = 'hard',
+}
+
+/**
+ * Structured output produced by the contributor-onboarding custom agent
+ */
+export type ContributorOnboardingAgentOutput = {
+  /**
+   * Lane assignment — must match ContributorLane enum verbatim
+   */
+  lane: ContributorLane;
+  /**
+   * Difficulty rating — must match ContributionDifficulty enum verbatim
+   */
+  difficulty: ContributionDifficulty;
+  /**
+   * Markdown checklist of acceptance criteria; each line begins with '- [ ] '
+   */
+  acceptanceCriteria: string;
+  /**
+   * Suggested labels to apply; MUST include lane:<lane> and difficulty:<difficulty>
+   */
+  suggestedLabels: string[];
+  /**
+   * Optional welcome comment body — present only when difficulty === goodFirst
+   */
+  welcomeComment?: string;
+};
+export enum GuardrailGateType {
+  prd = 'prd',
+  plan = 'plan',
+  merge = 'merge',
+  all = 'all',
+}
+
+/**
+ * Deterministic criteria-based rule governing gate approvals and escalations
+ */
+export type GuardrailRule = {
+  /**
+   * Unique identifier for this rule
+   */
+  id: string;
+  /**
+   * Which gate this rule governs (prd, plan, merge, or all)
+   */
+  gate: GuardrailGateType;
+  /**
+   * Maximum lines of diff permitted for auto-approval
+   */
+  maxDiffLines?: number;
+  /**
+   * Maximum number of files changed permitted for auto-approval
+   */
+  maxFilesChanged?: number;
+  /**
+   * Glob patterns that trigger mandatory escalation if touched (e.g. auth/**, migrations/**)
+   */
+  blockedPathPatterns?: string[];
+  /**
+   * Whether CI pipeline must be passing for auto-approval
+   */
+  requireCiPass?: boolean;
+  /**
+   * Whether auto-approval is granted when all criteria pass (false = advise only)
+   */
+  autoApprove: boolean;
+};
+
+/**
+ * Result of evaluating deterministic guardrail rules against an approval gate
+ */
+export type GuardrailEvaluationResult = {
+  /**
+   * True if all criteria are satisfied
+   */
+  passed: boolean;
+  /**
+   * True if the gate should be auto-approved without human intervention
+   */
+  autoApproved: boolean;
+  /**
+   * Rule that decided the outcome, when a single rule is responsible
+   */
+  ruleId?: string;
+  /**
+   * List of violation reasons if any criteria failed
+   */
+  violations: string[];
+  /**
+   * Human-readable explanation of the evaluation
+   */
+  rationale: string;
+};
+
+/**
+ * A selectable option within a PRD questionnaire question
+ */
+export type PrdOption = {
+  /**
+   * Unique identifier for this option
+   */
+  id: string;
+  /**
+   * Display label for this option
+   */
+  label: string;
+  /**
+   * Explanation of why this option is relevant
+   */
+  rationale: string;
+  /**
+   * Whether this option is recommended by AI analysis
+   */
+  recommended?: boolean;
+  /**
+   * Whether this option was newly added after refinement
+   */
+  isNew?: boolean;
+};
+
+/**
+ * A single question in the PRD questionnaire with selectable options
+ */
+export type PrdQuestion = {
+  /**
+   * Unique identifier for this question
+   */
+  id: string;
+  /**
+   * The question text displayed to the user
+   */
+  question: string;
+  /**
+   * Question interaction type (currently only single-select)
+   */
+  type: 'select';
+  /**
+   * Available options for this question
+   */
+  options: PrdOption[];
+};
+
+/**
+ * Configuration for the final action button in the questionnaire
+ */
+export type PrdFinalAction = {
+  /**
+   * Unique identifier for this action
+   */
+  id: string;
+  /**
+   * Button label text
+   */
+  label: string;
+  /**
+   * Description of what this action does
+   */
+  description: string;
+};
+
+/**
+ * Complete data for rendering a PRD questionnaire
+ */
+export type PrdQuestionnaireData = {
+  /**
+   * Header title text for the questionnaire
+   */
+  question: string;
+  /**
+   * Header context/description text
+   */
+  context: string;
+  /**
+   * Array of questions to display
+   */
+  questions: PrdQuestion[];
+  /**
+   * Configuration for the finalize/approve action button
+   */
+  finalAction: PrdFinalAction;
+};
+export enum InteractiveSessionEventType {
+  Booting = 'interactive_session_booting',
+  Ready = 'interactive_session_ready',
+  Stopped = 'interactive_session_stopped',
+  Error = 'interactive_session_error',
+}
+export enum ApplicationStarter {
+  Blank = 'blank',
+  ViteShadcn = 'vite-shadcn',
+}
+export enum WhatsAppThreadTargetKind {
+  Feature = 'feature',
+  Application = 'application',
+}
+export enum FeatureFlagGroup {
+  Platform = 'platform',
+  SoftwareFactory = 'software-factory',
+  Experimental = 'experimental',
+}
+export enum TelemetryEvent {
+  InstallHeartbeat = 'install.heartbeat',
+  CliCommand = 'cli.command',
+  WebAreaViewed = 'web.area.viewed',
+  FeatureCreated = 'feature.created',
+  FeatureRunFinished = 'feature.run.finished',
+  PrOpened = 'pr.opened',
+  PrMerged = 'pr.merged',
+  DecisionAnswered = 'decision.answered',
+  DecisionDefaulted = 'decision.defaulted',
+  OnboardingStep = 'onboarding.step',
+  ErrorUnhandled = 'error.unhandled',
+  HarnessCandidateProposed = 'harness.candidate.proposed',
+  HarnessVersionAdopted = 'harness.version.adopted',
+  HarnessVersionRejected = 'harness.version.rejected',
+  HarnessVersionRolledBack = 'harness.version.rolled-back',
+  HarnessRefinementFinished = 'harness.refinement.finished',
+}
+export enum TelemetryDisabledReason {
+  Ci = 'ci',
+  DoNotTrack = 'do-not-track',
+  EnvDisabled = 'env-disabled',
+  Test = 'test',
+  UserOptOut = 'user-opt-out',
+}
+export enum TelemetryProcessKind {
+  Cli = 'cli',
+  Daemon = 'daemon',
+  Worker = 'worker',
+}
+export enum OnboardingStep {
+  AgentSetup = 'agent-setup',
+  AddProject = 'add-project',
+  ProjectAdded = 'project-added',
+  StartFromPrompt = 'start-from-prompt',
+  TelemetryNotice = 'telemetry-notice',
+}
+export enum CoordinationOutcome {
+  Disabled = 'disabled',
+  NoConflict = 'no-conflict',
+  Continued = 'continued',
+  Deferred = 'deferred',
+  Unavailable = 'unavailable',
+  Stale = 'stale',
+}
+export enum HarnessSurfaceFamily {
+  ClaudeCode = 'claude-code',
+  Codex = 'codex',
+  PromptSection = 'prompt-section',
+}
+export enum HarnessVersionTrend {
+  InsufficientData = 'insufficient-data',
+  Improved = 'improved',
+  Unchanged = 'unchanged',
+  Regressed = 'regressed',
+  NoBaseline = 'no-baseline',
+}
+export enum HarnessAlwaysOnChannel {
+  SystemPrompt = 'system-prompt',
+  Prompt = 'prompt',
+}
+export enum HarnessImproverStage {
+  Propose = 'propose',
+  Compose = 'compose',
+  Select = 'select',
+  Experience = 'experience',
+}
+export enum FeatureState {
+  Running = 'running',
+  ActionRequired = 'action-required',
+  Blocked = 'blocked',
+  Pending = 'pending',
+  Queued = 'queued',
+  Done = 'done',
+  Error = 'error',
+  Deleting = 'deleting',
+  Archived = 'archived',
+}
+export enum FeatureConsoleAction {
+  Approve = 'approve',
+  Reject = 'reject',
+  Stop = 'stop',
+  Resume = 'resume',
+}
+export enum AgentActivityState {
+  Working = 'working',
+  Blocked = 'blocked',
+  Waiting = 'waiting',
+  Done = 'done',
+  Failed = 'failed',
+}
+export enum FeatureStateReason {
+  Deleting = 'deleting',
+  Archived = 'archived',
+  QueuedForCapacity = 'queued-for-capacity',
+  Deferred = 'deferred',
+  WaitingOnParent = 'waiting-on-parent',
+  ApprovalGate = 'approval-gate',
+  AgentQuestion = 'agent-question',
+  RunFailed = 'run-failed',
+  RunInterrupted = 'run-interrupted',
+  RunCancelled = 'run-cancelled',
+  RunCompleted = 'run-completed',
+  AgentRunning = 'agent-running',
+  ProcessDied = 'process-died',
+  Maintained = 'maintained',
+  AwaitingReview = 'awaiting-review',
+  PlanTaskInReview = 'plan-task-in-review',
+  PlanTasksDone = 'plan-tasks-done',
+  InProgress = 'in-progress',
+}
+export enum ActivityWaitOutcome {
+  Matched = 'matched',
+  TimedOut = 'timed-out',
+  NotFound = 'not-found',
+  Ambiguous = 'ambiguous',
+  Aborted = 'aborted',
+}
+export enum FeatureReplyOutcome {
+  Applied = 'applied',
+  NotFound = 'not-found',
+  Ambiguous = 'ambiguous',
+  Refused = 'refused',
+}
+export enum TerminalMultiplexer {
+  Tmux = 'tmux',
+  Zellij = 'zellij',
+  WezTerm = 'wezterm',
+  Kitty = 'kitty',
+}
+export enum FeaturePaneContent {
+  Shell = 'shell',
+  Log = 'log',
+}
+export enum FeaturePanePlacement {
+  Split = 'split',
+  Window = 'window',
+}
+export enum FeaturePaneOutcome {
+  Opened = 'opened',
+  Inline = 'inline',
+  Failed = 'failed',
+}
+export enum FeatureChatEntryKind {
+  User = 'user',
+  Assistant = 'assistant',
+  Tool = 'tool',
+  Block = 'block',
+  Answer = 'answer',
+}
+export enum ChatTurnStatus {
+  Idle = 'idle',
+  Processing = 'processing',
+  Unread = 'unread',
+  AwaitingInput = 'awaiting_input',
+}
+export enum ShepProcessKind {
+  Daemon = 'daemon',
+  FeatureAgent = 'feature-agent',
+  AgentRun = 'agent-run',
+}
+export enum ShepProcessState {
+  Running = 'running',
+  Crashed = 'crashed',
+  Exited = 'exited',
+}
+export enum SpaceResolutionSource {
+  Assignment = 'Assignment',
+  Rule = 'Rule',
+  Default = 'Default',
+}
+export enum ConnectionKind {
+  Tracker = 'Tracker',
+  Knowledge = 'Knowledge',
+}
+export enum IntakeRejection {
+  Unauthorized = 'Unauthorized',
+  Invalid = 'Invalid',
+}
+export enum BedrockLifecycleAction {
+  Init = 'init',
+  Sync = 'sync',
+  Ship = 'ship',
+}
+export enum RecapChannel {
+  File = 'file',
+  Discord = 'discord',
+  GithubDiscussion = 'githubDiscussion',
+}
+export enum DiagnosticStatus {
+  Ok = 'ok',
+  Warn = 'warn',
+  Fail = 'fail',
+}
+export enum SlaState {
+  Healthy = 'Healthy',
+  AtRisk = 'AtRisk',
+  Breached = 'Breached',
+}
+export enum AssetType {
+  Application = 'Application',
+  Service = 'Service',
+  ApiAsset = 'ApiAsset',
+  CloudEnvironment = 'CloudEnvironment',
+}
+export enum DeploymentTargetType {
+  Application = 'application',
+  Feature = 'feature',
+  Repository = 'repository',
+}
+export enum AgentFeature {
+  sessionResume = 'session-resume',
+  streaming = 'streaming',
+  toolScoping = 'tool-scoping',
+  structuredOutput = 'structured-output',
+  systemPrompt = 'system-prompt',
+  sessionListing = 'session-listing',
+  effort = 'effort',
+  mcpConfig = 'mcp-config',
+}
+export enum CheckpointRestoreBlocker {
+  NoOwnWorktree = 'NoOwnWorktree',
+  NotLinkedWorktree = 'NotLinkedWorktree',
+  WorktreeUnavailable = 'WorktreeUnavailable',
+  AgentRunning = 'AgentRunning',
+}
+export enum ChatScopeKind {
+  Global = 'global',
+  Repository = 'repository',
+  Feature = 'feature',
+  Application = 'application',
+}
+export enum DecisionOutcome {
+  Pending = 'pending',
+  Answered = 'answered',
+  Defaulted = 'defaulted',
+  Cancelled = 'cancelled',
+  Disabled = 'disabled',
+}
+export enum DecisionSurface {
+  Web = 'web',
+  Cli = 'cli',
+  Chat = 'chat',
+  Supervisor = 'supervisor',
+  Other = 'other',
+}
+export enum InlineBlockType {
+  Decision = 'decision',
+  SpecReview = 'spec_review',
+  HtmlPreview = 'html_preview',
+  PlanCard = 'plan_card',
+}
+export type DeployTarget = DeployTargetActionItem | DeployTargetTask | DeployTargetTasks;
+
+export type Askable = {
+  Ask(request: AskRequest): AskResponse;
+};
+
+export type FeatureAgentOperations = {
+  NewFeatureWizard(): Feature;
+  GatherRequirements(): Requirement[];
+  DoResearch(): Research;
+  CreatePlan(): Plan;
+  BeginImplementation(): void;
+  Ask(query: string): AskResponse;
+};
+
+export type LocalDeployAgentOperations = {
+  Deploy(target: DeployTarget, skill: DeploySkill): Deployment;
+  Analyze(repositoryPath: string): DeploySkill;
+  Ask(query: string): AskResponse;
+};
+
+export namespace TypeSpec {}
