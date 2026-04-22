@@ -1,0 +1,775 @@
+/**
+ * DI Container Bootstrap Integration Test
+ *
+ * Resolves every token that web routes and CLI commands depend on against the
+ * real production registration modules. Catches the class of bugs where a
+ * constructor uses @inject for a token that nobody ever registered — symptoms
+ * include `GET /api/cloud-providers 500`, "Unregistered dependency token", and
+ * "Cannot inject the dependency at position #N of <Class> constructor".
+ *
+ * Run order:
+ *   1. Create a fresh tsyringe child container so registrations don't bleed
+ *      into other tests.
+ *   2. Register an in-memory SQLite Database under the 'Database' token.
+ *   3. Run every registration module from packages/core/src/infrastructure/di/modules.
+ *   4. Assert each token in `WEB_ROUTE_TOKENS` and `CRITICAL_INFRA_TOKENS`
+ *      resolves without throwing AND constructs a non-null instance.
+ *
+ * If a registration is missing for any reason — direct token registration,
+ * a transitive @inject in a deep dependency, a typo, anything — this test
+ * fails with the exact tsyringe error pointing at the broken token.
+ *
+ * The list of route tokens is generated from the real route handlers under
+ * src/presentation/web/app/api. When you add a new web route or CLI command
+ * that calls `resolve<X>('X')`, add the token here too.
+ *
+ * `WORKER_CRITICAL_USE_CASE_CLASSES` covers a different call shape: use-case
+ * and service classes that a worker (e.g. feature-agent-worker.ts) eagerly
+ * resolves by class reference (`container.resolve(ClassRef)`) at boot rather
+ * than by string token. When you add a new use case or service that a worker
+ * eagerly resolves this way, add the class here too.
+ */
+
+import 'reflect-metadata';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { container as rootContainer, type DependencyContainer } from 'tsyringe';
+import type Database from 'better-sqlite3';
+import { createInMemoryDatabase } from '../../../helpers/database.helper.js';
+import { runSQLiteMigrations } from '@/infrastructure/persistence/sqlite/migrations.js';
+import { registerRepositories } from '@/infrastructure/di/modules/register-repositories.js';
+import { registerServices } from '@/infrastructure/di/modules/register-services.js';
+import { registerTools } from '@/infrastructure/di/modules/register-tools.js';
+import { registerAgents } from '@/infrastructure/di/modules/register-agents.js';
+import { registerDecisions } from '@/infrastructure/di/modules/register-decisions.js';
+import { registerChatBlocks } from '@/infrastructure/di/modules/register-chat-blocks.js';
+import { AgentQuestionBridgeFactory } from '@/infrastructure/services/agents/agent-question-service/agent-question-bridge.factory.js';
+import { registerCloudDeploy } from '@/infrastructure/di/modules/register-cloud-deploy.js';
+import { registerIntegrations } from '@/infrastructure/di/modules/register-integrations.js';
+import { registerDeployment } from '@/infrastructure/di/modules/register-deployment.js';
+import { registerUseCases } from '@/infrastructure/di/modules/register-use-cases.js';
+import { registerInteractive } from '@/infrastructure/di/modules/register-interactive.js';
+import { registerAspm } from '@/infrastructure/di/modules/register-aspm.js';
+import { registerHarness } from '@/infrastructure/di/modules/register-harness.js';
+import { registerTelemetry } from '@/infrastructure/di/modules/register-telemetry.js';
+import { registerGitCheckpoints } from '@/infrastructure/di/modules/register-git-checkpoints.js';
+import { registerFeatureConsole } from '@/infrastructure/di/modules/register-feature-console.js';
+import { registerProcesses } from '@/infrastructure/di/modules/register-processes.js';
+import { registerHarnessLearning } from '@/infrastructure/di/modules/register-harness-learning.js';
+import { registerSpaces } from '@/infrastructure/di/modules/register-spaces.js';
+import { registerTrackers } from '@/infrastructure/di/modules/register-trackers.js';
+import { registerBugLoop } from '@/infrastructure/di/modules/register-bug-loop.js';
+import { registerPrComments } from '@/infrastructure/di/modules/register-pr-comments.js';
+import { registerKnowledge } from '@/infrastructure/di/modules/register-knowledge.js';
+import { registerOpportunities } from '@/infrastructure/di/modules/register-opportunities.js';
+import { registerFeedback } from '@/infrastructure/di/modules/register-feedback.js';
+import { registerDiscovery } from '@/infrastructure/di/modules/register-discovery.js';
+import { registerIncidents } from '@/infrastructure/di/modules/register-incidents.js';
+import { registerOutcomes } from '@/infrastructure/di/modules/register-outcomes.js';
+import { registerAutopilot } from '@/infrastructure/di/modules/register-autopilot.js';
+import { SessionSpaceEnvironment } from '@/infrastructure/services/interactive/lifecycle/session-space-environment.js';
+import { ResolveSpaceEnvironmentUseCase } from '@/application/use-cases/spaces/resolve-space-environment.use-case.js';
+import type { IDeploymentService } from '@/application/ports/output/services/deployment-service.interface.js';
+import { DeploymentService } from '@/infrastructure/services/deployment/deployment.service.js';
+import type { IInteractiveSessionRepository } from '@/application/ports/output/repositories/interactive-session-repository.interface.js';
+import type { IInteractiveMessageRepository } from '@/application/ports/output/repositories/interactive-message-repository.interface.js';
+import type { IWorkflowStepRepository } from '@/application/ports/output/repositories/workflow-step-repository.interface.js';
+import type { IInteractiveSessionService } from '@/application/ports/output/services/interactive-session-service.interface.js';
+import type { IAgentExecutorFactory } from '@/application/ports/output/agents/agent-executor-factory.interface.js';
+import type { IFeatureRepository } from '@/application/ports/output/repositories/feature-repository.interface.js';
+import { InteractiveSessionService } from '@/infrastructure/services/interactive/interactive-session.service.js';
+import { FeatureContextBuilder } from '@/infrastructure/services/interactive/feature-context.builder.js';
+import { SessionRegistry } from '@/infrastructure/services/interactive/core/session-registry.js';
+import { StreamEventDispatcher } from '@/infrastructure/services/interactive/core/stream-event-dispatcher.js';
+import { SessionPersistence } from '@/infrastructure/services/interactive/core/session-persistence.js';
+import { SettingsProviderAdapter } from '@/infrastructure/services/interactive/lifecycle/settings-provider.adapter.js';
+import { AgentConfigResolver } from '@/infrastructure/services/interactive/lifecycle/agent-config.resolver.js';
+import { AgentStreamConsumer } from '@/infrastructure/services/interactive/runtime/agent-stream.consumer.js';
+import { BootPromptResolver } from '@/infrastructure/services/interactive/lifecycle/boot-prompt.resolver.js';
+import { SelectProjectMemoryUseCase } from '@/application/use-cases/project-memory/select-project-memory.use-case.js';
+import { InitializeSettingsUseCase } from '@/application/use-cases/settings/initialize-settings.use-case.js';
+import { CleanupFeatureWorktreeUseCase } from '@/application/use-cases/features/cleanup-feature-worktree.use-case.js';
+import { RecordProjectMemoryUseCase } from '@/application/use-cases/project-memory/record-project-memory.use-case.js';
+import { UpdateFeatureLifecycleUseCase } from '@/application/use-cases/features/update/update-feature-lifecycle.use-case.js';
+import { CheckAndUnblockFeaturesUseCase } from '@/application/use-cases/features/check-and-unblock-features.use-case.js';
+import { FeatureAgentLifecyclePublisher } from '@/infrastructure/services/agents/feature-agent/feature-agent-lifecycle-publisher.js';
+import { FeatureAgentGateQuestionPublisher } from '@/infrastructure/services/agents/feature-agent/feature-agent-gate-question-publisher.js';
+import { FeatureAgentSupervisorGateEvaluator } from '@/infrastructure/services/agents/feature-agent/feature-agent-supervisor-gate-evaluator.js';
+import { SessionBootstrapper } from '@/infrastructure/services/interactive/lifecycle/session-bootstrapper.js';
+import { SessionBootAttempt } from '@/infrastructure/services/interactive/lifecycle/session-boot-attempt.js';
+import { DeadAgentSessionRecovery } from '@/infrastructure/services/interactive/lifecycle/dead-agent-session.recovery.js';
+import { SessionTerminator } from '@/infrastructure/services/interactive/lifecycle/session-terminator.js';
+import { TurnExecutor } from '@/infrastructure/services/interactive/runtime/turn.executor.js';
+import { UserInteractionCoordinator } from '@/infrastructure/services/interactive/runtime/user-interaction.coordinator.js';
+import { MessageDispatcher } from '@/infrastructure/services/interactive/api/message-dispatcher.js';
+import { ChatStateAssembler } from '@/infrastructure/services/interactive/api/chat-state.assembler.js';
+import { WorkflowHooks } from '@/infrastructure/services/interactive/api/workflow-hooks.js';
+import type { ILogger } from '@/application/ports/output/services/logger.interface.js';
+import { DeploymentTargetResolver } from '@/application/services/deployment-target-resolver.js';
+import { GetDevServerRunPlanUseCase } from '@/application/use-cases/deployments/get-dev-server-run-plan.use-case.js';
+import { OverrideDevServerRunPlanUseCase } from '@/application/use-cases/deployments/override-dev-server-run-plan.use-case.js';
+import { InvalidateDevServerRunPlanUseCase } from '@/application/use-cases/deployments/invalidate-dev-server-run-plan.use-case.js';
+import type { IRunPlanStalenessProbe } from '@/application/ports/output/services/run-plan-staleness-probe.interface.js';
+
+/**
+ * String tokens resolved by web API routes. To regenerate, grep
+ * src/presentation/web/app/api for `resolve<X>('X')` and capture the second
+ * group. Keep this list in sync — the test iterates and resolves each one,
+ * failing with the offending token name on any missing registration.
+ */
+const WEB_ROUTE_TOKENS: readonly string[] = [
+  // Dashboard load (get-graph-data.ts) closes merged Review features.
+  'AutoResolveMergedBranchesUseCase',
+  // Telemetry (spec 133) — settings section, onboarding notice, route views
+  'GetTelemetryStatusUseCase',
+  'SetTelemetryPreferencesUseCase',
+  'AcknowledgeTelemetryNoticeUseCase',
+  'RecordTelemetryEventUseCase',
+  // Spec 134: the unified decisions inbox.
+  'ListAgentQuestionInboxUseCase',
+  // Spec 137: chat blocks and the chat-first page
+  'PostChatBlockUseCase',
+  'RespondToChatBlockUseCase',
+  'ListChatMessagesSinceUseCase',
+  'ListChatConversationsUseCase',
+  'AskAgentDecisionUseCase',
+  'AttachmentStorageService',
+  'ConnectCloudProviderUseCase',
+  'CreateGitRemoteUseCase',
+  'CreateTerminalSessionUseCase',
+  'EnsureGhAuthenticatedUseCase',
+  'GetAdaptiveModelPlanUseCase',
+  'ListFeatureFlagsUseCase',
+  'SetFeatureFlagUseCase',
+  'GetApplicationUseCase',
+  'GetCloudDeploymentStatusUseCase',
+  'GetGitStatusUseCase',
+  'GetInteractiveChatStateUseCase',
+  'IngestFindingsUseCase',
+  'IngestSbomUseCase',
+  'IScanRunRepository',
+  'ScanApplicationUseCase',
+  'RescanApplicationUseCase',
+  'StartApplicationUseCase',
+  'ListScanRunsUseCase',
+  'GetScanRunUseCase',
+  'IAgentRunRepository',
+  'IDeploymentService',
+  'IFeatureRepository',
+  'IInteractiveSessionService',
+  'ILogger',
+  'ITerminalSessionService',
+  'IVersionService',
+  'InitiateCloudDeploymentUseCase',
+  'InstallToolUseCase',
+  'LaunchToolUseCase',
+  'ListApplicationFilesUseCase',
+  'ListApplicationsUseCase',
+  'ListCloudProvidersUseCase',
+  'ListFeaturesUseCase',
+  'ListFeatureCheckpointsUseCase',
+  'GetFeatureCheckpointDiffUseCase',
+  'RestoreFeatureCheckpointUseCase',
+  'ReconcileAgentRunLivenessUseCase',
+  'ListOperationLogEntriesUseCase',
+  'ListRepositoriesUseCase',
+  'ListToolsUseCase',
+  'ReadApplicationFileRawUseCase',
+  'ReadApplicationFileUseCase',
+  'RespondToInteractionUseCase',
+  'ResumeApplicationWorkflowUseCase',
+  'RunApplicationSetupUseCase',
+  'SelectCloudProviderUseCase',
+  'SendInteractiveMessageUseCase',
+  'StartInteractiveSessionUseCase',
+  'StopInteractiveSessionUseCase',
+  'StreamAgentEventsUseCase',
+  'SyncRepoUseCase',
+  'UpgradeCliUseCase',
+  'WatchApplicationFilesUseCase',
+  'WriteApplicationFileUseCase',
+  // Bedrock integration (feature 098)
+  'EnableBedrockForApplicationUseCase',
+  'RunBedrockLifecycleUseCase',
+  'CheckBedrockHealthUseCase',
+  // Query-aware harness (spec 119)
+  'ListHarnessSessionsUseCase',
+  'ListHarnessEventsUseCase',
+  'GetHarnessSessionUseCase',
+  'GetContextPlanUseCase',
+  'RenderChunkViewUseCase',
+  'ExplainHarnessDecisionUseCase',
+  'ListHarnessPermissionsUseCase',
+  'ResolveHarnessPermissionUseCase',
+  'ListHarnessCapabilitiesUseCase',
+  'GetHarnessPoliciesUseCase',
+  'OverrideChunkVisibilityUseCase',
+  'RunHarnessTaskUseCase',
+  'ResumeHarnessSessionUseCase',
+  'StopHarnessSessionUseCase',
+  'ApplyHarnessSessionUseCase',
+  'PromoteHarnessSessionUseCase',
+  'DiscardHarnessSessionUseCase',
+  'InitHarnessProjectUseCase',
+  'RunHarnessEvalUseCase',
+  'ListHarnessEvalRunsUseCase',
+  'GetHarnessEvalReportUseCase',
+  'SaveHarnessEvalCaseUseCase',
+  // Spaces and product lines (spec 120)
+  'ResolveSpaceContextUseCase',
+  'ManageSpacesUseCase',
+  'ManageSpaceMembershipUseCase',
+  'GetSpacesOverviewUseCase',
+  // Space agent settings (spec 121)
+  'ConfigureSpaceAgentUseCase',
+  'ResolveSpaceEnvironmentUseCase',
+  // Tracker sync (spec 122)
+  'ManageConnectionsUseCase',
+  'ManageTrackerSyncRulesUseCase',
+  'InvestigateWorkItemUseCase',
+  'ApproveHypothesisUseCase',
+  'GetWorkItemInvestigationsUseCase',
+  'FetchPrCommentsUseCase',
+  'AddressPrCommentsUseCase',
+  'GetPrCommentsUseCase',
+  'SyncPrCommentsUseCase',
+  'ManageKnowledgeSourcesUseCase',
+  'SyncKnowledgeSourceUseCase',
+  'SyncKnowledgeSourcesUseCase',
+  'ListKnowledgeUseCase',
+  'ManageSignalsUseCase',
+  'ManageOpportunitiesUseCase',
+  'GetOpportunityBoardUseCase',
+  'ManageOpportunityWeightsUseCase',
+  'BuildOpportunityUseCase',
+  'ManageFeedbackKeysUseCase',
+  'IngestFeedbackUseCase',
+  'GetFeedbackThemesUseCase',
+  'PromoteThemeUseCase',
+  'RunDiscoveryUseCase',
+  'SyncDiscoveryUseCase',
+  'ListDiscoveryRunsUseCase',
+  'OpenIncidentUseCase',
+  'ManageIncidentsUseCase',
+  'RuntimeActionsUseCase',
+  'TriageIncidentUseCase',
+  'GetIncidentBoardUseCase',
+  'TrackOutcomesUseCase',
+  'ManageOutcomesUseCase',
+  'ManageAutopilotUseCase',
+  'RunAutopilotUseCase',
+  'GetFactoryStatusUseCase',
+  'AdoptLocalRepositoryUseCase',
+  'IngestAlertUseCase',
+  'RunTrackerSyncUseCase',
+  'SyncTrackerRulesUseCase',
+  'GetTrackerIssueLinkUseCase',
+  'GetTrackerOverviewUseCase',
+] as const;
+
+/**
+ * Tokens that aren't directly resolved by routes but their absence breaks
+ * downstream construction. Listing them here gives a clearer error message
+ * if someone deletes a registration.
+ */
+const CRITICAL_INFRA_TOKENS: readonly string[] = [
+  // Telemetry (spec 133) — resolved by every process, flushed by the daemon
+  'ITelemetry',
+  'ITelemetryOutboxRepository',
+  'ITelemetryTransport',
+  'ITelemetryIdentityProvider',
+  'ITelemetryRuntime',
+  'IClock',
+  'FlushTelemetryUseCase',
+  'RecordInstallHeartbeatUseCase',
+  'RecordUnhandledErrorUseCase',
+  'PreviewTelemetryUseCase',
+  // Spaces and product lines (spec 120)
+  'ISpaceRepository',
+  'IProductLineRepository',
+  'ISpaceMembershipRepository',
+  // Tracker sync (spec 122)
+  'IConnectionRepository',
+  'ITrackerSyncRuleRepository',
+  'ITrackerIssueLinkRepository',
+  'IInvestigationRepository',
+  'IInvestigationWorkspace',
+  'IPrCommentRepository',
+  'IPrCommentRoundRepository',
+  'IKnowledgeSourceRepository',
+  'IKnowledgeDocumentRepository',
+  'IConnectionVerifier',
+  'ISignalRepository',
+  'IOpportunityRepository',
+  'IOpportunityWeightsRepository',
+  'IFeedbackKeyRepository',
+  'IFeedbackKeyGenerator',
+  'IDiscoveryRunRepository',
+  'IIncidentRepository',
+  'IOutcomeRepository',
+  'IAutopilotPolicyRepository',
+  'IAutopilotRunRepository',
+  'IIncidentEventRepository',
+  'IRuntimeActionRepository',
+  'IRuntimeController',
+  'IPullRequestCommentService',
+  'ITrackerClientFactory',
+  // Query-aware harness (spec 119)
+  'IHarnessBlobStore',
+  'IHarnessEventLog',
+  'IHarnessSessionRepository',
+  'IHarnessContextRepository',
+  'IHarnessExecutionRepository',
+  'IHarnessPermissionRepository',
+  'IHarnessEvalRepository',
+  'IRepoSnapshotter',
+  'IDecisionProviderFactory',
+  'IHarnessToolSources',
+  'IToolArgumentValidator',
+  'IHarnessPolicyEngine',
+  'ICommandInspector',
+  'IInstructionSource',
+  'IHarnessModelProviderFactory',
+  'HarnessRuntime',
+  'HarnessTaskService',
+  'IHarnessWorkspaceService',
+  'IHarnessProjectSetup',
+  'IHarnessEvalSuiteSource',
+  'IHarnessEvalWorkspaceFactory',
+  'IApplicationRepository',
+  'IPhaseTimingRepository',
+  'IGitCheckpointRepository',
+  'IGitCheckpointService',
+  'IInteractiveSessionRepository',
+  'IInteractiveMessageRepository',
+  'IWorkflowStepRepository',
+  'IFileSystemService',
+  'ISettingsRepository',
+  'ISpecArtifactParser',
+  'IProcessLivenessProbe',
+  'IProcessTreeTerminator',
+  'IWorktreePathProvider',
+  'IToolMetadataProvider',
+  'INodeHelpers',
+  'IPhaseTimingContext',
+  'IConflictResolutionService',
+  'IAttachmentStorageService',
+  'IGitCommitService',
+  'IGitCommitHistoryService',
+  'IGitRemoteService',
+  'ListGitHubOrganizationsUseCase',
+  'IGitHubRepositoryService',
+  'ICloudDeploymentProviderRegistry',
+  'ICloudDeploymentEventBus',
+  'ICloudProviderTokensRepository',
+  'CloudflareProviderClock',
+  'FetchFunction',
+  'ExecFunction',
+  'IAgentSessionRepositoryRegistry',
+  'IAgentExecutorFactory',
+  'IAgentExecutorProvider',
+  'IOperationLogRepository',
+  'IOperationLogService',
+  // Supervisor pipeline (spec 093). The feature-agent worker eagerly
+  // constructs FeatureAgentGateQuestionPublisher → AskAgentQuestionUseCase →
+  // AgentQuestionSupervisorRouter → EvaluateSupervisorDecisionUseCase, which
+  // injects 'ISupervisorAgent'. A missing registration here crashes the worker
+  // at boot — list the token explicitly so any future deletion fails this test
+  // instead of feature runs.
+  'ISupervisorAgent',
+  'IAgentPromptResolver',
+  'ISupervisorPolicyRepository',
+  'ISupervisorDecisionRepository',
+  // Contributor onboarding (feature 097)
+  'IContributorRepository',
+  'IRecognitionEventRepository',
+  // SDLC Kanban Board (feature sdlc-board)
+  'ISdlcTaskRepository',
+  'ISdlcSubTaskRepository',
+  // Phase 3a: tracker port consumed by the feature-agent worker; must be
+  // registered before any worker boots (LESSONS: transitive worker tokens
+  // must be verified here).
+  'ISdlcBoardTracker',
+  // Agentic dev-server flow (spec 103): the start-deployment use cases
+  // inject 'IDevServerAgentService', which in turn resolves the run-plan
+  // repository — both must resolve or every dev-server start breaks.
+  'IDevServerRunPlanRepository',
+  'IDevServerAgentService',
+  // Run-plan visibility/override (spec 108): the probe is the only boundary
+  // through which the application layer can reach computeConfigHash and the
+  // `.shep/dev.json` reader, so its absence breaks every run-plan use case.
+  'IRunPlanStalenessProbe',
+  // Self-learning harness (spec 150): read by every feature-agent node when
+  // the selfLearning flag is on.
+  'ILearnedHarnessRepository',
+  'IHarnessRefinementRepository',
+  'IHarnessInstaller',
+  'IHarnessImprover',
+  'IEvidenceWorkspace',
+  'GetCurrentHarnessUseCase',
+  'ReflectOnFeatureRunUseCase',
+  'RecordVersionOutcomeUseCase',
+  'AdoptHarnessVersionUseCase',
+  'RejectHarnessVersionUseCase',
+  'RollbackHarnessVersionUseCase',
+  'ListHarnessHistoryUseCase',
+  'GetHarnessVersionUseCase',
+  'ImportHarnessVersionUseCase',
+  'ReflectOnFeatureUseCase',
+  'IProbeWorktreeService',
+  'RefineHarnessUseCase',
+  'ResolveExplorePlanUseCase',
+] as const;
+
+/**
+ * Run-plan bindings (spec 108), each registered twice — as a class for CLI and
+ * worker `resolve(ClassRef)` calls, and under a string token because Turbopack
+ * cannot resolve `.js`→`.ts` imports inside `@shepai/core`, so web routes and
+ * server actions can only address them by name.
+ */
+const RUN_PLAN_BINDINGS: readonly {
+  token: string;
+  ClassRef: new (...args: any[]) => object;
+}[] = [
+  { token: 'DeploymentTargetResolver', ClassRef: DeploymentTargetResolver },
+  { token: 'GetDevServerRunPlanUseCase', ClassRef: GetDevServerRunPlanUseCase },
+  { token: 'OverrideDevServerRunPlanUseCase', ClassRef: OverrideDevServerRunPlanUseCase },
+  { token: 'InvalidateDevServerRunPlanUseCase', ClassRef: InvalidateDevServerRunPlanUseCase },
+];
+
+/**
+ * Use-case/service classes that the feature-agent worker eagerly resolves by
+ * class reference (`container.resolve(ClassRef)`) at boot. Unlike the string
+ * tokens above, these classes have no explicit `container.register()` call —
+ * tsyringe resolves them structurally from their own `@injectable()`
+ * decorators — so a mis-typed `@inject(...)` token deep in their constructor
+ * chain (see the ConflictResolutionService incident) only ever surfaced as a
+ * live worker crash. When you add a new use case or service that a worker
+ * eagerly resolves via `container.resolve(ClassRef)` at boot, add the class
+ * here too.
+ */
+const WORKER_CRITICAL_USE_CASE_CLASSES: readonly (new (...args: any[]) => object)[] = [
+  InitializeSettingsUseCase,
+  CleanupFeatureWorktreeUseCase,
+  SelectProjectMemoryUseCase,
+  RecordProjectMemoryUseCase,
+  UpdateFeatureLifecycleUseCase,
+  CheckAndUnblockFeaturesUseCase,
+  FeatureAgentLifecyclePublisher,
+  FeatureAgentGateQuestionPublisher,
+  FeatureAgentSupervisorGateEvaluator,
+];
+
+describe('DI container bootstrap (integration)', () => {
+  let scopedContainer: DependencyContainer;
+  let db: Database.Database;
+  let prevShepHome: string | undefined;
+  let prevHome: string | undefined;
+
+  beforeAll(async () => {
+    // Tsyringe doesn't expose a clean "fresh root" — but childContainer() gives
+    // us an isolated registry that doesn't pollute the global root.
+    scopedContainer = rootContainer.createChildContainer();
+
+    // Override the shep home so loadOrCreateSecretKey() (called inside
+    // register-cloud-deploy via a useFactory) writes into a tmp dir instead
+    // of the real ~/.shep.
+    const os = await import('node:os');
+    const fs = await import('node:fs/promises');
+    const path = await import('node:path');
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'shep-di-bootstrap-test-'));
+    prevShepHome = process.env.SHEP_HOME;
+    prevHome = process.env.HOME;
+    process.env.SHEP_HOME = tmpRoot;
+    // On Windows, getShepHomeDir() falls back to os.homedir() if SHEP_HOME is
+    // unset. We set both so the tmp dir is used regardless of platform.
+    process.env.HOME = tmpRoot;
+
+    db = createInMemoryDatabase();
+    await runSQLiteMigrations(db);
+    scopedContainer.registerInstance<Database.Database>('Database', db);
+
+    registerRepositories(scopedContainer);
+    registerSpaces(scopedContainer);
+    registerTrackers(scopedContainer);
+    registerKnowledge(scopedContainer);
+    registerOpportunities(scopedContainer);
+    registerFeedback(scopedContainer);
+    registerDiscovery(scopedContainer);
+    registerIncidents(scopedContainer);
+    registerOutcomes(scopedContainer);
+    registerAutopilot(scopedContainer);
+    registerBugLoop(scopedContainer);
+    registerPrComments(scopedContainer);
+    registerServices(scopedContainer);
+    registerTools(scopedContainer);
+    registerAgents(scopedContainer);
+    registerDecisions(scopedContainer);
+    registerChatBlocks(scopedContainer);
+    registerCloudDeploy(scopedContainer);
+    registerIntegrations(scopedContainer);
+    registerDeployment(scopedContainer);
+    registerUseCases(scopedContainer);
+    registerInteractive(scopedContainer);
+    registerAspm(scopedContainer);
+    registerHarness(scopedContainer);
+    registerTelemetry(scopedContainer);
+    registerGitCheckpoints(scopedContainer);
+    registerFeatureConsole(scopedContainer);
+    registerProcesses(scopedContainer);
+    registerHarnessLearning(scopedContainer);
+
+    // Replicate the eager bootstrap done by initializeContainer() so the
+    // test exercises the SAME container shape that web routes see at runtime.
+    // IDeploymentService and IInteractiveSessionService are not registered by
+    // the lazy modules — they're constructed eagerly because they need to
+    // hold mutable runtime state (running workflows, in-memory caches).
+    const deploymentService = new DeploymentService();
+    deploymentService.setDatabase(db);
+    deploymentService.recoverAll();
+    scopedContainer.registerInstance<IDeploymentService>('IDeploymentService', deploymentService);
+
+    const workflowStepRepoBoot =
+      scopedContainer.resolve<IWorkflowStepRepository>('IWorkflowStepRepository');
+    await workflowStepRepoBoot.markAllRunningAsInterrupted();
+
+    const interactiveSessionRepo = scopedContainer.resolve<IInteractiveSessionRepository>(
+      'IInteractiveSessionRepository'
+    );
+    const interactiveMessageRepo = scopedContainer.resolve<IInteractiveMessageRepository>(
+      'IInteractiveMessageRepository'
+    );
+    const sessionRegistry = new SessionRegistry();
+    const streamEventDispatcher = new StreamEventDispatcher(sessionRegistry);
+    const sessionPersistence = new SessionPersistence(
+      interactiveMessageRepo,
+      interactiveSessionRepo,
+      sessionRegistry,
+      streamEventDispatcher
+    );
+    const settingsProvider = new SettingsProviderAdapter();
+    scopedContainer.registerInstance('ISettingsProvider', settingsProvider);
+    const agentConfigResolver = new AgentConfigResolver(settingsProvider);
+    const noop = (_msg: string, _meta?: Record<string, unknown>) => undefined;
+    const logger: ILogger = { debug: noop, info: noop, warn: noop, error: noop };
+    const streamConsumer = new AgentStreamConsumer(
+      sessionPersistence,
+      streamEventDispatcher,
+      logger
+    );
+    const featureRepository = scopedContainer.resolve<IFeatureRepository>('IFeatureRepository');
+    const agentExecutorFactory =
+      scopedContainer.resolve<IAgentExecutorFactory>('IAgentExecutorFactory');
+    const featureContextBuilder = new FeatureContextBuilder();
+    const bootPromptResolver = new BootPromptResolver(
+      featureRepository,
+      featureContextBuilder,
+      scopedContainer.resolve(SelectProjectMemoryUseCase)
+    );
+    const interactionCoordinator = new UserInteractionCoordinator(
+      sessionPersistence,
+      streamEventDispatcher,
+      logger,
+      sessionRegistry
+    );
+    const bootAttempt = new SessionBootAttempt(
+      interactiveSessionRepo,
+      sessionPersistence,
+      streamEventDispatcher,
+      bootPromptResolver,
+      streamConsumer,
+      agentExecutorFactory,
+      agentConfigResolver,
+      interactionCoordinator,
+      logger,
+      new SessionSpaceEnvironment(
+        featureRepository,
+        scopedContainer.resolve(ResolveSpaceEnvironmentUseCase)
+      ),
+      {
+        create: (session, surface) =>
+          scopedContainer.resolve(AgentQuestionBridgeFactory).create(session, surface),
+      }
+    );
+    const bootstrapper = new SessionBootstrapper(
+      interactiveSessionRepo,
+      sessionRegistry,
+      sessionPersistence,
+      streamEventDispatcher,
+      agentExecutorFactory,
+      agentConfigResolver,
+      logger,
+      bootAttempt,
+      new DeadAgentSessionRecovery(
+        interactiveSessionRepo,
+        sessionRegistry,
+        streamEventDispatcher,
+        logger
+      )
+    );
+    const terminator = new SessionTerminator(
+      sessionRegistry,
+      sessionPersistence,
+      streamEventDispatcher,
+      logger,
+      interactiveMessageRepo,
+      workflowStepRepoBoot
+    );
+    const turnExecutor = new TurnExecutor(
+      interactiveSessionRepo,
+      sessionRegistry,
+      sessionPersistence,
+      streamConsumer,
+      logger,
+      streamEventDispatcher
+    );
+    const messageDispatcher = new MessageDispatcher(
+      interactiveSessionRepo,
+      interactiveMessageRepo,
+      sessionRegistry,
+      sessionPersistence,
+      bootstrapper,
+      terminator,
+      turnExecutor
+    );
+    const chatStateAssembler = new ChatStateAssembler(
+      interactiveMessageRepo,
+      interactiveSessionRepo,
+      workflowStepRepoBoot,
+      sessionRegistry
+    );
+    const workflowHooks = new WorkflowHooks(sessionRegistry, streamEventDispatcher);
+    const interactiveSessionService = new InteractiveSessionService(
+      interactiveSessionRepo,
+      interactiveMessageRepo,
+      featureRepository,
+      featureContextBuilder,
+      workflowStepRepoBoot,
+      sessionRegistry,
+      streamEventDispatcher,
+      sessionPersistence,
+      logger,
+      bootstrapper,
+      terminator,
+      turnExecutor,
+      interactionCoordinator,
+      messageDispatcher,
+      chatStateAssembler,
+      workflowHooks
+    );
+    scopedContainer.registerInstance<IInteractiveSessionService>(
+      'IInteractiveSessionService',
+      interactiveSessionService
+    );
+    await interactiveSessionRepo.markAllActiveStopped();
+  });
+
+  afterAll(() => {
+    db?.close();
+    if (prevShepHome === undefined) delete process.env.SHEP_HOME;
+    else process.env.SHEP_HOME = prevShepHome;
+    if (prevHome === undefined) delete process.env.HOME;
+    else process.env.HOME = prevHome;
+  });
+
+  describe('every web-route token resolves', () => {
+    for (const token of WEB_ROUTE_TOKENS) {
+      it(`resolves '${token}' without throwing`, () => {
+        let instance: unknown;
+        expect(() => {
+          instance = scopedContainer.resolve(token);
+        }).not.toThrow();
+        expect(instance).toBeDefined();
+        expect(instance).not.toBeNull();
+      });
+    }
+  });
+
+  describe('every critical infra token resolves', () => {
+    for (const token of CRITICAL_INFRA_TOKENS) {
+      it(`resolves '${token}' without throwing`, () => {
+        let instance: unknown;
+        expect(() => {
+          instance = scopedContainer.resolve(token);
+        }).not.toThrow();
+        expect(instance).toBeDefined();
+        expect(instance).not.toBeNull();
+      });
+    }
+  });
+
+  describe('every worker-critical use case resolves', () => {
+    for (const UseCaseClass of WORKER_CRITICAL_USE_CASE_CLASSES) {
+      it(`resolves '${UseCaseClass.name}' without throwing`, () => {
+        let instance: unknown;
+        expect(() => {
+          instance = scopedContainer.resolve(UseCaseClass);
+        }).not.toThrow();
+        expect(instance).toBeDefined();
+        expect(instance).not.toBeNull();
+      });
+    }
+  });
+
+  describe('dev-server run-plan bindings resolve by class AND by token', () => {
+    for (const { token, ClassRef } of RUN_PLAN_BINDINGS) {
+      it(`resolves '${token}' both ways`, () => {
+        const byClass = scopedContainer.resolve(ClassRef);
+        const byToken = scopedContainer.resolve(token);
+
+        expect(byClass).toBeInstanceOf(ClassRef);
+        expect(byToken).toBeInstanceOf(ClassRef);
+      });
+    }
+
+    it('resolves the staleness probe port to a working implementation', () => {
+      const probe = scopedContainer.resolve<IRunPlanStalenessProbe>('IRunPlanStalenessProbe');
+
+      expect(typeof probe.currentConfigHash(process.cwd())).toBe('string');
+      expect(typeof probe.hasRepoDevConfig(process.cwd())).toBe('boolean');
+    });
+
+    it('constructs without an agent configured — no structured caller registered', () => {
+      // A container holding only persistence, services, tools and the
+      // deployment module — notably NOT registerAgents, so nothing here
+      // registers IStructuredAgentCaller. That is the degraded-mode shape the
+      // run-plan surfaces must survive.
+      const degraded = rootContainer.createChildContainer();
+      degraded.registerInstance<Database.Database>('Database', db);
+      registerRepositories(degraded);
+      registerServices(degraded);
+      registerTools(degraded);
+      registerDeployment(degraded);
+
+      expect(() => degraded.resolve('IStructuredAgentCaller')).toThrow();
+      for (const { ClassRef } of RUN_PLAN_BINDINGS) {
+        expect(degraded.resolve(ClassRef)).toBeInstanceOf(ClassRef);
+      }
+    });
+  });
+
+  interface RegistryShape {
+    listAll(): readonly { id: string; displayName: string }[];
+  }
+
+  interface ListUseCaseShape {
+    execute(): Promise<readonly { id: string; connected: boolean }[]>;
+  }
+
+  describe('cloud-deploy registry constructs every provider end-to-end', () => {
+    it('resolves ICloudDeploymentProviderRegistry and lists only Cloudflare Pages', () => {
+      const registry = scopedContainer.resolve<RegistryShape>('ICloudDeploymentProviderRegistry');
+      expect(registry.listAll()).toEqual([
+        { id: 'CloudflarePages', displayName: 'Cloudflare Pages' },
+      ]);
+    });
+  });
+
+  describe('ListCloudProvidersUseCase end-to-end', () => {
+    it('produces only Cloudflare Pages when called via DI', async () => {
+      const useCase = scopedContainer.resolve<ListUseCaseShape>('ListCloudProvidersUseCase');
+      const providers = await useCase.execute();
+      expect(providers.map((p) => p.id)).toEqual(['CloudflarePages']);
+      expect(providers[0]).not.toHaveProperty('enabled');
+    });
+  });
+});
