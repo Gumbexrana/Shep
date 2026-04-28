@@ -1,0 +1,508 @@
+# =============================================================================
+# CI/CD Pipeline
+# =============================================================================
+# All jobs run in parallel. Release only runs on push to main.
+#
+# Pipeline Structure:
+#   ┌──────┬───────────┬─────────────────┬─────────────────┬─────────┬─────────┬───────────┬─────────────────────┐
+#   │ Lint │ Typecheck │ Unit (lin+win)  │ E2E CLI (l+w)   │ E2E TUI │ E2E Web │ Storybook │ Electron (m+w+l)    │
+#   └──────┴───────────┴─────────────────┴─────────────────┴─────────┴─────────┴───────────┴─────────────────────┘
+#   ┌──────────┬─────────┬──────────────────┐
+#   │ Gitleaks │ Semgrep │ Security Enforce │
+#   └──────────┴─────────┴──────────────────┘
+#                  (all parallel)
+#
+#   On push to main only:
+#   ┌───────────┐
+#   │  Release  │  (after ALL jobs pass)
+#   └───────────┘
+#
+# @see https://docs.github.com/en/actions
+
+name: CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  # ===========================================================================
+  # Code Quality
+  # ===========================================================================
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint
+      - run: pnpm run format:check
+      - run: pnpm run tsp:compile
+
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run generate
+      # CI regenerates before typechecking, so a PR that edits tsp/ without
+      # committing the regenerated output used to pass green and only broke on
+      # a contributor's machine later. Fail here instead.
+      - name: Verify generated code is committed
+        run: |
+          if ! git diff --exit-code -- packages/core/src/domain/generated apis; then
+            echo "::error::Generated output is stale. Run 'pnpm run generate' and commit the result."
+            exit 1
+          fi
+      - run: pnpm run typecheck
+
+  # ===========================================================================
+  # Tests
+  # ===========================================================================
+  test-unit:
+    name: Unit Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.runner || matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        include:
+          # Keep the required check name; pnpm's node-gyp needs Visual Studio 2022.
+          - os: windows-latest
+            runner: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run tsp:compile
+      - run: pnpm run test:unit --passWithNoTests
+      - run: pnpm run test:int --passWithNoTests
+
+  test-e2e-cli:
+    name: E2E CLI (${{ matrix.os }})
+    runs-on: ${{ matrix.runner || matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: windows-latest
+            runner: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      # Exercise the fallback even when a prebuilt binary or cached build exists.
+      - name: Build Windows SQLite from source
+        if: runner.os == 'Windows'
+        env:
+          npm_config_build_from_source: 'true'
+        run: pnpm rebuild better-sqlite3
+      - name: Verify Windows SQLite native binding
+        if: runner.os == 'Windows'
+        run: >-
+          node -e "const Database = require('better-sqlite3');
+          const db = new Database(':memory:');
+          require('node:assert/strict').equal(db.prepare('SELECT 1 AS value').get().value, 1);
+          db.close();
+          console.log('SQLite source build loaded and executed a query');"
+      - run: pnpm run build:release
+      - run: pnpm run test:e2e:cli
+
+  test-e2e-tui:
+    name: E2E (TUI)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      # The pane tests drive a real tmux server (spec 143).
+      - name: Install tmux
+        run: command -v tmux || (sudo apt-get update && sudo apt-get install -y tmux)
+      - run: pnpm run build:release
+      - run: pnpm run test:e2e:tui
+
+  test-e2e-web:
+    name: E2E (Web)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:release
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm run test:e2e:web
+      - name: Upload failed browser traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ===========================================================================
+  # Storybook Build (catches missing mocks, broken imports in stories)
+  # ===========================================================================
+  storybook-build:
+    name: Storybook Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      # build:storybook catches a BROKEN story but by construction cannot detect
+      # a MISSING one, which is why the mandate went unenforced.
+      - run: pnpm run check:stories
+      - run: pnpm run build:storybook
+
+  # ===========================================================================
+  # Electron Desktop App Build
+  # Builds Electron installers for macOS, Windows, and Linux in parallel.
+  # Artifacts are uploaded for PR inspection; release job publishes them.
+  # ===========================================================================
+  build-electron:
+    name: Electron (${{ matrix.os }})
+    runs-on: ${{ matrix.runner || matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+        include:
+          - os: macos-latest
+            build_cmd: 'build:mac'
+            artifact_pattern: 'packages/electron/release/*.dmg'
+            artifact_name: 'electron-mac'
+          - os: windows-latest
+            runner: windows-2022
+            build_cmd: 'build:win'
+            artifact_pattern: 'packages/electron/release/*.exe'
+            artifact_name: 'electron-win'
+          - os: ubuntu-latest
+            build_cmd: 'build:linux'
+            artifact_pattern: 'packages/electron/release/*.AppImage'
+            artifact_name: 'electron-linux'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build web UI and CLI
+        run: pnpm run build:release
+
+      - name: Build Electron installer
+        run: pnpm --filter @shepai/electron ${{ matrix.build_cmd }}
+
+      - name: Upload Electron artifact
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_pattern }}
+          if-no-files-found: error
+          retention-days: 7
+
+  # ===========================================================================
+  # Electron Apps-Only Desktop Build
+  # Builds the focused "Shep Apps" desktop binary for macOS, Windows, and
+  # Linux in parallel. Runs as a sibling of `build-electron` (no `needs:`
+  # dependency) so all 6 platform builds execute concurrently — total
+  # wall time is max(full, apps-only) per platform, not the sum.
+  # The build script bakes `SHEP_SHELL_VARIANT=apps-only` into the
+  # compiled main bundle via esbuild `define`, so the packaged binary
+  # launches into /applications without any runtime env configuration.
+  # ===========================================================================
+  build-electron-apps-only:
+    name: Electron Apps-Only (${{ matrix.os }})
+    runs-on: ${{ matrix.runner || matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+        include:
+          - os: macos-latest
+            build_cmd: 'build:apps-only:mac'
+            artifact_pattern: 'packages/electron/release-apps-only/*.dmg'
+            artifact_name: 'electron-apps-only-mac'
+          - os: windows-latest
+            runner: windows-2022
+            build_cmd: 'build:apps-only:win'
+            artifact_pattern: 'packages/electron/release-apps-only/*.exe'
+            artifact_name: 'electron-apps-only-win'
+          - os: ubuntu-latest
+            build_cmd: 'build:apps-only:linux'
+            artifact_pattern: 'packages/electron/release-apps-only/*.AppImage'
+            artifact_name: 'electron-apps-only-linux'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build web UI and CLI
+        run: pnpm run build:release
+
+      - name: Build Apps-Only Electron installer
+        run: pnpm --filter @shepai/electron ${{ matrix.build_cmd }}
+
+      - name: Upload Apps-Only Electron artifact
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_pattern }}
+          if-no-files-found: error
+          retention-days: 7
+
+  # ===========================================================================
+  # Security: Gitleaks Secret Detection
+  # Uses gitleaks CLI directly (free, open source) instead of gitleaks-action
+  # which requires a paid license for organizations
+  # ===========================================================================
+  security-gitleaks:
+    name: Gitleaks
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        run: |
+          GITLEAKS_VERSION="8.30.1"
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar -xz
+          sudo mv gitleaks /usr/local/bin/
+
+      - name: Gitleaks secret scan
+        run: gitleaks detect --source . --verbose --redact --config .gitleaks.toml --gitleaks-ignore-path .gitleaksignore
+
+  # ===========================================================================
+  # Security: Semgrep SAST
+  # ===========================================================================
+  security-semgrep:
+    name: Semgrep
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Semgrep SAST scan
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/typescript
+            p/javascript
+            p/security-audit
+
+  # ===========================================================================
+  # Supply Chain Security Enforcement
+  # Runs shep security enforce to validate dependency risk, release integrity,
+  # and governance posture. Gates release and dev-release jobs.
+  #
+  # Supply-chain security is part of ASPM, which is off on a fresh install,
+  # so SHEP_SUPPLY_CHAIN_SECURITY=true opts this job in explicitly. Set the
+  # repository variable to false to make it a no-op: the CLI then exits 0
+  # with a "flag disabled" note.
+  # ===========================================================================
+  security-enforce:
+    name: Security Enforce
+    runs-on: ubuntu-latest
+    env:
+      # Default: inherit from repo vars, fall back to true. Flip to 'false' (repo var
+      # or workflow-level env) to disable the entire feature in CI.
+      SHEP_SUPPLY_CHAIN_SECURITY: ${{ vars.SHEP_SUPPLY_CHAIN_SECURITY || 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run tsp:compile
+      - name: Run security enforcement
+        run: pnpm dev:cli security enforce --output json
+
+  # ===========================================================================
+  # Security Summary Comment (PRs only)
+  # Posts aggregated security scan results as a PR comment
+  # ===========================================================================
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs:
+      - security-gitleaks
+      - security-semgrep
+    # Only post comment when security issues are found
+    if: >-
+      github.event_name == 'pull_request' && always() &&
+      (needs.security-gitleaks.result == 'failure' ||
+       needs.security-semgrep.result == 'failure')
+
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Post security summary comment
+        uses: peter-evans/create-or-update-comment@v5
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ## 🔒 Security Issues Detected
+
+            | Scanner | Status | Details |
+            |---------|--------|---------|
+            | **Gitleaks** | ${{ needs.security-gitleaks.result == 'success' && '✅ Pass' || needs.security-gitleaks.result == 'failure' && '❌ Failed' || needs.security-gitleaks.result == 'skipped' && '⏭️ Skipped' || '⚠️ Cancelled' }} | Secret detection in git history |
+            | **Semgrep** | ${{ needs.security-semgrep.result == 'success' && '✅ Pass' || needs.security-semgrep.result == 'failure' && '❌ Failed' || needs.security-semgrep.result == 'skipped' && '⏭️ Skipped' || '⚠️ Cancelled' }} | SAST for TypeScript/JavaScript |
+
+            > ⚠️ **Please review the failed checks above before merging.**
+
+            ---
+            <sub>🤖 Generated by CI Security Scan | [View Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})</sub>
+
+  # ===========================================================================
+  # Release (main only, after ALL jobs pass)
+  # ===========================================================================
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    needs:
+      - lint
+      - typecheck
+      - test-unit
+      - test-e2e-cli
+      - test-e2e-tui
+      - test-e2e-web
+      - storybook-build
+      - build-electron
+      - build-electron-apps-only
+      - security-gitleaks
+      - security-semgrep
+      - security-enforce
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip ci]')
+
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Use PAT token to allow pushing to protected main branch
+          # persist-credentials must be true for semantic-release to push commits
+          persist-credentials: true
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      # @semantic-release/npm v13 uses npm's OIDC trusted publishing when
+      # `id-token: write` is granted. Node 22 ships npm 10.9.x, which predates
+      # trusted publishing — the plugin's verifyConditions OIDC exchange
+      # succeeds, but `npm publish` then fails with ENEEDAUTH because npm 10
+      # can't use the OIDC token. Trusted publishing requires npm >= 11.5.
+      #
+      # We can't run `npm install -g npm@^11.5` to upgrade: some Node 22
+      # toolcache images (e.g. 22.22.2) ship a bundled npm whose @npmcli/arborist
+      # is missing transitive deps (`Cannot find module 'promise-retry'`), so
+      # the bundled npm crashes before it can self-replace. Instead, fetch the
+      # npm registry tarball directly and overwrite the bundled package in
+      # place — npm tarballs ship with bundleDependencies so they're
+      # self-contained.
+      - name: Install npm 11 for OIDC trusted publishing
+        run: |
+          set -euo pipefail
+          NPM_VERSION=11.5.2
+          NODE_BIN_DIR="$(dirname "$(readlink -f "$(command -v node)")")"
+          NPM_PKG_DIR="$(dirname "$NODE_BIN_DIR")/lib/node_modules/npm"
+          TMP="$(mktemp -d)"
+          curl -fsSL "https://registry.npmjs.org/npm/-/npm-${NPM_VERSION}.tgz" -o "$TMP/npm.tgz"
+          sudo rm -rf "$NPM_PKG_DIR"
+          sudo mkdir -p "$NPM_PKG_DIR"
+          sudo tar -xzf "$TMP/npm.tgz" -C "$NPM_PKG_DIR" --strip-components=1
+          INSTALLED="$(npm --version)"
+          echo "npm now at $INSTALLED"
+          test "$INSTALLED" = "$NPM_VERSION"
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:release
+
+      - name: Download Electron artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: electron-artifacts
+          pattern: electron-*
+          merge-multiple: true
+
+      - name: Run semantic-release
+        id: semantic
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          # Used by the custom release-notes plugin to generate a per-release
+          # tagline via Claude (scripts/release-notes-plugin.mjs). Plugin
+          # gracefully falls back to a static tagline if this is unset.
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: npx semantic-release
