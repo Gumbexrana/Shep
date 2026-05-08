@@ -1,0 +1,289 @@
+#!/usr/bin/env node
+
+/**
+ * Shep CLI Entry Point
+ *
+ * Autonomous AI-native SDLC platform — run parallel AI agents in isolated worktrees
+ * to automate the development cycle from idea to deploy.
+ *
+ * Usage:
+ *   shep [command] [options]
+ *
+ * Commands:
+ *   shep              Start the web UI daemon (or run onboarding on first run)
+ *   shep start        Start the web UI as a background daemon
+ *   shep stop         Stop the running web UI daemon
+ *   shep restart      Restart (or start) the web UI daemon
+ *   shep status       Show status and metrics of the running daemon
+ *   shep version      Display version information
+ *   shep ui           Start the web UI (foreground, interactive)
+ *   shep run          Run an AI agent workflow
+ *   shep agent        Manage and view agent runs
+ *   shep feat         Manage features through the SDLC lifecycle
+ *   shep dev          Run and inspect a local dev server
+ *   shep repo         Manage tracked repositories
+ *   shep settings     Configure Shep settings
+ *   shep upgrade      Upgrade Shep CLI to the latest version
+ *   shep mcp          Start the MCP server for AI agent integration
+ *   shep logs         Inspect and prune Shep log files
+ *   shep usage        Report agent duration, token, cost and failure stats
+ *   shep --version    Display version number only
+ *
+ * Global Options:
+ *   -v, --version         Display version number
+ *   -h, --help            Display help
+ *   --verbose, --debug    Log at debug level (sets SHEP_LOG_LEVEL=debug)
+ *   --log-level <level>   debug | info | warn | error | silent
+ */
+
+// IMPORTANT: reflect-metadata must be imported first for tsyringe DI
+import 'reflect-metadata';
+
+import { Command } from 'commander';
+import type { IVersionService } from '@/application/ports/output/services/version-service.interface.js';
+import { createVersionCommand } from './commands/version.command.js';
+import { createSettingsCommand } from './commands/settings/index.js';
+import { createUiCommand } from './commands/ui.command.js';
+import { createRunCommand } from './commands/run.command.js';
+import { createAgentCommand } from './commands/agent/index.js';
+import { createFeatCommand } from './commands/feat/index.js';
+import { createRepoCommand } from './commands/repo/index.js';
+import { createAppCommand } from './commands/app/index.js';
+import { createClusterCommand } from './commands/cluster/index.js';
+import { createDevCommand } from './commands/dev/index.js';
+import { createSessionCommand } from './commands/session/index.js';
+import { createIdeOpenCommand } from './commands/ide-open.command.js';
+import { createInstallCommand } from './commands/install.command.js';
+import { createUpgradeCommand } from './commands/upgrade.command.js';
+import { createToolsCommand } from './commands/tools.command.js';
+import { createProjectCommand } from './commands/project/index.js';
+import { createItemCommand } from './commands/item/index.js';
+import { createCycleCommand } from './commands/cycle/index.js';
+import { createIntakeCommand } from './commands/intake/index.js';
+import { createNotificationsCommand } from './commands/notifications/index.js';
+import { createReviewCommand } from './commands/review.command.js';
+import { createDoctorCommand } from './commands/doctor.command.js';
+import { createSupervisorCommand } from './commands/supervisor/index.js';
+import { createBedrockCommand } from './commands/bedrock/bedrock.command.js';
+import { createContributorsCommand } from './commands/contributors/index.js';
+import { createWhatsappCommand } from './commands/whatsapp/whatsapp.command.js';
+import { createAspmCommand } from './commands/aspm/index.js';
+import { gateByFeatureFlag } from './commands/feature-flag-gate.js';
+import { createSecurityCommand } from './commands/security.command.js';
+import { createWorkflowCommand } from './commands/workflow/index.js';
+import { createPluginCommand } from './commands/plugin/index.js';
+import { createSpaceCommand } from './commands/space/index.js';
+import { createConnectionCommand } from './commands/connection/index.js';
+import { createSyncCommand } from './commands/sync/index.js';
+import { createKnowledgeCommand } from './commands/knowledge/index.js';
+import { createLearnCommand } from './commands/learn/index.js';
+import { createSignalCommand } from './commands/signal/index.js';
+import { createOpportunityCommand } from './commands/opportunity/index.js';
+import { createFeedbackCommand } from './commands/feedback/index.js';
+import { createDiscoveryCommand } from './commands/discovery/index.js';
+import { createIncidentCommand } from './commands/incident/index.js';
+import { createOutcomeCommand } from './commands/outcome/index.js';
+import { createAutopilotCommand } from './commands/autopilot/index.js';
+import { createFactoryCommand } from './commands/factory/index.js';
+import { createMcpCommand } from './commands/mcp.command.js';
+import { createFleetCommand } from './commands/fleet/index.js';
+import { createTuiCommand } from './commands/tui.command.js';
+import { createPsCommand } from './commands/ps/ps.command.js';
+import { createLogsCommand } from './commands/logs/index.js';
+import { createUsageCommand } from './commands/usage.command.js';
+import { createHarnessCommand } from './commands/harness/index.js';
+import { messages } from './ui/index.js';
+import { registerGlobalVerbosityOptions } from './global-options.js';
+
+// Daemon lifecycle commands
+import { createStartCommand } from './commands/start.command.js';
+import { createStopCommand } from './commands/stop.command.js';
+import { createStatusCommand } from './commands/status.command.js';
+import { createRestartCommand } from './commands/restart.command.js';
+import { createServeCommand } from './commands/_serve.command.js';
+import { startDaemon } from './commands/daemon/start-daemon.js';
+import { createTelemetryCommand } from './commands/telemetry/index.js';
+import { createChatCommand } from './commands/chat/index.js';
+import { recordUnhandledError, registerTelemetryHooks } from './telemetry-hooks.js';
+import { createUncaughtExceptionHandler } from './process-errors.js';
+
+// DI container and settings
+import { initializeContainer, container } from '@/infrastructure/di/container.js';
+import { SqliteNativeBindingError } from '@/infrastructure/errors/sqlite-native-binding-error.js';
+import { InitializeSettingsUseCase } from '@/application/use-cases/settings/initialize-settings.use-case.js';
+import { getSettings, initializeSettings } from '@/infrastructure/services/settings.service.js';
+import { initI18n as initCliI18n } from './i18n.js';
+import { initI18n as initTuiI18n } from '../tui/i18n.js';
+
+/**
+ * Bootstrap function - initializes all dependencies before CLI starts.
+ * Performs async initialization (database, settings) before parsing commands.
+ */
+async function bootstrap() {
+  let errorReported = false;
+  try {
+    // Step 1: Initialize DI container (database + migrations)
+    try {
+      await initializeContainer();
+      // Expose the DI container on globalThis for the web UI's server-side code
+      (globalThis as Record<string, unknown>).__shepContainer = container;
+    } catch (error) {
+      errorReported = true;
+      if (error instanceof SqliteNativeBindingError) {
+        // Native addon couldn't load — print the fix, not a stack trace.
+        messages.error(error.message);
+        messages.newline();
+        messages.log(error.remediation);
+      } else {
+        const err = error instanceof Error ? error : new Error(String(error));
+        messages.error('Failed to initialize database', err);
+      }
+      throw error; // Re-throw to trigger outer catch
+    }
+
+    // Step 2: Initialize settings
+    try {
+      const initializeSettingsUseCase = container.resolve(InitializeSettingsUseCase);
+      const settings = await initializeSettingsUseCase.execute();
+      initializeSettings(settings);
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      messages.error('Failed to initialize settings', err);
+      errorReported = true;
+      throw error;
+    }
+
+    // Step 3: Initialize i18n for CLI and TUI layers
+    try {
+      const { getSettings } = await import('@/infrastructure/services/settings.service.js');
+      const currentSettings = getSettings();
+      const language = currentSettings.user?.preferredLanguage ?? 'en';
+      await Promise.all([initCliI18n(language), initTuiI18n(language)]);
+    } catch {
+      // i18n init failure is non-fatal — fall back to English
+    }
+
+    // Step 4: Set up Commander CLI
+    const versionService = container.resolve<IVersionService>('IVersionService');
+    const { version, description } = versionService.getVersion();
+
+    const program = new Command()
+      .name('shep')
+      .description(description)
+      .version(version, '-v, --version', 'Display version number');
+
+    // Global verbosity flags. Registered on the root so every subcommand
+    // inherits them; the preAction hook writes SHEP_LOG_LEVEL before any
+    // action runs, and ConsoleLogger re-reads it per line.
+    registerGlobalVerbosityOptions(program);
+    // Usage metrics (spec 133): first-run notice and `cli.command`.
+    registerTelemetryHooks(program);
+
+    program
+      // task-10: Default action starts the daemon (or shows already-running URL).
+      // The onboarding gate above (lines 82-89) ensures the wizard runs on first launch;
+      // after the gate, startDaemon() is the correct next step in both cases.
+      // Commander only fires this action when no subcommand matches, so `shep start` etc.
+      // are unaffected.
+      .action(async () => {
+        await startDaemon();
+      });
+
+    // Register commands
+    program.addCommand(createVersionCommand());
+    program.addCommand(createSettingsCommand());
+    program.addCommand(createUiCommand());
+    program.addCommand(createTuiCommand());
+    program.addCommand(createPsCommand());
+    program.addCommand(createRunCommand());
+    program.addCommand(createAgentCommand());
+    program.addCommand(createFeatCommand());
+    program.addCommand(createRepoCommand());
+    program.addCommand(createAppCommand());
+    program.addCommand(createClusterCommand());
+    program.addCommand(createDevCommand());
+    program.addCommand(createSessionCommand());
+    program.addCommand(createIdeOpenCommand());
+    program.addCommand(createInstallCommand());
+    program.addCommand(createToolsCommand());
+    program.addCommand(createProjectCommand());
+    program.addCommand(createItemCommand());
+    program.addCommand(createCycleCommand());
+    program.addCommand(createIntakeCommand());
+    program.addCommand(createNotificationsCommand());
+    program.addCommand(createReviewCommand());
+    program.addCommand(createDoctorCommand());
+    program.addCommand(createSupervisorCommand());
+    program.addCommand(createBedrockCommand());
+    program.addCommand(createContributorsCommand());
+    program.addCommand(createWhatsappCommand());
+    program.addCommand(createAspmCommand());
+    program.addCommand(createSecurityCommand());
+    program.addCommand(createPluginCommand());
+    program.addCommand(gateByFeatureFlag(createSpaceCommand(), 'spaces'));
+    program.addCommand(gateByFeatureFlag(createConnectionCommand(), ['trackers', 'knowledge']));
+    program.addCommand(gateByFeatureFlag(createSyncCommand(), 'trackers'));
+    program.addCommand(gateByFeatureFlag(createKnowledgeCommand(), 'knowledge'));
+    program.addCommand(gateByFeatureFlag(createSignalCommand(), 'signals'));
+    program.addCommand(gateByFeatureFlag(createOpportunityCommand(), 'opportunities'));
+    program.addCommand(gateByFeatureFlag(createFeedbackCommand(), 'feedback'));
+    program.addCommand(gateByFeatureFlag(createDiscoveryCommand(), 'discovery'));
+    program.addCommand(gateByFeatureFlag(createIncidentCommand(), 'incidents'));
+    program.addCommand(gateByFeatureFlag(createOutcomeCommand(), 'outcomes'));
+    program.addCommand(gateByFeatureFlag(createAutopilotCommand(), 'autopilot'));
+    program.addCommand(gateByFeatureFlag(createFactoryCommand(), 'factory'));
+    program.addCommand(gateByFeatureFlag(createLearnCommand(), 'selfLearning'));
+    program.addCommand(createUpgradeCommand());
+    program.addCommand(createWorkflowCommand());
+    program.addCommand(createMcpCommand());
+    program.addCommand(createFleetCommand());
+    program.addCommand(createLogsCommand());
+    program.addCommand(createUsageCommand());
+    program.addCommand(createTelemetryCommand());
+    program.addCommand(createChatCommand());
+    // Experimental (spec 119): hidden from --help until the flag is on.
+    program.addCommand(createHarnessCommand(), {
+      hidden: !(getSettings().featureFlags?.queryAwareHarness ?? false),
+    });
+
+    // Daemon lifecycle commands (task-9)
+    program.addCommand(createStartCommand());
+    program.addCommand(createStopCommand());
+    program.addCommand(createRestartCommand());
+    program.addCommand(createStatusCommand());
+    program.addCommand(createServeCommand()); // hidden from --help
+
+    // Parse arguments (parseAsync needed for async command actions like init)
+    await program.parseAsync();
+  } catch (error) {
+    recordUnhandledError(error);
+    if (!errorReported) {
+      messages.error(
+        'Failed to start CLI',
+        error instanceof Error ? error : new Error(String(error))
+      );
+    }
+    process.exit(1);
+  }
+}
+
+// Global error handlers
+process.on(
+  'uncaughtException',
+  createUncaughtExceptionHandler({
+    record: recordUnhandledError,
+    report: (error) => messages.error('An unexpected error occurred', error),
+    debug: messages.debug,
+    exit: (code) => process.exit(code),
+  })
+);
+
+process.on('unhandledRejection', (reason) => {
+  recordUnhandledError(reason);
+  const error = reason instanceof Error ? reason : new Error(String(reason));
+  messages.error('Unhandled promise rejection', error);
+  process.exit(1);
+});
+
+// Start the CLI
+bootstrap();

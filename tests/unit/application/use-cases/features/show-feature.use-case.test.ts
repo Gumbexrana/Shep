@@ -1,0 +1,122 @@
+/**
+ * ShowFeatureUseCase Unit Tests
+ *
+ * Tests for retrieving a single feature by ID.
+ * Uses mock repository.
+ *
+ * TDD Phase: RED-GREEN
+ */
+
+import 'reflect-metadata';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { ShowFeatureUseCase } from '@/application/use-cases/features/show-feature.use-case.js';
+import type { ReconcileAgentRunLivenessUseCase } from '@/application/use-cases/agents/reconcile-agent-run-liveness.use-case.js';
+import type { IFeatureRepository } from '@/application/ports/output/repositories/feature-repository.interface.js';
+import { SdlcLifecycle, BuildMode } from '@/domain/generated/output.js';
+import type { Feature } from '@/domain/generated/output.js';
+import { createMockFeatureRepository } from '../../../../helpers/feature-repository.mock.js';
+
+function createMockFeature(id: string): Feature {
+  return {
+    id,
+    name: 'Test',
+    slug: 'test',
+    description: 'Test feature',
+    userQuery: 'test user query',
+    repositoryPath: '/repo',
+    branch: 'feat/test',
+    lifecycle: SdlcLifecycle.Requirements,
+    messages: [],
+    relatedArtifacts: [],
+    buildMode: BuildMode.Application,
+    fast: false,
+    push: false,
+    openPr: false,
+    forkAndPr: false,
+    commitSpecs: true,
+    ciWatchEnabled: true,
+    enableEvidence: false,
+    injectSkills: false,
+    commitEvidence: false,
+    approvalGates: { allowPrd: false, allowPlan: false, allowMerge: false },
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
+describe('ShowFeatureUseCase', () => {
+  const livenessSweep = { execute: vi.fn() };
+  const sweep = livenessSweep as unknown as ReconcileAgentRunLivenessUseCase;
+  let useCase: ShowFeatureUseCase;
+  let mockRepo: IFeatureRepository;
+
+  beforeEach(() => {
+    mockRepo = createMockFeatureRepository({
+      findById: vi.fn().mockResolvedValue(createMockFeature('feat-1')),
+    });
+    useCase = new ShowFeatureUseCase(mockRepo, sweep);
+  });
+
+  it('should return feature by id', async () => {
+    const result = await useCase.execute('feat-1');
+    expect(result.id).toBe('feat-1');
+    expect(mockRepo.findById).toHaveBeenCalledWith('feat-1');
+  });
+
+  it('should fall back to prefix match when exact match fails', async () => {
+    mockRepo.findById = vi.fn().mockResolvedValue(null);
+    mockRepo.findByIdPrefix = vi.fn().mockResolvedValue(createMockFeature('feat-1-full-uuid'));
+
+    const result = await useCase.execute('feat-1');
+    expect(result.id).toBe('feat-1-full-uuid');
+    expect(mockRepo.findByIdPrefix).toHaveBeenCalledWith('feat-1');
+  });
+
+  it('should throw if feature not found by id or prefix', async () => {
+    mockRepo.findById = vi.fn().mockResolvedValue(null);
+    mockRepo.findByIdPrefix = vi.fn().mockResolvedValue(null);
+    await expect(useCase.execute('non-existent')).rejects.toThrow(/not found/i);
+  });
+
+  it('should include feature id in error message', async () => {
+    mockRepo.findById = vi.fn().mockResolvedValue(null);
+    mockRepo.findByIdPrefix = vi.fn().mockResolvedValue(null);
+    await expect(useCase.execute('abc-123')).rejects.toThrow('abc-123');
+  });
+
+  it('should not call prefix match if exact match succeeds', async () => {
+    await useCase.execute('feat-1');
+    expect(mockRepo.findByIdPrefix).not.toHaveBeenCalled();
+  });
+
+  it('should return the full feature object from repository', async () => {
+    const mockFeature = createMockFeature('feat-2');
+    mockFeature.name = 'My Feature';
+    mockFeature.lifecycle = SdlcLifecycle.Implementation;
+    mockRepo.findById = vi.fn().mockResolvedValue(mockFeature);
+
+    const result = await useCase.execute('feat-2');
+    expect(result.name).toBe('My Feature');
+    expect(result.lifecycle).toBe(SdlcLifecycle.Implementation);
+  });
+
+  // The read paths every surface uses (CLI, TUI, web) run the run-liveness
+  // sweep first, so what they return already reflects a crashed or hung worker.
+  describe('run-liveness sweep', () => {
+    it('reconciles run liveness before reading', async () => {
+      const order: string[] = [];
+      livenessSweep.execute.mockImplementation(async () => {
+        order.push('sweep');
+        return { reconciledRunIds: [] };
+      });
+      mockRepo.findById = vi.fn(async () => {
+        order.push('read');
+        return { id: 'feat-1' } as Feature;
+      });
+
+      await useCase.execute('feat-1');
+
+      expect(order).toEqual(['sweep', 'read']);
+    });
+  });
+});
