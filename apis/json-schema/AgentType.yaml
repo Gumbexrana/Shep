@@ -1,0 +1,18 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: AgentType.yaml
+type: string
+enum:
+  - claude-code
+  - kimi-code
+  - codex-cli
+  - copilot-cli
+  - gemini-cli
+  - cursor
+  - cline
+  - openrouter
+  - together-ai
+  - ollama
+  - llmproxy
+  - dev
+  - shep-harness
+description: AI coding agent tool selection
