@@ -1,0 +1,1276 @@
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  AgentType,
+  NotificationEventType,
+  PrStatus,
+  CiStatus,
+} from '@shepai/core/domain/generated/output';
+import { FeatureFlagsProvider } from '@/hooks/feature-flags-context';
+import type { FeatureFlagsState } from '@/lib/feature-flags';
+import type { NotificationEvent } from '@shepai/core/domain/generated/output';
+import { FeatureDrawerTabs } from '@/components/common/feature-drawer-tabs/feature-drawer-tabs';
+import type { FeatureNodeData } from '@/components/common/feature-node';
+import type { FeatureDrawerTabsProps } from '@/components/common/feature-drawer-tabs/feature-drawer-tabs';
+import type { PhaseTimingData } from '@/app/actions/get-feature-phase-timings';
+import type { PlanData } from '@/app/actions/get-feature-plan';
+
+vi.mock('@/components/agent-activity/feature-activity-section', () => ({
+  FeatureActivitySection: ({ featureId }: { featureId: string }) => (
+    <div data-testid="feature-activity-section" data-feature-id={featureId} />
+  ),
+}));
+
+// Mock server actions
+const mockGetPhaseTimings = vi.fn();
+const mockGetPlan = vi.fn();
+
+// Mock next/navigation
+let mockPathname = '/feature/f1';
+
+vi.mock('next/navigation', () => ({
+  usePathname: () => mockPathname,
+}));
+
+// Spy on window.history.pushState for URL sync assertions
+const mockPushState = vi.fn();
+const originalPushState = window.history.pushState.bind(window.history);
+beforeAll(() => {
+  window.history.pushState = mockPushState;
+});
+afterAll(() => {
+  window.history.pushState = originalPushState;
+});
+
+vi.mock('@/app/actions/get-feature-phase-timings', () => ({
+  getFeaturePhaseTimings: (...args: unknown[]) => mockGetPhaseTimings(...args),
+}));
+
+vi.mock('@/app/actions/get-feature-plan', () => ({
+  getFeaturePlan: (...args: unknown[]) => mockGetPlan(...args),
+}));
+
+// Mock bedrock server actions so activating the Bedrock tab (the last tab in
+// the default 8-tab set) does not fire a real fetch from jsdom.
+vi.mock('@/app/actions/bedrock.action', () => ({
+  enableBedrockForTarget: vi.fn().mockResolvedValue({ ok: false }),
+  syncBedrockForTarget: vi.fn().mockResolvedValue({ ok: false }),
+  shipBedrockForTarget: vi.fn().mockResolvedValue({ ok: false }),
+  getBedrockMemorySnapshot: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock('@/app/actions/feature-checkpoints', () => ({
+  listFeatureCheckpoints: vi.fn().mockResolvedValue({
+    ok: true,
+    data: { featureId: 'feat-1', featureName: 'F', checkpoints: [] },
+  }),
+  getFeatureCheckpointDiff: vi.fn(),
+  restoreFeatureCheckpoint: vi.fn(),
+}));
+
+vi.mock('@/app/actions/harness-queries', () => ({
+  getHarnessSessionForFeature: vi.fn().mockResolvedValue({ ok: true, data: null }),
+  listHarnessPermissions: vi
+    .fn()
+    .mockResolvedValue({ ok: true, data: [{ decision: { id: 'p1' } }] }),
+}));
+
+vi.mock('@/hooks/use-feature-logs', () => ({
+  useFeatureLogs: () => ({ content: '', isConnected: false, error: null }),
+}));
+
+vi.mock('@/hooks/use-sound-action', () => ({
+  useSoundAction: vi.fn(() => ({ play: vi.fn(), stop: vi.fn(), isPlaying: false })),
+}));
+
+vi.mock('@/hooks/use-deploy-action', () => ({
+  useDeployAction: () => ({
+    deploy: vi.fn(),
+    stop: vi.fn(),
+    deployLoading: false,
+    stopLoading: false,
+    deployError: null,
+    status: null,
+    url: null,
+  }),
+}));
+
+vi.mock('@/components/common/deployment-status-badge', () => ({
+  DeploymentStatusBadge: ({ status }: { status: string | null }) =>
+    status ? <div data-testid="deployment-status-badge" data-status={status} /> : null,
+}));
+
+const defaultFeatureNode: FeatureNodeData = {
+  name: 'Test Feature',
+  description: 'A test feature',
+  featureId: '#f1',
+  lifecycle: 'implementation',
+  state: 'running',
+  progress: 50,
+  repositoryPath: '/home/user/repo',
+  branch: 'feat/test',
+  hasPlan: true,
+  hasAgentRun: true,
+};
+
+const sampleTimings: PhaseTimingData[] = [
+  {
+    agentRunId: 'run-001',
+    phase: 'analyze',
+    startedAt: '2024-01-01T00:00:00.000Z',
+    completedAt: '2024-01-01T00:00:05.000Z',
+    durationMs: 5000,
+  },
+];
+
+const samplePlan: PlanData = {
+  state: 'Ready',
+  overview: 'Implementation plan',
+  tasks: [{ title: 'Task 1', description: 'Do something', state: 'Todo', actionItems: [] }],
+};
+
+function makeSseEvent(
+  featureId: string,
+  eventType: NotificationEventType = NotificationEventType.PhaseCompleted
+): NotificationEvent {
+  return {
+    featureId,
+    eventType,
+    agentRunId: 'run-001',
+    featureName: 'Test Feature',
+  } as NotificationEvent;
+}
+
+function renderTabs(props: Partial<FeatureDrawerTabsProps> = {}) {
+  const defaultProps: FeatureDrawerTabsProps = {
+    featureNode: defaultFeatureNode,
+    featureId: '#f1',
+    ...props,
+  };
+  const queryClient = new QueryClient();
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <FeatureDrawerTabs {...defaultProps} />
+    </QueryClientProvider>
+  );
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockPushState.mockClear();
+  mockPathname = '/feature/f1';
+
+  mockGetPhaseTimings.mockResolvedValue({ timings: sampleTimings, rejectionFeedback: [] });
+  mockGetPlan.mockResolvedValue({ plan: samplePlan });
+});
+
+describe('FeatureDrawerTabs', () => {
+  describe('tab triggers', () => {
+    it('renders four tab triggers when hasPlan is true', () => {
+      renderTabs();
+      expect(screen.getByRole('tab', { name: 'Overview' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Activity' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Log' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Plan' })).toBeInTheDocument();
+    });
+
+    it('hides Log tab when hasAgentRun is not set (adopted features)', () => {
+      const { hasAgentRun: _, ...nodeWithoutRun } = defaultFeatureNode;
+      renderTabs({
+        featureNode: nodeWithoutRun as FeatureNodeData,
+      });
+      expect(screen.getByRole('tab', { name: 'Overview' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Activity' })).toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: 'Log' })).not.toBeInTheDocument();
+    });
+
+    it('shows the Checkpoints tab once the feature has an agent run (spec 138)', () => {
+      renderTabs();
+      expect(screen.getByRole('tab', { name: 'Checkpoints' })).toBeInTheDocument();
+    });
+
+    it('hides the Checkpoints tab when no agent ever ran', () => {
+      const { hasAgentRun: _, ...nodeWithoutRun } = defaultFeatureNode;
+      renderTabs({ featureNode: nodeWithoutRun as FeatureNodeData });
+      expect(screen.queryByRole('tab', { name: 'Checkpoints' })).not.toBeInTheDocument();
+    });
+
+    it('hides Plan tab when hasPlan is false', () => {
+      renderTabs({
+        featureNode: { ...defaultFeatureNode, hasPlan: false },
+      });
+      expect(screen.getByRole('tab', { name: 'Overview' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Activity' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Log' })).toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: 'Plan' })).not.toBeInTheDocument();
+    });
+
+    it('hides Plan tab when hasPlan is undefined', () => {
+      const { hasPlan: _, ...nodeWithoutPlan } = defaultFeatureNode;
+      renderTabs({
+        featureNode: nodeWithoutPlan as FeatureNodeData,
+      });
+      expect(screen.queryByRole('tab', { name: 'Plan' })).not.toBeInTheDocument();
+    });
+
+    it('shows Plan tab regardless of lifecycle when hasPlan is true', () => {
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'requirements',
+          state: 'running',
+          hasPlan: true,
+        },
+      });
+      expect(screen.getByRole('tab', { name: 'Plan' })).toBeInTheDocument();
+    });
+  });
+
+  describe('default tab', () => {
+    it('overview tab is active by default', () => {
+      renderTabs();
+      const overviewTab = screen.getByRole('tab', { name: 'Overview' });
+      expect(overviewTab).toHaveAttribute('data-state', 'active');
+    });
+
+    it('renders overview content by default', () => {
+      renderTabs();
+      // OverviewTab renders the status test id
+      expect(screen.getByTestId('feature-drawer-status')).toBeInTheDocument();
+    });
+  });
+
+  describe('lazy data fetching', () => {
+    it('does not fetch any data on initial render', () => {
+      renderTabs();
+      expect(mockGetPhaseTimings).not.toHaveBeenCalled();
+      expect(mockGetPlan).not.toHaveBeenCalled();
+    });
+
+    it('clicking Activity tab triggers phase timings fetch', async () => {
+      const user = userEvent.setup();
+      renderTabs();
+
+      await user.click(screen.getByRole('tab', { name: 'Activity' }));
+
+      expect(mockGetPhaseTimings).toHaveBeenCalledWith('#f1');
+    });
+
+    it('clicking Plan tab triggers plan fetch', async () => {
+      const user = userEvent.setup();
+      renderTabs();
+
+      await user.click(screen.getByRole('tab', { name: 'Plan' }));
+
+      expect(mockGetPlan).toHaveBeenCalledWith('#f1');
+    });
+
+    it('clicking Activity tab again does not trigger another fetch (cache hit)', async () => {
+      const user = userEvent.setup();
+      renderTabs();
+
+      await user.click(screen.getByRole('tab', { name: 'Activity' }));
+      expect(mockGetPhaseTimings).toHaveBeenCalledTimes(1);
+
+      // Switch away then back
+      await user.click(screen.getByRole('tab', { name: 'Overview' }));
+      await user.click(screen.getByRole('tab', { name: 'Activity' }));
+      expect(mockGetPhaseTimings).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('feature id change', () => {
+    it('resets to Overview tab when featureId changes', async () => {
+      const user = userEvent.setup();
+      const { rerender } = renderTabs();
+
+      // Switch to Activity tab
+      await user.click(screen.getByRole('tab', { name: 'Activity' }));
+      expect(screen.getByRole('tab', { name: 'Activity' })).toHaveAttribute('data-state', 'active');
+
+      // Change featureId
+      rerender(
+        <FeatureDrawerTabs
+          featureNode={{ ...defaultFeatureNode, featureId: '#f2' }}
+          featureId="#f2"
+        />
+      );
+
+      // Should reset to Overview
+      expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('data-state', 'active');
+    });
+  });
+
+  describe('SSE refresh', () => {
+    it('re-fetches active tab data when SSE events arrive for this feature', async () => {
+      const user = userEvent.setup();
+      const { rerender } = renderTabs({ sseEvents: [] });
+
+      // Switch to Activity tab and wait for initial fetch
+      await user.click(screen.getByRole('tab', { name: 'Activity' }));
+      expect(mockGetPhaseTimings).toHaveBeenCalledTimes(1);
+
+      // Simulate SSE event arriving for this feature
+      rerender(
+        <FeatureDrawerTabs
+          featureNode={defaultFeatureNode}
+          featureId="#f1"
+          sseEvents={[makeSseEvent('#f1')]}
+        />
+      );
+
+      // Should refresh the active tab
+      expect(mockGetPhaseTimings).toHaveBeenCalledTimes(2);
+    });
+
+    it('refreshes activity data even when overview tab is active and SSE events arrive', () => {
+      const { rerender } = renderTabs({ sseEvents: [] });
+
+      // Simulate SSE event while on Overview
+      rerender(
+        <FeatureDrawerTabs
+          featureNode={defaultFeatureNode}
+          featureId="#f1"
+          sseEvents={[makeSseEvent('#f1')]}
+        />
+      );
+
+      // Activity data should be pre-fetched so it's ready when user switches tabs
+      expect(mockGetPhaseTimings).toHaveBeenCalledWith('#f1');
+      // Plan should NOT be fetched — only activity is always refreshed
+      expect(mockGetPlan).not.toHaveBeenCalled();
+    });
+
+    it('ignores SSE events for a different feature', async () => {
+      const user = userEvent.setup();
+      const { rerender } = renderTabs({ sseEvents: [] });
+
+      // Switch to Activity tab and wait for initial fetch
+      await user.click(screen.getByRole('tab', { name: 'Activity' }));
+      expect(mockGetPhaseTimings).toHaveBeenCalledTimes(1);
+
+      // Simulate SSE event for a DIFFERENT feature
+      rerender(
+        <FeatureDrawerTabs
+          featureNode={defaultFeatureNode}
+          featureId="#f1"
+          sseEvents={[makeSseEvent('#other-feature')]}
+        />
+      );
+
+      // Should NOT refresh — event is for a different feature
+      expect(mockGetPhaseTimings).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not re-process already-seen SSE events', async () => {
+      const user = userEvent.setup();
+      const events = [makeSseEvent('#f1')];
+      const { rerender } = renderTabs({ sseEvents: [] });
+
+      // Switch to Activity tab
+      await user.click(screen.getByRole('tab', { name: 'Activity' }));
+      expect(mockGetPhaseTimings).toHaveBeenCalledTimes(1);
+
+      // First SSE event batch
+      rerender(
+        <FeatureDrawerTabs featureNode={defaultFeatureNode} featureId="#f1" sseEvents={events} />
+      );
+      expect(mockGetPhaseTimings).toHaveBeenCalledTimes(2);
+
+      // Re-render with same events array (no new events)
+      rerender(
+        <FeatureDrawerTabs featureNode={defaultFeatureNode} featureId="#f1" sseEvents={events} />
+      );
+      // Should NOT re-fetch — no new events
+      expect(mockGetPhaseTimings).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('phase transition tab switching', () => {
+    it('switches to merge-review tab when initialTab changes due to lifecycle transition', () => {
+      const { rerender } = renderTabs({
+        featureNode: { ...defaultFeatureNode, lifecycle: 'implementation', state: 'running' },
+      });
+
+      // Verify starting on overview
+      expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('data-state', 'active');
+
+      // Simulate lifecycle transition: implementation → review (waiting for merge)
+      rerender(
+        <FeatureDrawerTabs
+          featureNode={{
+            ...defaultFeatureNode,
+            lifecycle: 'review',
+            state: 'action-required',
+          }}
+          featureId="#f1"
+          initialTab="merge-review"
+        />
+      );
+
+      // Should switch to merge-review tab
+      expect(screen.getByRole('tab', { name: 'Merge Review' })).toHaveAttribute(
+        'data-state',
+        'active'
+      );
+    });
+
+    it('switches to prd-review tab when feature enters requirements action-required', () => {
+      const { rerender } = renderTabs({
+        featureNode: { ...defaultFeatureNode, lifecycle: 'requirements', state: 'running' },
+      });
+
+      expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('data-state', 'active');
+
+      // Simulate transition to requirements action-required
+      rerender(
+        <FeatureDrawerTabs
+          featureNode={{
+            ...defaultFeatureNode,
+            lifecycle: 'requirements',
+            state: 'action-required',
+          }}
+          featureId="#f1"
+          initialTab="prd-review"
+        />
+      );
+
+      expect(screen.getByRole('tab', { name: 'PRD Review' })).toHaveAttribute(
+        'data-state',
+        'active'
+      );
+    });
+
+    it('falls back to overview when active tab becomes invisible after lifecycle change', () => {
+      // Start with merge-review active
+      const { rerender } = renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'review',
+          state: 'action-required',
+        },
+        initialTab: 'merge-review',
+      });
+
+      expect(screen.getByRole('tab', { name: 'Merge Review' })).toHaveAttribute(
+        'data-state',
+        'active'
+      );
+
+      // Lifecycle transitions to maintain (done) — merge-review is no longer visible
+      rerender(
+        <FeatureDrawerTabs
+          featureNode={{
+            ...defaultFeatureNode,
+            lifecycle: 'maintain',
+            state: 'done',
+          }}
+          featureId="#f1"
+          initialTab="overview"
+        />
+      );
+
+      expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('data-state', 'active');
+    });
+  });
+
+  describe('merge-review tab visibility for maintain lifecycle', () => {
+    it('includes merge-review tab when lifecycle=maintain and pr exists', () => {
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'maintain',
+          state: 'done',
+          pr: {
+            url: 'https://github.com/org/repo/pull/42',
+            number: 42,
+            status: PrStatus.Merged,
+            ciStatus: CiStatus.Success,
+            commitHash: 'abc123',
+          },
+        },
+      });
+
+      expect(screen.getByRole('tab', { name: 'Merge History' })).toBeInTheDocument();
+    });
+
+    it('excludes merge-review tab when lifecycle=maintain and pr is undefined', () => {
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'maintain',
+          state: 'done',
+        },
+      });
+
+      expect(screen.queryByRole('tab', { name: 'Merge History' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: 'Merge Review' })).not.toBeInTheDocument();
+    });
+
+    it('renders Merge History label when lifecycle=maintain (not Merge Review)', () => {
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'maintain',
+          state: 'done',
+          pr: {
+            url: 'https://github.com/org/repo/pull/42',
+            number: 42,
+            status: PrStatus.Merged,
+          },
+        },
+      });
+
+      expect(screen.getByRole('tab', { name: 'Merge History' })).toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: 'Merge Review' })).not.toBeInTheDocument();
+    });
+
+    it('renders Merge Review label when lifecycle=review', () => {
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'review',
+          state: 'action-required',
+        },
+      });
+
+      expect(screen.getByRole('tab', { name: 'Merge Review' })).toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: 'Merge History' })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('merge-review readOnly prop threading', () => {
+    it('passes readOnly to MergeReview when lifecycle=maintain (no action bar)', async () => {
+      const user = userEvent.setup();
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'maintain',
+          state: 'done',
+          pr: {
+            url: 'https://github.com/org/repo/pull/42',
+            number: 42,
+            status: PrStatus.Merged,
+            ciStatus: CiStatus.Success,
+            commitHash: 'abc123',
+          },
+        },
+        mergeData: {
+          pr: {
+            url: 'https://github.com/org/repo/pull/42',
+            number: 42,
+            status: PrStatus.Merged,
+            ciStatus: CiStatus.Success,
+            commitHash: 'abc123',
+          },
+          diffSummary: { filesChanged: 5, additions: 100, deletions: 20, commitCount: 3 },
+        },
+      });
+
+      await user.click(screen.getByRole('tab', { name: 'Merge History' }));
+
+      // readOnly=true means header says "Merge History"
+      expect(screen.getByRole('heading', { name: 'Merge History' })).toBeInTheDocument();
+      // But PR data still renders
+      expect(screen.getByRole('link', { name: /PR #42/i })).toBeInTheDocument();
+    });
+
+    it('does not pass readOnly when lifecycle=review (action bar present)', async () => {
+      const user = userEvent.setup();
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'review',
+          state: 'action-required',
+        },
+        mergeData: {
+          pr: {
+            url: 'https://github.com/org/repo/pull/42',
+            number: 42,
+            status: PrStatus.Open,
+            ciStatus: CiStatus.Success,
+            commitHash: 'abc123',
+          },
+          diffSummary: { filesChanged: 5, additions: 100, deletions: 20, commitCount: 3 },
+        },
+      });
+
+      await user.click(screen.getByRole('tab', { name: 'Merge Review' }));
+
+      // readOnly=false means the MergeReview header says "Merge Review" (not "Merge History")
+      // Use heading role to distinguish from the tab trigger text
+      expect(screen.getByRole('heading', { name: 'Merge Review' })).toBeInTheDocument();
+      // PR data renders
+      expect(screen.getByRole('link', { name: /PR #42/i })).toBeInTheDocument();
+    });
+  });
+
+  describe('spec visualization tabs during implementation phase', () => {
+    const sampleTechData = {
+      name: 'Test Feature',
+      summary: 'Tech summary for the feature',
+      decisions: [
+        {
+          title: 'Use Vite',
+          chosen: 'Vite',
+          rationale: 'Fast dev server',
+          rejected: ['Webpack'],
+        },
+      ],
+      technologies: ['Vite'],
+    };
+
+    const sampleProductData = {
+      question: 'Goal',
+      context: 'A test feature',
+      questions: [
+        {
+          question: 'Authentication strategy?',
+          selectedOption: 'OAuth',
+          rationale: 'Industry standard',
+          wasRecommended: true,
+        },
+      ],
+    };
+
+    it('shows tech-decisions and product-decisions tabs during implementation+running', () => {
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'implementation',
+          state: 'running',
+        },
+        techData: sampleTechData,
+        productData: sampleProductData,
+      });
+      expect(screen.getByRole('tab', { name: 'Tech Decisions' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Product' })).toBeInTheDocument();
+    });
+
+    it('shows tech-decisions and product-decisions tabs during implementation+action-required', () => {
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'implementation',
+          state: 'action-required',
+        },
+        techData: sampleTechData,
+        productData: sampleProductData,
+      });
+      expect(screen.getByRole('tab', { name: 'Tech Decisions' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Product' })).toBeInTheDocument();
+    });
+
+    it('shows tech-decisions and product-decisions tabs during implementation+error', () => {
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'implementation',
+          state: 'error',
+        },
+        techData: sampleTechData,
+        productData: sampleProductData,
+      });
+      expect(screen.getByRole('tab', { name: 'Tech Decisions' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Product' })).toBeInTheDocument();
+    });
+
+    it('hides tech-decisions and product-decisions tabs in early phases (requirements/research)', () => {
+      for (const lifecycle of ['requirements', 'research'] as const) {
+        const { unmount } = renderTabs({
+          featureNode: {
+            ...defaultFeatureNode,
+            lifecycle,
+            state: 'running',
+          },
+        });
+        expect(screen.queryByRole('tab', { name: 'Tech Decisions' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('tab', { name: 'Product' })).not.toBeInTheDocument();
+        unmount();
+      }
+    });
+
+    it('keeps tech-decisions and product-decisions tabs visible in review phase', () => {
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'review',
+          state: 'action-required',
+        },
+        techData: sampleTechData,
+        productData: sampleProductData,
+      });
+      expect(screen.getByRole('tab', { name: 'Tech Decisions' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Product' })).toBeInTheDocument();
+    });
+
+    it('keeps tech-decisions and product-decisions tabs visible in maintain phase', () => {
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'maintain',
+          state: 'done',
+        },
+        techData: sampleTechData,
+        productData: sampleProductData,
+      });
+      expect(screen.getByRole('tab', { name: 'Tech Decisions' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Product' })).toBeInTheDocument();
+    });
+
+    it('hides tech-decisions and product-decisions tabs for fast-mode features', () => {
+      for (const lifecycle of ['implementation', 'review', 'maintain'] as const) {
+        const { unmount } = renderTabs({
+          featureNode: {
+            ...defaultFeatureNode,
+            lifecycle,
+            state: lifecycle === 'maintain' ? 'done' : 'running',
+            fastMode: true,
+          },
+          techData: sampleTechData,
+          productData: sampleProductData,
+        });
+        expect(screen.queryByRole('tab', { name: 'Tech Decisions' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('tab', { name: 'Product' })).not.toBeInTheDocument();
+        unmount();
+      }
+    });
+
+    it('hides the tech-decisions tab when the server found no technical decisions', () => {
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'maintain',
+          state: 'done',
+          hasTechDecisions: false,
+          hasProductDecisions: true,
+        },
+        productData: sampleProductData,
+      });
+      expect(screen.queryByRole('tab', { name: 'Tech Decisions' })).not.toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Product' })).toBeInTheDocument();
+    });
+
+    it('hides the product-decisions tab when the server found no product decisions', () => {
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'review',
+          state: 'running',
+          hasTechDecisions: true,
+          hasProductDecisions: false,
+        },
+        techData: sampleTechData,
+      });
+      expect(screen.getByRole('tab', { name: 'Tech Decisions' })).toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: 'Product' })).not.toBeInTheDocument();
+    });
+
+    it('keeps the tech-decisions tab while plan approval is pending — it hosts the approve bar', () => {
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'implementation',
+          state: 'action-required',
+          hasTechDecisions: false,
+        },
+      });
+      expect(screen.getByRole('tab', { name: 'Tech Decisions' })).toBeInTheDocument();
+    });
+
+    it('opens a tech-decisions deep link before the artifact fetch has produced data', () => {
+      // Visibility comes from the server flag, not fetch state, so the URL tab
+      // survives the first render where techData is still undefined.
+      renderTabs({
+        urlTab: 'tech-decisions',
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'maintain',
+          state: 'done',
+          hasTechDecisions: true,
+        },
+      });
+      expect(screen.getByRole('tab', { name: 'Tech Decisions' })).toHaveAttribute(
+        'data-state',
+        'active'
+      );
+    });
+
+    it('falls back to overview for a deep link to a tab the feature has no data for', () => {
+      renderTabs({
+        urlTab: 'tech-decisions',
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'maintain',
+          state: 'done',
+          hasTechDecisions: false,
+        },
+      });
+      expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('data-state', 'active');
+    });
+
+    it('does not render the action bar in review/maintain even when tech data is present', async () => {
+      const user = userEvent.setup();
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'review',
+          state: 'action-required',
+        },
+        techData: sampleTechData,
+        onTechApprove: vi.fn(),
+      });
+
+      await user.click(screen.getByRole('tab', { name: 'Tech Decisions' }));
+
+      // Action bar is gated to lifecycle=implementation + state=action-required.
+      // Review's action-required state shows merge-review's action bar, not tech's.
+      expect(screen.getByText('Technical Implementation Plan Review')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /approve plan/i })).not.toBeInTheDocument();
+    });
+
+    it('renders tech decisions content without action bar when state is not action-required', async () => {
+      const user = userEvent.setup();
+      const onApprove = vi.fn();
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'implementation',
+          state: 'running',
+        },
+        techData: sampleTechData,
+        onTechApprove: onApprove,
+      });
+
+      await user.click(screen.getByRole('tab', { name: 'Tech Decisions' }));
+
+      expect(screen.getByText('Technical Implementation Plan Review')).toBeInTheDocument();
+      // Action bar (approve button) must NOT be rendered for running state
+      expect(screen.queryByRole('button', { name: /approve/i })).not.toBeInTheDocument();
+    });
+
+    it('renders tech decisions content with action bar when state is action-required', async () => {
+      const user = userEvent.setup();
+      const onApprove = vi.fn();
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'implementation',
+          state: 'action-required',
+        },
+        techData: sampleTechData,
+        onTechApprove: onApprove,
+      });
+
+      await user.click(screen.getByRole('tab', { name: 'Tech Decisions' }));
+
+      expect(screen.getByText('Technical Implementation Plan Review')).toBeInTheDocument();
+      // Approve button should be present in action-required state
+      expect(screen.getByRole('button', { name: /approve/i })).toBeInTheDocument();
+    });
+
+    it('renders product decisions content for any implementation state', async () => {
+      const user = userEvent.setup();
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'implementation',
+          state: 'running',
+        },
+        productData: sampleProductData,
+      });
+
+      await user.click(screen.getByRole('tab', { name: 'Product' }));
+
+      expect(screen.getByText('Product Decisions')).toBeInTheDocument();
+      expect(screen.getByText('Authentication strategy?')).toBeInTheDocument();
+    });
+
+    it('shows empty-state message when tech data is unavailable and not loading', async () => {
+      const user = userEvent.setup();
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'implementation',
+          state: 'running',
+        },
+        techData: null,
+        isTechLoading: false,
+      });
+
+      await user.click(screen.getByRole('tab', { name: 'Tech Decisions' }));
+
+      expect(screen.getByText(/no technical decisions available/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('URL tab routing', () => {
+    it('activates the tab specified in urlTab prop', () => {
+      renderTabs({ urlTab: 'activity' });
+
+      const activityTab = screen.getByRole('tab', { name: 'Activity' });
+      expect(activityTab).toHaveAttribute('data-state', 'active');
+    });
+
+    it('defaults to overview when no urlTab is provided', () => {
+      renderTabs();
+
+      const overviewTab = screen.getByRole('tab', { name: 'Overview' });
+      expect(overviewTab).toHaveAttribute('data-state', 'active');
+    });
+
+    it('ignores urlTab for a tab not visible in current lifecycle', () => {
+      // prd-review is only visible in requirements+action-required, not implementation+running
+      renderTabs({ urlTab: 'prd-review' });
+
+      const overviewTab = screen.getByRole('tab', { name: 'Overview' });
+      expect(overviewTab).toHaveAttribute('data-state', 'active');
+    });
+
+    it('updates URL via pushState when user clicks a different tab', async () => {
+      const user = userEvent.setup();
+      renderTabs();
+
+      await user.click(screen.getByRole('tab', { name: 'Activity' }));
+
+      expect(mockPushState).toHaveBeenCalledWith(null, '', '/feature/f1/activity');
+    });
+
+    it('updates URL to base path via pushState when switching back to overview', async () => {
+      mockPathname = '/feature/f1/activity';
+      const user = userEvent.setup();
+      renderTabs({ urlTab: 'activity' });
+
+      await user.click(screen.getByRole('tab', { name: 'Overview' }));
+
+      expect(mockPushState).toHaveBeenCalledWith(null, '', '/feature/f1');
+    });
+
+    it('fetches lazy tab data when opened via URL', () => {
+      renderTabs({ urlTab: 'activity' });
+
+      // Activity is a lazy tab — should fetch on mount when opened via URL
+      expect(mockGetPhaseTimings).toHaveBeenCalledWith('#f1');
+    });
+
+    it('fetches plan tab data when opened via URL', () => {
+      renderTabs({ urlTab: 'plan' });
+
+      expect(mockGetPlan).toHaveBeenCalledWith('#f1');
+    });
+
+    it('URL tab takes priority over initialTab prop', () => {
+      renderTabs({
+        urlTab: 'log',
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'requirements',
+          state: 'action-required',
+        },
+      });
+
+      const logTab = screen.getByRole('tab', { name: 'Log' });
+      expect(logTab).toHaveAttribute('data-state', 'active');
+    });
+  });
+
+  describe('scrollable tabs behavior', () => {
+    it('renders TabsList with scrollable prop when multiple tabs are visible', () => {
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'implementation',
+          state: 'running',
+          hasPlan: true,
+          hasAgentRun: true,
+        },
+        interactiveAgentEnabled: true,
+      });
+
+      // Get the TabsList (parent of tab triggers)
+      const tabsList = screen.getByRole('tab', { name: 'Overview' }).closest('[role="tablist"]');
+      expect(tabsList).toBeInTheDocument();
+      expect(tabsList).toHaveClass('overflow-x-auto', 'overflow-y-hidden');
+    });
+
+    it('renders all visible tabs when 8+ tabs are shown', () => {
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'implementation',
+          state: 'running',
+          hasPlan: true,
+          hasAgentRun: true,
+        },
+        interactiveAgentEnabled: true,
+      });
+
+      // In implementation phase with interactive agent, these tabs should be visible:
+      // Overview, Activity, Log, Plan, Tech Decisions, Product, Chat
+      expect(screen.getByRole('tab', { name: 'Overview' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Activity' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Log' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Plan' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Tech Decisions' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Product' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Chat' })).toBeInTheDocument();
+    });
+
+    it('maintains scroll classes even when switching tabs', async () => {
+      const user = userEvent.setup();
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'implementation',
+          state: 'running',
+          hasPlan: true,
+          hasAgentRun: true,
+        },
+        interactiveAgentEnabled: true,
+      });
+
+      const tabsList = screen.getByRole('tab', { name: 'Overview' }).closest('[role="tablist"]');
+
+      // Switch to Activity tab
+      await user.click(screen.getByRole('tab', { name: 'Activity' }));
+
+      // TabsList should still have scroll classes
+      expect(tabsList).toHaveClass('overflow-x-auto', 'overflow-y-hidden');
+    });
+
+    it('keeps scroll classes even when only 2 tabs are visible', () => {
+      // Even with minimal tabs, scrollable prop is still applied
+      // This ensures consistent rendering and prevents UI shifts if tabs are added later
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'exploring',
+          state: 'running',
+          hasPlan: false,
+          hasAgentRun: false,
+        },
+        interactiveAgentEnabled: false,
+      });
+
+      // In exploring mode without interactive agent, only Overview and Activity are shown
+      // Even with few tabs, the scrollable classes are still applied for consistency
+      const tabsList = screen.getByRole('tab', { name: 'Overview' }).closest('[role="tablist"]');
+      expect(tabsList).toHaveClass('overflow-x-auto', 'overflow-y-hidden');
+    });
+  });
+
+  describe('keyboard navigation in scrolled context', () => {
+    it('navigates between tabs with Arrow Right and Left keys', async () => {
+      const user = userEvent.setup();
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'implementation',
+          state: 'running',
+          hasPlan: true,
+          hasAgentRun: true,
+        },
+        interactiveAgentEnabled: true,
+      });
+
+      // Start with Overview tab active
+      const overviewTab = screen.getByRole('tab', { name: 'Overview' });
+      expect(overviewTab).toHaveAttribute('data-state', 'active');
+
+      // Focus on Overview tab
+      overviewTab.focus();
+
+      // Press Arrow Right to move to Activity tab
+      await user.keyboard('{ArrowRight}');
+
+      // Activity tab should be active
+      const activityTab = screen.getByRole('tab', { name: 'Activity' });
+      expect(activityTab).toHaveAttribute('data-state', 'active');
+
+      // Press Arrow Right again to move to Log tab
+      await user.keyboard('{ArrowRight}');
+      const logTab = screen.getByRole('tab', { name: 'Log' });
+      expect(logTab).toHaveAttribute('data-state', 'active');
+
+      // Press Arrow Left to go back to Activity
+      await user.keyboard('{ArrowLeft}');
+      expect(activityTab).toHaveAttribute('data-state', 'active');
+
+      // Press Arrow Left again to go back to Overview
+      await user.keyboard('{ArrowLeft}');
+      expect(overviewTab).toHaveAttribute('data-state', 'active');
+    });
+
+    it('wraps around when navigating past the last tab with Arrow Right', async () => {
+      const user = userEvent.setup();
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'implementation',
+          state: 'running',
+          hasPlan: true,
+          hasAgentRun: true,
+        },
+        interactiveAgentEnabled: true,
+      });
+
+      // Get the Checkpoints tab (last visible tab in the 9-tab set)
+      const lastTab = screen.getByRole('tab', { name: 'Checkpoints' });
+      lastTab.focus();
+
+      // Make sure Checkpoints is active
+      await user.click(lastTab);
+      expect(lastTab).toHaveAttribute('data-state', 'active');
+
+      // Press Arrow Right from the last tab (should wrap to first)
+      await user.keyboard('{ArrowRight}');
+
+      // Overview tab should now be active
+      const overviewTab = screen.getByRole('tab', { name: 'Overview' });
+      expect(overviewTab).toHaveAttribute('data-state', 'active');
+    });
+
+    it('wraps around when navigating past the first tab with Arrow Left', async () => {
+      const user = userEvent.setup();
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'implementation',
+          state: 'running',
+          hasPlan: true,
+          hasAgentRun: true,
+        },
+        interactiveAgentEnabled: true,
+      });
+
+      // Overview tab is active by default
+      const overviewTab = screen.getByRole('tab', { name: 'Overview' });
+      overviewTab.focus();
+
+      // Press Arrow Left from the first tab (should wrap to last)
+      await user.keyboard('{ArrowLeft}');
+
+      // Checkpoints tab (last in the 9-tab set) should now be active
+      const lastTab = screen.getByRole('tab', { name: 'Checkpoints' });
+      expect(lastTab).toHaveAttribute('data-state', 'active');
+    });
+
+    it('keyboard navigation works with 8+ tabs in scrollable container', async () => {
+      const user = userEvent.setup();
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'implementation',
+          state: 'running',
+          hasPlan: true,
+          hasAgentRun: true,
+        },
+        interactiveAgentEnabled: true,
+      });
+
+      // Verify we have 8+ tabs visible
+      const tabs = screen.getAllByRole('tab');
+      expect(tabs.length).toBeGreaterThanOrEqual(8);
+
+      // Verify all tabs are rendered and can be navigated to via keyboard
+      const overviewTab = screen.getByRole('tab', { name: 'Overview' });
+      overviewTab.focus();
+
+      // Navigate forward through several tabs
+      for (let i = 1; i < 5; i++) {
+        await user.keyboard('{ArrowRight}');
+        // Find the currently active tab by checking aria-selected
+        const activeTab = screen
+          .queryAllByRole('tab')
+          .find((tab) => tab.getAttribute('data-state') === 'active');
+        expect(activeTab).toBeInTheDocument();
+      }
+
+      // Navigate back the same number of steps
+      for (let i = 0; i < 4; i++) {
+        await user.keyboard('{ArrowLeft}');
+        // Find the currently active tab by checking data-state
+        const activeTab = screen
+          .queryAllByRole('tab')
+          .find((tab) => tab.getAttribute('data-state') === 'active');
+        expect(activeTab).toBeInTheDocument();
+      }
+
+      // Should be back at Overview
+      expect(overviewTab).toHaveAttribute('data-state', 'active');
+    });
+
+    it('brings the keyboard-focused tab into view via Radix native focus scrolling', async () => {
+      const user = userEvent.setup();
+      renderTabs({
+        featureNode: {
+          ...defaultFeatureNode,
+          lifecycle: 'implementation',
+          state: 'running',
+          hasPlan: true,
+          hasAgentRun: true,
+        },
+        interactiveAgentEnabled: true,
+      });
+
+      // Radix's roving-focus group moves focus with
+      // `trigger.focus({ preventScroll: false })` — @radix-ui/react-tabs has
+      // no explicit Element.scrollIntoView() call. Browsers couple that
+      // focus call with scrolling the focused trigger into view, which is
+      // the native scroll-into-view behavior for the active tab. jsdom
+      // performs no layout, so we assert on the focus call the browser
+      // would turn into a scroll.
+      const focusSpy = vi.spyOn(HTMLElement.prototype, 'focus');
+
+      const overviewTab = screen.getByRole('tab', { name: 'Overview' });
+      overviewTab.focus();
+      focusSpy.mockClear();
+
+      await user.keyboard('{ArrowRight}');
+
+      const activityTab = screen.getByRole('tab', { name: 'Activity' });
+      expect(activityTab).toHaveAttribute('data-state', 'active');
+
+      // The activity trigger is now the focused element — the element the
+      // browser scrolls into view in a real scrolling container.
+      expect(activityTab).toHaveFocus();
+
+      // Radix focused it with preventScroll: false, i.e. the focus call is
+      // allowed to scroll the trigger into view.
+      expect(focusSpy.mock.instances).toContain(activityTab);
+      expect(focusSpy).toHaveBeenCalledWith({ preventScroll: false });
+
+      focusSpy.mockRestore();
+    });
+  });
+});
+
+describe('Context tab (spec 119)', () => {
+  const harnessNode: FeatureNodeData = { ...defaultFeatureNode, agentType: AgentType.ShepHarness };
+  const renderWithFlags = (node: FeatureNodeData, queryAwareHarness: boolean) =>
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <FeatureFlagsProvider flags={{ queryAwareHarness } as FeatureFlagsState}>
+          <FeatureDrawerTabs featureNode={node} featureId="#f1" />
+        </FeatureFlagsProvider>
+      </QueryClientProvider>
+    );
+
+  it('shows Context and the approval banner for a harness feature while the flag is on', async () => {
+    renderWithFlags(harnessNode, true);
+    expect(screen.getByRole('tab', { name: 'Context' })).toBeInTheDocument();
+    expect(await screen.findByTestId('harness-permission-banner')).toBeInTheDocument();
+  });
+
+  it('hides Context when the flag is off', () => {
+    renderWithFlags(harnessNode, false);
+    expect(screen.queryByRole('tab', { name: 'Context' })).not.toBeInTheDocument();
+  });
+
+  it('hides Context for features on other agents', () => {
+    renderWithFlags({ ...defaultFeatureNode, agentType: AgentType.ClaudeCode }, true);
+    expect(screen.queryByRole('tab', { name: 'Context' })).not.toBeInTheDocument();
+  });
+});
