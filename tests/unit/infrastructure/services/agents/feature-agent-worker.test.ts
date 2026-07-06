@@ -1,0 +1,1210 @@
+/**
+ * Feature Agent Worker Unit Tests
+ *
+ * Tests for the background worker entry point that runs as a child process.
+ * Validates CLI arg parsing, DI initialization, graph execution, and
+ * signal handling.
+ *
+ * TDD Phase: RED-GREEN
+ */
+
+import 'reflect-metadata';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import {
+  AgentRunStatus,
+  SdlcLifecycle,
+  SecurityMode,
+  SecurityActionCategory,
+  SecurityActionDisposition,
+} from '@/domain/generated/output.js';
+import type { AgentRun } from '@/domain/generated/output.js';
+import { createFakeAgentRunRepository } from '../../../../helpers/agent-run-repository.fake.js';
+import { createTelemetryDouble } from '../../../../helpers/telemetry.helper.js';
+import { TelemetryEvent } from '@/domain/generated/output.js';
+import {
+  WORKER_CLAIMABLE_STATUSES,
+  WORKER_OWNED_STATUSES,
+} from '@/infrastructure/services/agents/feature-agent/worker-run-status.js';
+
+// Use vi.hoisted so mock fns are available when vi.mock factories run
+const {
+  mockInitializeContainer,
+  mockResolve,
+  mockGetCurrentHarness,
+  mockReflect,
+  mockGraphInvoke,
+  mockFastGraphInvoke,
+  mockCreateFeatureAgentGraph,
+  mockCreateFastFeatureAgentGraph,
+  mockCreateCheckpointer,
+  mockResolveSpaceEnvironment,
+} = vi.hoisted(() => ({
+  mockResolveSpaceEnvironment: vi.fn(),
+  mockInitializeContainer: vi.fn(),
+  mockResolve: vi.fn(),
+  mockGetCurrentHarness: vi.fn(),
+  mockReflect: vi.fn(),
+  mockGraphInvoke: vi.fn(),
+  mockFastGraphInvoke: vi.fn(),
+  mockCreateFeatureAgentGraph: vi.fn(),
+  mockCreateFastFeatureAgentGraph: vi.fn(),
+  mockCreateCheckpointer: vi.fn().mockReturnValue({}),
+}));
+
+vi.mock('@/infrastructure/di/container.js', () => ({
+  initializeContainer: () => mockInitializeContainer(),
+  container: { resolve: (...args: unknown[]) => mockResolve(...args) },
+}));
+
+vi.mock('@/infrastructure/services/agents/feature-agent/feature-agent-graph.js', () => ({
+  createFeatureAgentGraph: (...args: unknown[]) => mockCreateFeatureAgentGraph(...args),
+}));
+
+vi.mock('@/infrastructure/services/agents/feature-agent/fast-feature-agent-graph.js', () => ({
+  createFastFeatureAgentGraph: (...args: unknown[]) => mockCreateFastFeatureAgentGraph(...args),
+}));
+
+vi.mock('@/infrastructure/services/agents/common/checkpointer.js', () => ({
+  createCheckpointer: (...args: unknown[]) => mockCreateCheckpointer(...args),
+}));
+
+vi.mock('@/infrastructure/services/settings.service.js', () => ({
+  getSettings: () => ({
+    agent: { type: 'claude-code', authMethod: 'token', token: 'test' },
+  }),
+  initializeSettings: vi.fn(),
+}));
+
+vi.mock('@/infrastructure/services/agents/feature-agent/heartbeat.js', () => ({
+  setHeartbeatContext: vi.fn(),
+  reportNodeStart: vi.fn(),
+}));
+
+import {
+  parseWorkerArgs,
+  runWorker,
+} from '@/infrastructure/services/agents/feature-agent/feature-agent-worker.js';
+
+/**
+ * The run the worker boots against. The fake honours `allowedFrom` exactly as
+ * the SQLite repository does, so a status guard is exercised rather than
+ * silently accepted by a spy.
+ */
+function makeMockRunRepository(status: AgentRunStatus = AgentRunStatus.pending) {
+  return createFakeAgentRunRepository([
+    {
+      id: 'run-1',
+      agentType: 'claude-code' as AgentRun['agentType'],
+      agentName: 'feature-agent',
+      status,
+      prompt: 'test',
+      threadId: 'thread-1',
+      featureId: 'feat-1',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ]);
+}
+
+function makeMockExecutorProvider() {
+  return {
+    getExecutor: vi.fn().mockReturnValue({
+      agentType: 'claude-code',
+      execute: vi.fn().mockResolvedValue({ result: 'mock', sessionId: 'sess-1' }),
+      executeStream: vi.fn(),
+      supportsFeature: vi.fn().mockReturnValue(false),
+    }),
+  };
+}
+
+function makeMockLifecyclePublisher() {
+  return {
+    publishStarted: vi.fn().mockResolvedValue(undefined),
+    publishPhaseChanged: vi.fn().mockResolvedValue(undefined),
+    publishBlocked: vi.fn().mockResolvedValue(undefined),
+    publishCompleted: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
+function makeMockGateQuestionPublisher() {
+  return {
+    publishWaitingApproval: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
+describe('parseWorkerArgs', () => {
+  it('should parse all required CLI arguments', () => {
+    const args = [
+      '--feature-id',
+      'feat-123',
+      '--run-id',
+      'run-456',
+      '--repo',
+      '/path/to/repo',
+      '--spec-dir',
+      '/path/to/specs/001-feature',
+    ];
+
+    const parsed = parseWorkerArgs(args);
+
+    expect(parsed).toEqual({
+      featureId: 'feat-123',
+      runId: 'run-456',
+      repo: '/path/to/repo',
+      specDir: '/path/to/specs/001-feature',
+      worktreePath: undefined,
+      approvalGates: undefined,
+      resume: false,
+      threadId: undefined,
+      resumeFromInterrupt: false,
+      push: false,
+      openPr: false,
+      forkAndPr: false,
+      commitSpecs: true,
+      ciWatchEnabled: true,
+      enableEvidence: false,
+      commitEvidence: false,
+      resumePayload: undefined,
+      agentType: undefined,
+      fast: false,
+      exploration: false,
+      model: undefined,
+      resumeReason: undefined,
+      securityMode: undefined,
+      securityActionDispositions: undefined,
+    });
+  });
+
+  it('should parse optional worktree-path argument', () => {
+    const args = [
+      '--feature-id',
+      'feat-123',
+      '--run-id',
+      'run-456',
+      '--repo',
+      '/path/to/repo',
+      '--spec-dir',
+      '/path/to/specs',
+      '--worktree-path',
+      '/home/user/.shep/repos/abc/wt/feat-test',
+    ];
+
+    const parsed = parseWorkerArgs(args);
+    expect(parsed.worktreePath).toBe('/home/user/.shep/repos/abc/wt/feat-test');
+  });
+
+  it('should throw if feature-id is missing', () => {
+    const args = ['--run-id', 'run-456', '--repo', '/repo', '--spec-dir', '/specs'];
+
+    expect(() => parseWorkerArgs(args)).toThrow('--feature-id');
+  });
+
+  it('should throw if run-id is missing', () => {
+    const args = ['--feature-id', 'feat-123', '--repo', '/repo', '--spec-dir', '/specs'];
+
+    expect(() => parseWorkerArgs(args)).toThrow('--run-id');
+  });
+
+  it('should throw if repo is missing', () => {
+    const args = ['--feature-id', 'feat-123', '--run-id', 'run-456', '--spec-dir', '/specs'];
+
+    expect(() => parseWorkerArgs(args)).toThrow('--repo');
+  });
+
+  it('should throw if spec-dir is missing', () => {
+    const args = ['--feature-id', 'feat-123', '--run-id', 'run-456', '--repo', '/repo'];
+
+    expect(() => parseWorkerArgs(args)).toThrow('--spec-dir');
+  });
+
+  it('should parse optional approval-gates argument as JSON', () => {
+    const gates = { allowPrd: true, allowPlan: false, allowMerge: false };
+    const args = [
+      '--feature-id',
+      'feat-123',
+      '--run-id',
+      'run-456',
+      '--repo',
+      '/path/to/repo',
+      '--spec-dir',
+      '/path/to/specs',
+      '--approval-gates',
+      JSON.stringify(gates),
+    ];
+
+    const parsed = parseWorkerArgs(args);
+    expect(parsed.approvalGates).toEqual(gates);
+  });
+
+  it('should parse optional resume flag', () => {
+    const args = [
+      '--feature-id',
+      'feat-123',
+      '--run-id',
+      'run-456',
+      '--repo',
+      '/path/to/repo',
+      '--spec-dir',
+      '/path/to/specs',
+      '--resume',
+    ];
+
+    const parsed = parseWorkerArgs(args);
+    expect(parsed.resume).toBe(true);
+  });
+
+  it('should default approvalGates to undefined and resume to false', () => {
+    const args = [
+      '--feature-id',
+      'feat-123',
+      '--run-id',
+      'run-456',
+      '--repo',
+      '/path/to/repo',
+      '--spec-dir',
+      '/path/to/specs',
+    ];
+
+    const parsed = parseWorkerArgs(args);
+    expect(parsed.approvalGates).toBeUndefined();
+    expect(parsed.resume).toBe(false);
+  });
+
+  it('should parse optional thread-id argument', () => {
+    const args = [
+      '--feature-id',
+      'feat-123',
+      '--run-id',
+      'run-456',
+      '--repo',
+      '/path/to/repo',
+      '--spec-dir',
+      '/path/to/specs',
+      '--thread-id',
+      'thread-789',
+    ];
+
+    const parsed = parseWorkerArgs(args);
+    expect(parsed.threadId).toBe('thread-789');
+  });
+
+  it('should parse optional resume-from-interrupt flag', () => {
+    const args = [
+      '--feature-id',
+      'feat-123',
+      '--run-id',
+      'run-456',
+      '--repo',
+      '/path/to/repo',
+      '--spec-dir',
+      '/path/to/specs',
+      '--resume',
+      '--resume-from-interrupt',
+    ];
+
+    const parsed = parseWorkerArgs(args);
+    expect(parsed.resume).toBe(true);
+    expect(parsed.resumeFromInterrupt).toBe(true);
+  });
+
+  it('should parse optional --fast flag', () => {
+    const args = [
+      '--feature-id',
+      'feat-123',
+      '--run-id',
+      'run-456',
+      '--repo',
+      '/path/to/repo',
+      '--spec-dir',
+      '/path/to/specs',
+      '--fast',
+    ];
+
+    const parsed = parseWorkerArgs(args);
+    expect(parsed.fast).toBe(true);
+  });
+
+  it('should default fast to false when not provided', () => {
+    const args = [
+      '--feature-id',
+      'feat-123',
+      '--run-id',
+      'run-456',
+      '--repo',
+      '/path/to/repo',
+      '--spec-dir',
+      '/path/to/specs',
+    ];
+
+    const parsed = parseWorkerArgs(args);
+    expect(parsed.fast).toBe(false);
+  });
+
+  it('should parse --security-mode argument', () => {
+    const args = [
+      '--feature-id',
+      'feat-123',
+      '--run-id',
+      'run-456',
+      '--repo',
+      '/path/to/repo',
+      '--spec-dir',
+      '/path/to/specs',
+      '--security-mode',
+      'Enforce',
+    ];
+
+    const parsed = parseWorkerArgs(args);
+    expect(parsed.securityMode).toBe(SecurityMode.Enforce);
+  });
+
+  it('should parse --security-dispositions argument as JSON', () => {
+    const dispositions = {
+      [SecurityActionCategory.DependencyInstall]: SecurityActionDisposition.Denied,
+      [SecurityActionCategory.PublishRelease]: SecurityActionDisposition.ApprovalRequired,
+    };
+    const args = [
+      '--feature-id',
+      'feat-123',
+      '--run-id',
+      'run-456',
+      '--repo',
+      '/path/to/repo',
+      '--spec-dir',
+      '/path/to/specs',
+      '--security-dispositions',
+      JSON.stringify(dispositions),
+    ];
+
+    const parsed = parseWorkerArgs(args);
+    expect(parsed.securityActionDispositions).toEqual(dispositions);
+  });
+
+  it('should default security fields to undefined when not provided', () => {
+    const args = [
+      '--feature-id',
+      'feat-123',
+      '--run-id',
+      'run-456',
+      '--repo',
+      '/path/to/repo',
+      '--spec-dir',
+      '/path/to/specs',
+    ];
+
+    const parsed = parseWorkerArgs(args);
+    expect(parsed.securityMode).toBeUndefined();
+    expect(parsed.securityActionDispositions).toBeUndefined();
+  });
+
+  it('should ignore invalid security-mode values', () => {
+    const args = [
+      '--feature-id',
+      'feat-123',
+      '--run-id',
+      'run-456',
+      '--repo',
+      '/path/to/repo',
+      '--spec-dir',
+      '/path/to/specs',
+      '--security-mode',
+      'InvalidMode',
+    ];
+
+    const parsed = parseWorkerArgs(args);
+    expect(parsed.securityMode).toBeUndefined();
+  });
+
+  it('should handle malformed security-dispositions JSON gracefully', () => {
+    const args = [
+      '--feature-id',
+      'feat-123',
+      '--run-id',
+      'run-456',
+      '--repo',
+      '/path/to/repo',
+      '--spec-dir',
+      '/path/to/specs',
+      '--security-dispositions',
+      'not-valid-json',
+    ];
+
+    const parsed = parseWorkerArgs(args);
+    expect(parsed.securityActionDispositions).toBeUndefined();
+  });
+});
+
+describe('runWorker', () => {
+  let mockRunRepo: ReturnType<typeof makeMockRunRepository>;
+  let mockExecutorProvider: ReturnType<typeof makeMockExecutorProvider>;
+  let mockLifecyclePublisher: ReturnType<typeof makeMockLifecyclePublisher>;
+  let mockTelemetry: ReturnType<typeof createTelemetryDouble>;
+  let mockGateQuestionPublisher: ReturnType<typeof makeMockGateQuestionPublisher>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRunRepo = makeMockRunRepository();
+    mockExecutorProvider = makeMockExecutorProvider();
+    mockLifecyclePublisher = makeMockLifecyclePublisher();
+    mockTelemetry = createTelemetryDouble();
+    mockGateQuestionPublisher = makeMockGateQuestionPublisher();
+    mockInitializeContainer.mockResolvedValue({ resolve: mockResolve });
+    mockResolve.mockImplementation((token: unknown) => {
+      const key = typeof token === 'string' ? token : (token as { name?: string })?.name;
+      if (key === 'IAgentRunRepository') return mockRunRepo;
+      if (key === 'ITelemetry') return mockTelemetry;
+      if (key === 'IAgentExecutorProvider') return mockExecutorProvider;
+      if (key === 'ResolveSpaceEnvironmentUseCase') return { execute: mockResolveSpaceEnvironment };
+      if (key === 'FeatureAgentLifecyclePublisher') return mockLifecyclePublisher;
+      if (key === 'FeatureAgentGateQuestionPublisher') return mockGateQuestionPublisher;
+      if (key === 'FeatureAgentSupervisorGateEvaluator') {
+        return {
+          evaluateForGate: vi.fn().mockResolvedValue({ autoResolved: false, evaluated: false }),
+        };
+      }
+      if (key === 'IAgentCheckpointService') {
+        return {
+          getFeatureCheckpointPath: (checkpointId: string) =>
+            `/tmp/agents/feature-${checkpointId}.sqlite`,
+        };
+      }
+      // Self-learning harness (spec 150): nothing adopted, learning reports skipped.
+      if (key === 'GetCurrentHarnessUseCase') return { execute: mockGetCurrentHarness };
+      if (key === 'IHarnessInstaller') return { install: vi.fn() };
+      if (key === 'ReflectOnFeatureRunUseCase') return { execute: mockReflect };
+      if (key === 'RecordVersionOutcomeUseCase') return { execute: vi.fn() };
+      // InitializeSettingsUseCase — return a mock with execute()
+      if (key === 'InitializeSettingsUseCase') {
+        return {
+          execute: vi.fn().mockResolvedValue({
+            agent: { type: 'claude-code', authMethod: 'token', token: 'test' },
+          }),
+        };
+      }
+      return mockRunRepo;
+    });
+    mockResolveSpaceEnvironment.mockResolvedValue({
+      context: { space: { name: 'Default' }, source: 'Default' },
+      environment: { set: {}, unset: [] },
+    });
+    mockGetCurrentHarness.mockResolvedValue(null);
+    mockReflect.mockResolvedValue({ skipped: true, costUsd: 0 });
+    mockGraphInvoke.mockResolvedValue({
+      currentNode: 'implement',
+      messages: ['[analyze] done', '[implement] done'],
+      error: null,
+    });
+    mockCreateFeatureAgentGraph.mockReturnValue({
+      invoke: mockGraphInvoke,
+    });
+    mockFastGraphInvoke.mockResolvedValue({
+      currentNode: 'fast-implement',
+      messages: ['[fast-implement] done'],
+      error: null,
+    });
+    mockCreateFastFeatureAgentGraph.mockReturnValue({
+      invoke: mockFastGraphInvoke,
+    });
+  });
+
+  describe('self-learning harness (spec 150)', () => {
+    const args = { featureId: 'feat-1', runId: 'run-1', repo: '/repo', specDir: '/specs' };
+
+    it('reflects after a completed run with its final state', async () => {
+      mockGraphInvoke.mockResolvedValue({
+        messages: [],
+        error: null,
+        merged: true,
+        ciFixAttempts: 1,
+      });
+      await runWorker(args);
+      expect(mockReflect).toHaveBeenCalledTimes(1);
+      const [input, agentRunId] = mockReflect.mock.calls[0];
+      expect(agentRunId).toBe('run-1');
+      expect(input).toMatchObject({
+        featureId: 'feat-1',
+        repositoryPath: '/repo',
+        worktreePath: '/repo',
+        signals: { merged: true, ciFixAttempts: 1 },
+      });
+    });
+
+    it('reflects after a run that threw, carrying the error', async () => {
+      mockGraphInvoke.mockRejectedValue(new Error('Process exited with code 1'));
+      await runWorker(args);
+      expect(mockReflect.mock.calls[0][0].signals.error).toBe('Process exited with code 1');
+    });
+
+    it('does not reflect while a run waits at an approval gate', async () => {
+      mockGraphInvoke.mockResolvedValue({
+        messages: [],
+        error: null,
+        __interrupt__: [{ value: { node: 'plan' } }],
+      });
+      await runWorker(args);
+      expect(mockReflect).not.toHaveBeenCalled();
+    });
+
+    it('never fails the run when reflection throws', async () => {
+      mockGraphInvoke.mockResolvedValue({ messages: [], error: null });
+      mockReflect.mockRejectedValue(new Error('improver crashed'));
+      await expect(runWorker(args)).resolves.toBeUndefined();
+    });
+  });
+
+  describe('space environment (spec 121)', () => {
+    afterEach(() => {
+      delete process.env.SHEP_TEST_SPACE_VAR;
+    });
+
+    it("applies the repository's space environment before the graph runs", async () => {
+      mockResolveSpaceEnvironment.mockResolvedValue({
+        context: { space: { name: 'Acme' }, source: 'Rule' },
+        environment: { set: { SHEP_TEST_SPACE_VAR: '/gh-acme' }, unset: [] },
+      });
+      let seenByGraph: string | undefined;
+      mockGraphInvoke.mockImplementation(async () => {
+        seenByGraph = process.env.SHEP_TEST_SPACE_VAR;
+        return { currentNode: 'implement', messages: [], error: null };
+      });
+
+      await runWorker({ featureId: 'feat-1', runId: 'run-1', repo: '/repo', specDir: '/specs' });
+
+      expect(mockResolveSpaceEnvironment).toHaveBeenCalledWith('/repo', 'claude-code');
+      expect(seenByGraph).toBe('/gh-acme');
+    });
+
+    it('fails the run without building the graph when the space refuses the agent', async () => {
+      mockResolveSpaceEnvironment.mockResolvedValue({
+        context: { space: { name: 'Acme' }, source: 'Rule' },
+        environment: { set: {}, unset: [] },
+        agentRefusal: 'The Acme space allows only cursor agents; this run uses claude-code.',
+      });
+
+      await runWorker({ featureId: 'feat-1', runId: 'run-1', repo: '/repo', specDir: '/specs' });
+
+      expect(mockCreateFeatureAgentGraph).not.toHaveBeenCalled();
+      expect(mockGraphInvoke).not.toHaveBeenCalled();
+      const run = await mockRunRepo.findById('run-1');
+      expect(run?.status).toBe(AgentRunStatus.failed);
+      expect(run?.error).toContain('allows only cursor');
+    });
+  });
+
+  it('should initialize the DI container', async () => {
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+    });
+
+    expect(mockInitializeContainer).toHaveBeenCalledTimes(1);
+  });
+
+  it('should resolve the agent run repository and executor factory from DI', async () => {
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+    });
+
+    expect(mockResolve).toHaveBeenCalledWith('IAgentRunRepository');
+    expect(mockResolve).toHaveBeenCalledWith('IAgentExecutorProvider');
+  });
+
+  it('should create a file-based checkpointer using threadId when provided', async () => {
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+      threadId: 'thread-abc',
+    });
+
+    expect(mockCreateCheckpointer).toHaveBeenCalledWith(expect.stringContaining('thread-abc'));
+  });
+
+  it('should fall back to runId for checkpointer when no threadId', async () => {
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+    });
+
+    expect(mockCreateCheckpointer).toHaveBeenCalledWith(expect.stringContaining('run-1'));
+  });
+
+  it('should create the feature agent graph with executor and checkpointer', async () => {
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+    });
+
+    // First arg is executor, second is checkpointer
+    expect(mockCreateFeatureAgentGraph).toHaveBeenCalledWith(expect.anything(), expect.anything());
+  });
+
+  it('should update agent run status to running', async () => {
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+    });
+
+    expect(mockRunRepo.updateStatus).toHaveBeenCalledWith(
+      'run-1',
+      AgentRunStatus.running,
+      expect.objectContaining({
+        pid: process.pid,
+      }),
+      { allowedFrom: WORKER_CLAIMABLE_STATUSES }
+    );
+  });
+
+  it('should invoke the graph with correct state including worktreePath', async () => {
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+      worktreePath: '/wt/path',
+      threadId: 'thread-abc',
+    });
+
+    expect(mockGraphInvoke).toHaveBeenCalledWith(
+      {
+        featureId: 'feat-1',
+        repositoryPath: '/repo',
+        worktreePath: '/wt/path',
+        specDir: '/specs',
+        // Spec 134: no collaboration flag in these settings → no ask_decision.
+        decisionToolAvailable: false,
+        push: false,
+        openPr: false,
+        forkAndPr: false,
+        commitSpecs: true,
+        ciWatchEnabled: true,
+        enableEvidence: false,
+        commitEvidence: false,
+      },
+      { configurable: { thread_id: 'thread-abc' } }
+    );
+  });
+
+  it('should default worktreePath to repo when not provided', async () => {
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+    });
+
+    expect(mockGraphInvoke).toHaveBeenCalledWith(
+      expect.objectContaining({
+        worktreePath: '/repo',
+      }),
+      expect.anything()
+    );
+  });
+
+  it('should update agent run status to completed on success', async () => {
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+    });
+
+    expect(mockRunRepo.updateStatus).toHaveBeenCalledWith(
+      'run-1',
+      AgentRunStatus.completed,
+      expect.objectContaining({
+        completedAt: expect.any(Date),
+      }),
+      { allowedFrom: WORKER_OWNED_STATUSES }
+    );
+  });
+
+  it('records feature.run.finished once with the outcome (spec 133)', async () => {
+    await runWorker({ featureId: 'feat-1', runId: 'run-1', repo: '/repo', specDir: '/specs' });
+
+    expect(mockTelemetry.record).toHaveBeenCalledTimes(1);
+    expect(mockTelemetry.record).toHaveBeenCalledWith(
+      TelemetryEvent.FeatureRunFinished,
+      expect.objectContaining({ status: AgentRunStatus.completed, agentType: 'claude-code' })
+    );
+  });
+
+  it('records feature.run.finished as failed when the graph throws (spec 133)', async () => {
+    mockGraphInvoke.mockRejectedValue(new Error('secret failure text'));
+    await runWorker({ featureId: 'feat-1', runId: 'run-1', repo: '/repo', specDir: '/specs' });
+
+    expect(mockTelemetry.record).toHaveBeenCalledWith(
+      TelemetryEvent.FeatureRunFinished,
+      expect.objectContaining({ status: AgentRunStatus.failed })
+    );
+    expect(JSON.stringify(mockTelemetry.record.mock.calls)).not.toContain('secret');
+  });
+
+  it('should update agent run status to failed on error', async () => {
+    mockGraphInvoke.mockRejectedValue(new Error('Graph execution failed'));
+
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+    });
+
+    expect(mockRunRepo.updateStatus).toHaveBeenCalledWith(
+      'run-1',
+      AgentRunStatus.failed,
+      expect.objectContaining({
+        error: 'Graph execution failed',
+        completedAt: expect.any(Date),
+      }),
+      { allowedFrom: WORKER_OWNED_STATUSES }
+    );
+  });
+
+  it('should pass approvalGates in graph invoke state', async () => {
+    const gates = { allowPrd: false, allowPlan: false, allowMerge: false };
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+      approvalGates: gates,
+      resume: false,
+    });
+
+    expect(mockGraphInvoke).toHaveBeenCalledWith(
+      expect.objectContaining({
+        approvalGates: gates,
+      }),
+      expect.anything()
+    );
+  });
+
+  it('should update status to waiting_approval when graph returns with __interrupt__', async () => {
+    mockGraphInvoke.mockResolvedValue({
+      currentNode: 'analyze',
+      messages: ['[analyze] Complete'],
+      error: null,
+      __interrupt__: [
+        {
+          value: { node: 'analyze', message: 'Approve to continue.' },
+        },
+      ],
+    });
+
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+      approvalGates: { allowPrd: false, allowPlan: false, allowMerge: false },
+      resume: false,
+    });
+
+    expect(mockRunRepo.updateStatus).toHaveBeenCalledWith(
+      'run-1',
+      AgentRunStatus.waitingApproval,
+      expect.objectContaining({
+        updatedAt: expect.any(Date),
+      }),
+      { allowedFrom: WORKER_OWNED_STATUSES }
+    );
+  });
+
+  it('should invoke graph with Command resume when resuming from interrupt', async () => {
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+      resume: true,
+      resumeFromInterrupt: true,
+      threadId: 'thread-abc',
+    });
+
+    // When resuming from interrupt, first arg should be a Command
+    const firstArg = mockGraphInvoke.mock.calls[0][0];
+    expect(firstArg).toBeDefined();
+    expect(firstArg.resume).toBeDefined();
+  });
+
+  it('should invoke graph with initial state when resuming from error', async () => {
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+      resume: true,
+      resumeFromInterrupt: false,
+      threadId: 'thread-abc',
+    });
+
+    // When resuming from error, first arg should be state object (not Command)
+    const firstArg = mockGraphInvoke.mock.calls[0][0];
+    expect(firstArg).toBeDefined();
+    expect(firstArg.featureId).toBe('feat-1');
+    expect(firstArg.repositoryPath).toBe('/repo');
+    expect(firstArg.error).toBeUndefined();
+  });
+
+  it('should create fresh graph and checkpointer when resuming from error', async () => {
+    // Mock a secondary graph invoke (for the fresh graph)
+    const freshGraphInvoke = vi.fn().mockResolvedValue({
+      currentNode: 'implement',
+      messages: ['[implement] done'],
+      error: null,
+    });
+    mockCreateFeatureAgentGraph.mockReturnValue({ invoke: freshGraphInvoke });
+
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+      resume: true,
+      resumeFromInterrupt: false,
+      threadId: 'thread-abc',
+    });
+
+    // Should create checkpointer twice: once initially, once for the fresh graph
+    expect(mockCreateCheckpointer).toHaveBeenCalledTimes(2);
+
+    // Should create the graph twice: once initially, once for the fresh graph
+    expect(mockCreateFeatureAgentGraph).toHaveBeenCalledTimes(2);
+
+    // The fresh graph should be invoked with the state (not the original graph)
+    expect(freshGraphInvoke).toHaveBeenCalledWith(
+      expect.objectContaining({
+        featureId: 'feat-1',
+        repositoryPath: '/repo',
+      }),
+      expect.anything()
+    );
+  });
+
+  it('should handle graph returning error state', async () => {
+    mockGraphInvoke.mockResolvedValue({
+      currentNode: 'analyze',
+      messages: ['[analyze] Error: ENOENT'],
+      error: 'ENOENT: no such file or directory',
+    });
+
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+    });
+
+    expect(mockRunRepo.updateStatus).toHaveBeenCalledWith(
+      'run-1',
+      AgentRunStatus.failed,
+      expect.objectContaining({
+        error: 'ENOENT: no such file or directory',
+      }),
+      { allowedFrom: WORKER_OWNED_STATUSES }
+    );
+  });
+
+  it('should use createFastFeatureAgentGraph when fast=true', async () => {
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+      fast: true,
+    });
+
+    expect(mockCreateFastFeatureAgentGraph).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything()
+    );
+    expect(mockCreateFeatureAgentGraph).not.toHaveBeenCalled();
+  });
+
+  it('should use createFeatureAgentGraph when fast=false', async () => {
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+      fast: false,
+    });
+
+    expect(mockCreateFeatureAgentGraph).toHaveBeenCalledWith(expect.anything(), expect.anything());
+    expect(mockCreateFastFeatureAgentGraph).not.toHaveBeenCalled();
+  });
+
+  it('should use createFeatureAgentGraph when fast is undefined', async () => {
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+    });
+
+    expect(mockCreateFeatureAgentGraph).toHaveBeenCalledWith(expect.anything(), expect.anything());
+    expect(mockCreateFastFeatureAgentGraph).not.toHaveBeenCalled();
+  });
+
+  it('should invoke the fast graph with correct state when fast=true', async () => {
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+      fast: true,
+      worktreePath: '/wt/path',
+    });
+
+    expect(mockFastGraphInvoke).toHaveBeenCalledWith(
+      expect.objectContaining({
+        featureId: 'feat-1',
+        repositoryPath: '/repo',
+        worktreePath: '/wt/path',
+        specDir: '/specs',
+      }),
+      expect.anything()
+    );
+  });
+
+  it('should complete successfully with fast graph', async () => {
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+      fast: true,
+    });
+
+    expect(mockRunRepo.updateStatus).toHaveBeenCalledWith(
+      'run-1',
+      AgentRunStatus.completed,
+      expect.objectContaining({
+        completedAt: expect.any(Date),
+      }),
+      { allowedFrom: WORKER_OWNED_STATUSES }
+    );
+  });
+
+  it('publishes started, phase-changed, and completed lifecycle messages on a normal run (spec 093)', async () => {
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+    });
+
+    expect(mockLifecyclePublisher.publishStarted).toHaveBeenCalledTimes(1);
+    expect(mockLifecyclePublisher.publishPhaseChanged).toHaveBeenCalledTimes(1);
+    expect(mockLifecyclePublisher.publishCompleted).toHaveBeenCalledTimes(1);
+    expect(mockLifecyclePublisher.publishBlocked).not.toHaveBeenCalled();
+  });
+
+  it('publishes a blocked lifecycle message when graph returns __interrupt__ (spec 093)', async () => {
+    mockGraphInvoke.mockResolvedValue({
+      currentNode: 'analyze',
+      messages: ['[analyze] paused'],
+      error: null,
+      __interrupt__: [{ value: { node: 'analyze', message: 'Approve' } }],
+    });
+
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+      approvalGates: { allowPrd: false, allowPlan: false, allowMerge: false },
+      resume: false,
+    });
+
+    expect(mockLifecyclePublisher.publishStarted).toHaveBeenCalledTimes(1);
+    expect(mockLifecyclePublisher.publishBlocked).toHaveBeenCalledTimes(1);
+    expect(mockLifecyclePublisher.publishCompleted).not.toHaveBeenCalled();
+    expect(mockLifecyclePublisher.publishBlocked).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runId: 'run-1',
+        featureId: 'feat-1',
+        repositoryPath: '/repo',
+        reason: 'waiting_approval:analyze',
+      })
+    );
+  });
+
+  it('emits an AgentQuestion of kind=blocking on every waiting_approval transition (spec 093, task 20)', async () => {
+    mockGraphInvoke.mockResolvedValue({
+      currentNode: 'plan',
+      messages: ['[plan] paused'],
+      error: null,
+      __interrupt__: [{ value: { node: 'plan', message: 'Approve' } }],
+    });
+
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+      approvalGates: { allowPrd: true, allowPlan: true, allowMerge: false },
+      resume: false,
+    });
+
+    expect(mockGateQuestionPublisher.publishWaitingApproval).toHaveBeenCalledTimes(1);
+    expect(mockGateQuestionPublisher.publishWaitingApproval).toHaveBeenCalledWith({
+      runId: 'run-1',
+      featureId: 'feat-1',
+      repositoryPath: '/repo',
+      interruptNode: 'plan',
+    });
+  });
+
+  it('does NOT emit an AgentQuestion when graph completes normally (no waiting_approval)', async () => {
+    mockGraphInvoke.mockResolvedValue({
+      currentNode: 'merge',
+      messages: ['[merge] done'],
+      error: null,
+    });
+
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+    });
+
+    expect(mockGateQuestionPublisher.publishWaitingApproval).not.toHaveBeenCalled();
+  });
+
+  it('should pass securityMode and securityActionDispositions to graph invoke', async () => {
+    const dispositions = {
+      [SecurityActionCategory.DependencyInstall]: SecurityActionDisposition.Denied,
+    };
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+      securityMode: SecurityMode.Enforce,
+      securityActionDispositions: dispositions,
+    });
+
+    expect(mockGraphInvoke).toHaveBeenCalledWith(
+      expect.objectContaining({
+        securityMode: SecurityMode.Enforce,
+        securityActionDispositions: dispositions,
+      }),
+      expect.anything()
+    );
+  });
+
+  it('should not include security fields in graph invoke when not provided', async () => {
+    await runWorker({
+      featureId: 'feat-1',
+      runId: 'run-1',
+      repo: '/repo',
+      specDir: '/specs',
+    });
+
+    const invokeArg = mockGraphInvoke.mock.calls[0][0];
+    expect(invokeArg.securityMode).toBeUndefined();
+    expect(invokeArg.securityActionDispositions).toBeUndefined();
+  });
+
+  /**
+   * Stop writes `interrupted`; when the run has no PID yet it signals nothing.
+   * The worker used to write `running` unconditionally at boot, in every
+   * heartbeat and at the end, so a Stop was silently undone.
+   */
+  describe('run ownership (Stop is not clobbered)', () => {
+    const baseArgs = { featureId: 'feat-1', runId: 'run-1', repo: '/repo', specDir: '/specs' };
+
+    it('does not build or invoke the graph when the run was stopped before boot', async () => {
+      mockRunRepo = makeMockRunRepository(AgentRunStatus.interrupted);
+
+      await runWorker(baseArgs);
+
+      expect(mockCreateFeatureAgentGraph).not.toHaveBeenCalled();
+      expect(mockGraphInvoke).not.toHaveBeenCalled();
+      expect(mockLifecyclePublisher.publishStarted).not.toHaveBeenCalled();
+      expect(mockRunRepo.peek('run-1')?.status).toBe(AgentRunStatus.interrupted);
+      expect(mockRunRepo.peek('run-1')?.pid).toBeUndefined();
+    });
+
+    it('leaves the run interrupted when Stop lands while the graph is running', async () => {
+      mockGraphInvoke.mockImplementation(async () => {
+        const current = mockRunRepo.peek('run-1')!;
+        mockRunRepo.seed({ ...current, status: AgentRunStatus.interrupted });
+        return { currentNode: 'implement', messages: ['[implement] done'], error: null };
+      });
+
+      await runWorker(baseArgs);
+
+      expect(mockRunRepo.peek('run-1')?.status).toBe(AgentRunStatus.interrupted);
+      expect(mockLifecyclePublisher.publishCompleted).not.toHaveBeenCalled();
+    });
+
+    it('does not open an approval gate on a run that was stopped mid-run', async () => {
+      mockGraphInvoke.mockImplementation(async () => {
+        const current = mockRunRepo.peek('run-1')!;
+        mockRunRepo.seed({ ...current, status: AgentRunStatus.interrupted });
+        return { messages: [], error: null, __interrupt__: [{ value: { node: 'requirements' } }] };
+      });
+
+      await runWorker(baseArgs);
+
+      expect(mockRunRepo.peek('run-1')?.status).toBe(AgentRunStatus.interrupted);
+      expect(mockGateQuestionPublisher.publishWaitingApproval).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('failure path', () => {
+    it('still resets the lifecycle and logs the failure when the failed-status write throws', async () => {
+      const featureRepo = {
+        findById: vi
+          .fn()
+          .mockResolvedValue({ id: 'feat-1', lifecycle: SdlcLifecycle.Implementation }),
+        update: vi.fn().mockResolvedValue(undefined),
+      };
+      const baseResolve = mockResolve.getMockImplementation()!;
+      mockResolve.mockImplementation((token: unknown) =>
+        token === 'IFeatureRepository' ? featureRepo : baseResolve(token)
+      );
+      const guarded = mockRunRepo.updateStatus.getMockImplementation()!;
+      mockRunRepo.updateStatus.mockImplementation(async (...args: unknown[]) => {
+        if (args[1] === AgentRunStatus.failed) throw new Error('SQLITE_BUSY: database is locked');
+        return guarded(...args);
+      });
+      mockGraphInvoke.mockRejectedValue(new Error('Graph execution failed'));
+      const written: string[] = [];
+      const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+        written.push(String(chunk));
+        return true;
+      });
+
+      try {
+        await expect(
+          runWorker({ featureId: 'feat-1', runId: 'run-1', repo: '/repo', specDir: '/specs' })
+        ).resolves.toBeUndefined();
+      } finally {
+        writeSpy.mockRestore();
+      }
+
+      expect(featureRepo.update).toHaveBeenCalledWith(
+        expect.objectContaining({ lifecycle: SdlcLifecycle.Started })
+      );
+      expect(written.some((line) => line.includes('SQLITE_BUSY'))).toBe(true);
+      expect(written.some((line) => line.includes('Run marked as failed'))).toBe(true);
+    });
+  });
+});
