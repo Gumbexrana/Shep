@@ -1,0 +1,89 @@
+# User Guides
+
+Guides for using Shep AI CLI effectively.
+
+## Contents
+
+| Guide                                                                | Description                             |
+| -------------------------------------------------------------------- | --------------------------------------- |
+| [getting-started.md](./getting-started.md)                           | Installation and first run              |
+| [start-an-app.md](./start-an-app.md)                                 | Start an app, then add features         |
+| [configuration.md](./configuration.md)                               | Settings, agents, and env vars          |
+| [cli-commands.md](./cli-commands.md)                                 | Complete CLI command reference          |
+| [web-ui.md](./web-ui.md)                                             | Web interface usage                     |
+| [langgraph-agents.md](./langgraph-agents.md)                         | LangGraph agent system guide            |
+| [custom-worktree-provisioning.md](./custom-worktree-provisioning.md) | Custom worktree create / setup commands |
+| [spaces.md](./spaces.md)                                             | Keep personal and work knowledge apart  |
+| [trackers.md](./trackers.md)                                         | Keep Linear and Jira in sync            |
+| [knowledge.md](./knowledge.md)                                       | Team knowledge from Notion              |
+| [opportunities.md](./opportunities.md)                               | Decide what to build next               |
+| [feedback.md](./feedback.md)                                         | Customer feedback into shep             |
+| [discovery.md](./discovery.md)                                       | Let an agent shape the next bets        |
+| [incidents.md](./incidents.md)                                       | Triage and fix production problems     |
+| [autopilot.md](./autopilot.md)                                       | Let a space run on autopilot           |
+| [bug-loop.md](./bug-loop.md)                                         | Investigate and fix bugs                |
+| [pr-comments.md](./pr-comments.md)                                   | Review comments on shep's pull requests |
+
+## Quick Start
+
+```bash
+# Install globally
+npm install -g @shepai/cli
+
+# Navigate to your project
+cd ~/projects/my-app
+
+# Run Shep
+shep
+```
+
+This starts the Shep daemon and opens `http://localhost:4050/`. First-run setup — picking an
+agent and a model — happens there, in the browser.
+
+## Guide Categories
+
+### Getting Started
+
+New to Shep? Start with [getting-started.md](./getting-started.md) for installation and your first feature.
+
+Starting something new? [start-an-app.md](./start-an-app.md) walks through starting an app (any stack, or the Vite + shadcn prototype template) and adding features to it.
+
+### Configuration
+
+Need to customize Shep? See [configuration.md](./configuration.md) for auth setup and settings.
+
+### Reference
+
+Looking for specific commands? Check [cli-commands.md](./cli-commands.md) for the complete CLI reference.
+
+### Web Interface
+
+Prefer the browser? Read [web-ui.md](./web-ui.md) for web UI features.
+
+### Agent System
+
+Working with LangGraph agents? See [langgraph-agents.md](./langgraph-agents.md) for concepts and patterns.
+
+### Worktrees
+
+Monorepo or a repo that needs setup per worktree? See [custom-worktree-provisioning.md](./custom-worktree-provisioning.md).
+
+---
+
+## Maintaining This Directory
+
+**Update when:**
+
+- New guides are added
+- Guide focus areas change
+- Quick start process changes
+
+**File naming:**
+
+- Use kebab-case
+- Be descriptive (`getting-started.md` not `gs.md`)
+- Match topic names
+
+### Spaces
+
+Working across personal projects, clients or product lines? See [spaces.md](./spaces.md) to keep their project memory apart.
