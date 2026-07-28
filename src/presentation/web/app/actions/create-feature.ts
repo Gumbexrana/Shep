@@ -1,0 +1,199 @@
+'use server';
+
+import { resolve } from '@/lib/server-container';
+import type { CreateFeatureUseCase } from '@shepai/core/application/use-cases/features/create/create-feature.use-case';
+import type { Feature } from '@shepai/core/domain/generated/output';
+import { type BuildMode } from '@shepai/core/domain/generated/output';
+import { composeUserInput } from './compose-user-input';
+import { effortField } from '@shepai/core/domain/shared/agent-effort';
+
+interface Attachment {
+  path: string;
+  name: string;
+  notes?: string;
+}
+
+interface ApprovalGates {
+  allowPrd: boolean;
+  allowPlan: boolean;
+  allowMerge: boolean;
+}
+
+interface CreateFeatureInput {
+  description: string;
+  repositoryPath: string;
+  attachments?: Attachment[];
+  sessionId?: string;
+  approvalGates?: {
+    allowPrd: boolean;
+    allowPlan: boolean;
+    allowMerge?: boolean;
+  };
+  push?: boolean;
+  openPr?: boolean;
+  parentId?: string;
+  /**
+   * Execution mode: Spec/Application (full SDLC), Fast (direct
+   * implementation), or Exploration (iterative prototyping). MUST be
+   * forwarded to the use case as `buildMode` — that is the field
+   * `CreateFeatureUseCase` reads. Anything else is silently ignored and the
+   * run falls back to the full SDLC workflow.
+   */
+  buildMode?: BuildMode;
+  /**
+   * Legacy boolean the create drawer still submits. Forwarded as-is; the use
+   * case derives a build mode from it when `buildMode` is absent.
+   */
+  fast?: boolean;
+  /** When true, create the feature in pending state (no agent spawned). */
+  pending?: boolean;
+  /** Fork repo and create PR to upstream at merge time. */
+  forkAndPr?: boolean;
+  /** Commit specs/evidences into the repo (default: true, auto-false when forkAndPr). */
+  commitSpecs?: boolean;
+  /** Enable CI watch/fix loop after push. */
+  ciWatchEnabled?: boolean;
+  /** Enable evidence collection after implementation. */
+  enableEvidence?: boolean;
+  /** Commit evidence to PR. */
+  commitEvidence?: boolean;
+  /** Optional agent type override for this feature run */
+  agentType?: string;
+  /** Optional model identifier for this feature run */
+  model?: string;
+  /** Optional reasoning effort override (validated; unknown values are dropped). */
+  effort?: string;
+  /** Sync main from remote before creating the feature branch (default: true). */
+  rebaseBeforeBranch?: boolean;
+  /** Inject curated skills into the feature worktree. */
+  injectSkills?: boolean;
+  /** When the drawer was launched scoped to an Application, the
+   *  application's domain UUID. Persisted on the Feature so the canvas can
+   *  render an app→feature parent edge. */
+  applicationId?: string;
+  /** Per-feature plugin activation overrides (plugin name -> enabled/disabled). */
+  activePlugins?: Record<string, boolean>;
+  /** Run implement in Explore mode for this feature (spec 150). */
+  exploreHarness?: boolean;
+  /** Explore budget k for this feature; only used with exploreHarness. */
+  exploreK?: number;
+}
+
+export async function createFeature(
+  input: CreateFeatureInput
+): Promise<{ feature?: Feature; error?: string }> {
+  const {
+    description,
+    repositoryPath,
+    attachments,
+    sessionId,
+    approvalGates,
+    push,
+    openPr,
+    parentId,
+    buildMode,
+    fast,
+    pending,
+    forkAndPr,
+    commitSpecs,
+    ciWatchEnabled,
+    enableEvidence,
+    commitEvidence,
+    agentType,
+    model,
+    effort: rawEffort,
+    rebaseBeforeBranch,
+    injectSkills,
+    applicationId,
+    activePlugins,
+    exploreHarness,
+    exploreK,
+  } = input;
+
+  if (!description?.trim()) {
+    return { error: 'description is required' };
+  }
+
+  if (!repositoryPath?.trim()) {
+    return { error: 'repositoryPath is required' };
+  }
+
+  const userInput = composeUserInput(description, attachments);
+  const gates: ApprovalGates = {
+    allowPrd: approvalGates?.allowPrd ?? false,
+    allowPlan: approvalGates?.allowPlan ?? false,
+    allowMerge: approvalGates?.allowMerge ?? false,
+  };
+
+  try {
+    const createFeatureUseCase = resolve<CreateFeatureUseCase>('CreateFeatureUseCase');
+
+    // Phase 1 (fast): create DB record with real UUID — returns immediately
+    const { feature, shouldSpawn } = await createFeatureUseCase.createRecord({
+      userInput,
+      repositoryPath,
+      approvalGates: gates,
+      push: push ?? false,
+      openPr: openPr ?? false,
+      ...(parentId ? { parentId } : {}),
+      description,
+      ...(buildMode ? { buildMode } : {}),
+      ...(fast != null ? { fast } : {}),
+      ...(pending ? { pending } : {}),
+      ...(forkAndPr != null ? { forkAndPr } : {}),
+      ...(commitSpecs != null ? { commitSpecs } : {}),
+      ...(ciWatchEnabled != null ? { ciWatchEnabled } : {}),
+      ...(enableEvidence != null ? { enableEvidence } : {}),
+      ...(commitEvidence != null ? { commitEvidence } : {}),
+      ...(agentType ? { agentType } : {}),
+      ...(model ? { model } : {}),
+      ...effortField(rawEffort),
+      ...(rebaseBeforeBranch != null ? { rebaseBeforeBranch } : {}),
+      ...(injectSkills != null ? { injectSkills } : {}),
+      ...(applicationId ? { applicationId } : {}),
+      ...(activePlugins && Object.keys(activePlugins).length > 0 ? { activePlugins } : {}),
+      ...(exploreHarness ? { exploreHarness: true, ...(exploreK ? { exploreK } : {}) } : {}),
+    });
+
+    // Phase 2 (background): metadata generation, worktree, spec, agent spawn
+    // Fire-and-forget — the UI gets the real feature ID immediately
+    createFeatureUseCase
+      .initializeAndSpawn(
+        feature,
+        {
+          userInput,
+          repositoryPath,
+          approvalGates: gates,
+          push: push ?? false,
+          openPr: openPr ?? false,
+          ...(parentId ? { parentId } : {}),
+          ...(buildMode ? { buildMode } : {}),
+          ...(fast != null ? { fast } : {}),
+          ...(pending ? { pending } : {}),
+          ...(forkAndPr != null ? { forkAndPr } : {}),
+          ...(commitSpecs != null ? { commitSpecs } : {}),
+          ...(ciWatchEnabled != null ? { ciWatchEnabled } : {}),
+          ...(enableEvidence != null ? { enableEvidence } : {}),
+          ...(commitEvidence != null ? { commitEvidence } : {}),
+          ...(agentType ? { agentType } : {}),
+          ...(model ? { model } : {}),
+          ...effortField(rawEffort),
+          ...(sessionId ? { sessionId } : {}),
+          ...(rebaseBeforeBranch != null ? { rebaseBeforeBranch } : {}),
+          ...(injectSkills != null ? { injectSkills } : {}),
+          ...(applicationId ? { applicationId } : {}),
+          ...(activePlugins && Object.keys(activePlugins).length > 0 ? { activePlugins } : {}),
+        },
+        shouldSpawn
+      )
+      .catch((err: unknown) => {
+        // eslint-disable-next-line no-console
+        console.error('[createFeature] initializeAndSpawn failed:', err);
+      });
+
+    return { feature };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to create feature';
+    return { error: message };
+  }
+}
