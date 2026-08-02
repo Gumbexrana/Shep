@@ -1,0 +1,389 @@
+/**
+ * SQLite Settings Repository Implementation
+ *
+ * Implements ISettingsRepository using SQLite database.
+ * Enforces singleton pattern (only one Settings record allowed).
+ * Uses prepared statements to prevent SQL injection.
+ */
+
+import type Database from 'better-sqlite3';
+import { injectable } from 'tsyringe';
+import type { ISettingsRepository } from '../../application/ports/output/repositories/settings.repository.interface.js';
+import type { Settings } from '../../domain/generated/output.js';
+import { SETTINGS_TELEMETRY_COLUMNS } from '../persistence/sqlite/mappers/settings-telemetry.mapper.js';
+import {
+  toDatabase,
+  fromDatabase,
+  type SettingsRow,
+} from '../persistence/sqlite/mappers/settings.mapper.js';
+
+/**
+ * SQLite implementation of ISettingsRepository.
+ * Manages Settings persistence with singleton constraint.
+ */
+// Telemetry columns (migration 166) come from one list so INSERT and UPDATE cannot drift.
+const TELEMETRY_INSERT_COLUMNS = SETTINGS_TELEMETRY_COLUMNS.join(', ');
+const TELEMETRY_INSERT_PARAMS = SETTINGS_TELEMETRY_COLUMNS.map((c) => `@${c}`).join(', ');
+const TELEMETRY_UPDATE_ASSIGNMENTS = SETTINGS_TELEMETRY_COLUMNS.map((c) => `${c} = @${c}`).join(
+  ', '
+);
+
+@injectable()
+export class SQLiteSettingsRepository implements ISettingsRepository {
+  constructor(private readonly db: Database.Database) {}
+
+  /**
+   * Initialize settings for the first time.
+   * Creates a new Settings record in the database.
+   *
+   * @param settings - The settings to initialize with
+   * @throws Error if settings already exist (singleton constraint)
+   */
+  async initialize(settings: Settings): Promise<void> {
+    // Convert to database format
+    const row = toDatabase(settings);
+
+    // Prepare INSERT statement
+    const stmt = this.db.prepare(`
+      INSERT INTO settings (
+        id, created_at, updated_at,
+        model_analyze, model_requirements, model_plan, model_implement, model_default,
+        model_adaptive_enabled, model_adaptive_high, model_adaptive_medium, model_adaptive_low,
+        model_effort,
+        user_name, user_email, user_github_username, user_preferred_language,
+        env_default_editor, env_shell_preference, env_terminal_preference,
+        sys_auto_update, sys_log_level,
+        agent_type, agent_auth_method, agent_token,
+        notif_in_app_enabled, notif_browser_enabled, notif_desktop_enabled,
+        notif_evt_agent_started, notif_evt_phase_completed, notif_evt_waiting_approval,
+        notif_evt_agent_completed, notif_evt_agent_failed,
+        notif_evt_pr_merged, notif_evt_pr_closed,
+        notif_evt_pr_checks_passed, notif_evt_pr_checks_failed,
+        notif_evt_pr_blocked, notif_evt_merge_review_ready,
+        workflow_open_pr_on_impl_complete,
+        ci_max_fix_attempts, ci_watch_timeout_ms, ci_log_max_chars,
+        workflow_decision_default_timeout_minutes,
+        ci_watch_enabled, workflow_max_parallel_features, workflow_queue_pause, workflow_breaker_acknowledged_at,
+        workflow_circuit_breaker_auto_pause_queue,
+        stage_timeout_analyze_ms, stage_timeout_requirements_ms,
+        stage_timeout_research_ms, stage_timeout_plan_ms,
+        stage_timeout_implement_ms, stage_timeout_merge_ms,
+        analyze_repo_timeout_analyze_ms,
+        onboarding_complete,
+        approval_gate_allow_prd, approval_gate_allow_plan,
+        approval_gate_allow_merge, approval_gate_push_on_impl_complete,
+        feature_flag_env_deploy, feature_flag_debug,
+        feature_flag_react_file_manager,
+        feature_flag_projects,
+        feature_flag_code_review,
+        feature_flag_collaboration,
+        feature_flag_bedrock_integration,
+        feature_flag_whatsapp_dispatch,
+        feature_flag_aspm,
+        feature_flag_clusters,
+        workflow_enable_evidence, workflow_commit_evidence,
+        hide_ci_status, default_mode,
+        interactive_agent_enabled, interactive_agent_auto_timeout_minutes,
+        interactive_agent_max_concurrent_sessions,
+        auto_archive_delay_minutes,
+        stage_timeout_fast_implement_ms,
+        fab_position_swapped,
+        skill_injection_enabled, skill_injection_skills,
+        default_home_page,
+        whatsapp_enabled, whatsapp_adapter, whatsapp_linked_number, whatsapp_status,
+        whatsapp_allowed_numbers,
+        whatsapp_cloud_api_phone_number_id, whatsapp_cloud_api_access_token,
+        whatsapp_cloud_api_verify_token, whatsapp_cloud_api_app_secret,
+        security_mode, security_last_evaluation_at, security_policy_source,
+        worktree_create_command, worktree_post_create_command, worktree_command_timeout_ms,
+        feature_flag_query_aware_harness, harness_config,
+        feature_flag_spaces, feature_flag_trackers, feature_flag_knowledge,
+        feature_flag_signals, feature_flag_opportunities, feature_flag_feedback,
+        feature_flag_discovery, feature_flag_incidents, feature_flag_outcomes,
+        feature_flag_docs_first, feature_flag_autopilot, feature_flag_factory,
+        feature_flag_sdlc_board, feature_flag_agent_coordination, feature_flag_self_learning,
+        learning_config,
+        messaging_enabled, messaging_gateway_url, messaging_device_id,
+        messaging_gateway_client_id, messaging_debounce_ms, messaging_chat_buffer_ms,
+        messaging_telegram_enabled, messaging_telegram_paired, messaging_telegram_chat_id,
+        messaging_telegram_route_id, messaging_telegram_route_token, messaging_telegram_public_url,
+        messaging_telegram_bot_token, messaging_telegram_pending_code, messaging_telegram_pending_expires_at,
+        messaging_whatsapp_enabled, messaging_whatsapp_paired, messaging_whatsapp_chat_id,
+        messaging_whatsapp_route_id, messaging_whatsapp_route_token, messaging_whatsapp_public_url,
+        messaging_whatsapp_bot_token, messaging_whatsapp_pending_code, messaging_whatsapp_pending_expires_at,
+        ${TELEMETRY_INSERT_COLUMNS}
+      ) VALUES (
+        @id, @created_at, @updated_at,
+        @model_analyze, @model_requirements, @model_plan, @model_implement, @model_default,
+        @model_adaptive_enabled, @model_adaptive_high, @model_adaptive_medium, @model_adaptive_low,
+        @model_effort,
+        @user_name, @user_email, @user_github_username, @user_preferred_language,
+        @env_default_editor, @env_shell_preference, @env_terminal_preference,
+        @sys_auto_update, @sys_log_level,
+        @agent_type, @agent_auth_method, @agent_token,
+        @notif_in_app_enabled, @notif_browser_enabled, @notif_desktop_enabled,
+        @notif_evt_agent_started, @notif_evt_phase_completed, @notif_evt_waiting_approval,
+        @notif_evt_agent_completed, @notif_evt_agent_failed,
+        @notif_evt_pr_merged, @notif_evt_pr_closed,
+        @notif_evt_pr_checks_passed, @notif_evt_pr_checks_failed,
+        @notif_evt_pr_blocked, @notif_evt_merge_review_ready,
+        @workflow_open_pr_on_impl_complete,
+        @ci_max_fix_attempts, @ci_watch_timeout_ms, @ci_log_max_chars,
+        @workflow_decision_default_timeout_minutes,
+        @ci_watch_enabled, @workflow_max_parallel_features, @workflow_queue_pause, @workflow_breaker_acknowledged_at,
+        @workflow_circuit_breaker_auto_pause_queue,
+        @stage_timeout_analyze_ms, @stage_timeout_requirements_ms,
+        @stage_timeout_research_ms, @stage_timeout_plan_ms,
+        @stage_timeout_implement_ms, @stage_timeout_merge_ms,
+        @analyze_repo_timeout_analyze_ms,
+        @onboarding_complete,
+        @approval_gate_allow_prd, @approval_gate_allow_plan,
+        @approval_gate_allow_merge, @approval_gate_push_on_impl_complete,
+        @feature_flag_env_deploy, @feature_flag_debug,
+        @feature_flag_react_file_manager,
+        @feature_flag_projects,
+        @feature_flag_code_review,
+        @feature_flag_collaboration,
+        @feature_flag_bedrock_integration,
+        @feature_flag_whatsapp_dispatch,
+        @feature_flag_aspm,
+        @feature_flag_clusters,
+        @workflow_enable_evidence, @workflow_commit_evidence,
+        @hide_ci_status, @default_mode,
+        @interactive_agent_enabled, @interactive_agent_auto_timeout_minutes,
+        @interactive_agent_max_concurrent_sessions,
+        @auto_archive_delay_minutes,
+        @stage_timeout_fast_implement_ms,
+        @fab_position_swapped,
+        @skill_injection_enabled, @skill_injection_skills,
+        @default_home_page,
+        @whatsapp_enabled, @whatsapp_adapter, @whatsapp_linked_number, @whatsapp_status,
+        @whatsapp_allowed_numbers,
+        @whatsapp_cloud_api_phone_number_id, @whatsapp_cloud_api_access_token,
+        @whatsapp_cloud_api_verify_token, @whatsapp_cloud_api_app_secret,
+        @security_mode, @security_last_evaluation_at, @security_policy_source,
+        @worktree_create_command, @worktree_post_create_command, @worktree_command_timeout_ms,
+        @feature_flag_query_aware_harness, @harness_config,
+        @feature_flag_spaces, @feature_flag_trackers, @feature_flag_knowledge,
+        @feature_flag_signals, @feature_flag_opportunities, @feature_flag_feedback,
+        @feature_flag_discovery, @feature_flag_incidents, @feature_flag_outcomes,
+        @feature_flag_docs_first, @feature_flag_autopilot, @feature_flag_factory,
+        @feature_flag_sdlc_board, @feature_flag_agent_coordination, @feature_flag_self_learning,
+        @learning_config,
+        @messaging_enabled, @messaging_gateway_url, @messaging_device_id,
+        @messaging_gateway_client_id, @messaging_debounce_ms, @messaging_chat_buffer_ms,
+        @messaging_telegram_enabled, @messaging_telegram_paired, @messaging_telegram_chat_id,
+        @messaging_telegram_route_id, @messaging_telegram_route_token, @messaging_telegram_public_url,
+        @messaging_telegram_bot_token, @messaging_telegram_pending_code, @messaging_telegram_pending_expires_at,
+        @messaging_whatsapp_enabled, @messaging_whatsapp_paired, @messaging_whatsapp_chat_id,
+        @messaging_whatsapp_route_id, @messaging_whatsapp_route_token, @messaging_whatsapp_public_url,
+        @messaging_whatsapp_bot_token, @messaging_whatsapp_pending_code, @messaging_whatsapp_pending_expires_at,
+        ${TELEMETRY_INSERT_PARAMS}
+      )
+    `);
+
+    // Take the write lock before checking the singleton. A check followed by an
+    // awaited load lets concurrent startups insert different UUIDs into this table.
+    this.db
+      .transaction(() => {
+        if (this.db.prepare('SELECT 1 FROM settings LIMIT 1').get()) {
+          throw new Error('Settings already exist. Use update() to modify existing settings.');
+        }
+        stmt.run(row);
+      })
+      .immediate();
+  }
+
+  /**
+   * Load existing settings from the database.
+   *
+   * @returns The existing Settings or null if not initialized
+   */
+  async load(): Promise<Settings | null> {
+    // Query the singleton row created by initialize().
+    const stmt = this.db.prepare('SELECT * FROM settings LIMIT 1');
+
+    // Execute query
+    const row = stmt.get() as SettingsRow | undefined;
+
+    // Return null if not found
+    if (!row) {
+      return null;
+    }
+
+    // Convert from database format
+    return fromDatabase(row);
+  }
+
+  /**
+   * Update existing settings in the database.
+   *
+   * @param settings - The updated settings to persist
+   * @throws Error if settings don't exist (must initialize first)
+   */
+  async update(settings: Settings): Promise<void> {
+    // Check if settings exist
+    const existing = await this.load();
+    if (existing === null) {
+      throw new Error('Settings do not exist. Use initialize() first.');
+    }
+
+    // Convert to database format
+    const row = toDatabase(settings);
+
+    // Prepare UPDATE statement
+    const stmt = this.db.prepare(`
+      UPDATE settings SET
+        created_at = @created_at,
+        updated_at = @updated_at,
+        model_analyze = @model_analyze,
+        model_requirements = @model_requirements,
+        model_plan = @model_plan,
+        model_implement = @model_implement,
+        model_default = @model_default,
+        model_adaptive_enabled = @model_adaptive_enabled,
+        model_adaptive_high = @model_adaptive_high,
+        model_adaptive_medium = @model_adaptive_medium,
+        model_adaptive_low = @model_adaptive_low,
+        model_effort = @model_effort,
+        user_name = @user_name,
+        user_email = @user_email,
+        user_github_username = @user_github_username,
+        user_preferred_language = @user_preferred_language,
+        env_default_editor = @env_default_editor,
+        env_shell_preference = @env_shell_preference,
+        env_terminal_preference = @env_terminal_preference,
+        sys_auto_update = @sys_auto_update,
+        sys_log_level = @sys_log_level,
+        agent_type = @agent_type,
+        agent_auth_method = @agent_auth_method,
+        agent_token = @agent_token,
+        notif_in_app_enabled = @notif_in_app_enabled,
+        notif_browser_enabled = @notif_browser_enabled,
+        notif_desktop_enabled = @notif_desktop_enabled,
+        notif_evt_agent_started = @notif_evt_agent_started,
+        notif_evt_phase_completed = @notif_evt_phase_completed,
+        notif_evt_waiting_approval = @notif_evt_waiting_approval,
+        notif_evt_agent_completed = @notif_evt_agent_completed,
+        notif_evt_agent_failed = @notif_evt_agent_failed,
+        notif_evt_pr_merged = @notif_evt_pr_merged,
+        notif_evt_pr_closed = @notif_evt_pr_closed,
+        notif_evt_pr_checks_passed = @notif_evt_pr_checks_passed,
+        notif_evt_pr_checks_failed = @notif_evt_pr_checks_failed,
+        notif_evt_pr_blocked = @notif_evt_pr_blocked,
+        notif_evt_merge_review_ready = @notif_evt_merge_review_ready,
+        workflow_open_pr_on_impl_complete = @workflow_open_pr_on_impl_complete,
+        ci_max_fix_attempts = @ci_max_fix_attempts,
+        workflow_decision_default_timeout_minutes = @workflow_decision_default_timeout_minutes,
+        ci_watch_timeout_ms = @ci_watch_timeout_ms,
+        ci_watch_enabled = @ci_watch_enabled,
+        workflow_max_parallel_features = @workflow_max_parallel_features,
+        workflow_queue_pause = @workflow_queue_pause,
+        workflow_breaker_acknowledged_at = @workflow_breaker_acknowledged_at,
+        workflow_circuit_breaker_auto_pause_queue = @workflow_circuit_breaker_auto_pause_queue,
+        ci_log_max_chars = @ci_log_max_chars,
+        stage_timeout_analyze_ms = @stage_timeout_analyze_ms,
+        stage_timeout_requirements_ms = @stage_timeout_requirements_ms,
+        stage_timeout_research_ms = @stage_timeout_research_ms,
+        stage_timeout_plan_ms = @stage_timeout_plan_ms,
+        stage_timeout_implement_ms = @stage_timeout_implement_ms,
+        stage_timeout_merge_ms = @stage_timeout_merge_ms,
+        analyze_repo_timeout_analyze_ms = @analyze_repo_timeout_analyze_ms,
+        onboarding_complete = @onboarding_complete,
+        approval_gate_allow_prd = @approval_gate_allow_prd,
+        approval_gate_allow_plan = @approval_gate_allow_plan,
+        approval_gate_allow_merge = @approval_gate_allow_merge,
+        approval_gate_push_on_impl_complete = @approval_gate_push_on_impl_complete,
+        feature_flag_env_deploy = @feature_flag_env_deploy,
+        feature_flag_debug = @feature_flag_debug,
+        feature_flag_react_file_manager = @feature_flag_react_file_manager,
+        feature_flag_projects = @feature_flag_projects,
+        feature_flag_code_review = @feature_flag_code_review,
+        feature_flag_collaboration = @feature_flag_collaboration,
+        feature_flag_bedrock_integration = @feature_flag_bedrock_integration,
+        feature_flag_whatsapp_dispatch = @feature_flag_whatsapp_dispatch,
+        feature_flag_aspm = @feature_flag_aspm,
+        feature_flag_clusters = @feature_flag_clusters,
+        workflow_enable_evidence = @workflow_enable_evidence,
+        workflow_commit_evidence = @workflow_commit_evidence,
+        hide_ci_status = @hide_ci_status,
+        default_mode = @default_mode,
+        interactive_agent_enabled = @interactive_agent_enabled,
+        interactive_agent_auto_timeout_minutes = @interactive_agent_auto_timeout_minutes,
+        interactive_agent_max_concurrent_sessions = @interactive_agent_max_concurrent_sessions,
+        auto_archive_delay_minutes = @auto_archive_delay_minutes,
+        stage_timeout_fast_implement_ms = @stage_timeout_fast_implement_ms,
+        fab_position_swapped = @fab_position_swapped,
+        skill_injection_enabled = @skill_injection_enabled,
+        skill_injection_skills = @skill_injection_skills,
+        default_home_page = @default_home_page,
+        whatsapp_enabled = @whatsapp_enabled,
+        whatsapp_adapter = @whatsapp_adapter,
+        whatsapp_linked_number = @whatsapp_linked_number,
+        whatsapp_status = @whatsapp_status,
+        whatsapp_allowed_numbers = @whatsapp_allowed_numbers,
+        whatsapp_cloud_api_phone_number_id = @whatsapp_cloud_api_phone_number_id,
+        whatsapp_cloud_api_access_token = @whatsapp_cloud_api_access_token,
+        whatsapp_cloud_api_verify_token = @whatsapp_cloud_api_verify_token,
+        whatsapp_cloud_api_app_secret = @whatsapp_cloud_api_app_secret,
+        security_mode = @security_mode,
+        security_last_evaluation_at = @security_last_evaluation_at,
+        security_policy_source = @security_policy_source,
+        worktree_create_command = @worktree_create_command,
+        worktree_post_create_command = @worktree_post_create_command,
+        worktree_command_timeout_ms = @worktree_command_timeout_ms,
+        feature_flag_query_aware_harness = @feature_flag_query_aware_harness,
+        feature_flag_spaces = @feature_flag_spaces,
+        feature_flag_trackers = @feature_flag_trackers,
+        feature_flag_knowledge = @feature_flag_knowledge,
+        feature_flag_signals = @feature_flag_signals,
+        feature_flag_opportunities = @feature_flag_opportunities,
+        feature_flag_feedback = @feature_flag_feedback,
+        feature_flag_discovery = @feature_flag_discovery,
+        feature_flag_incidents = @feature_flag_incidents,
+        feature_flag_outcomes = @feature_flag_outcomes,
+        feature_flag_docs_first = @feature_flag_docs_first,
+        feature_flag_autopilot = @feature_flag_autopilot,
+        feature_flag_factory = @feature_flag_factory,
+        feature_flag_sdlc_board = @feature_flag_sdlc_board,
+        feature_flag_agent_coordination = @feature_flag_agent_coordination,
+        feature_flag_self_learning = @feature_flag_self_learning,
+        learning_config = @learning_config,
+        harness_config = @harness_config,
+        messaging_enabled = @messaging_enabled,
+        messaging_gateway_url = @messaging_gateway_url,
+        messaging_device_id = @messaging_device_id,
+        messaging_gateway_client_id = @messaging_gateway_client_id,
+        messaging_debounce_ms = @messaging_debounce_ms,
+        messaging_chat_buffer_ms = @messaging_chat_buffer_ms,
+        messaging_telegram_enabled = @messaging_telegram_enabled,
+        messaging_telegram_paired = @messaging_telegram_paired,
+        messaging_telegram_chat_id = @messaging_telegram_chat_id,
+        messaging_telegram_route_id = @messaging_telegram_route_id,
+        messaging_telegram_route_token = @messaging_telegram_route_token,
+        messaging_telegram_public_url = @messaging_telegram_public_url,
+        messaging_telegram_bot_token = @messaging_telegram_bot_token,
+        messaging_telegram_pending_code = @messaging_telegram_pending_code,
+        messaging_telegram_pending_expires_at = @messaging_telegram_pending_expires_at,
+        messaging_whatsapp_enabled = @messaging_whatsapp_enabled,
+        messaging_whatsapp_paired = @messaging_whatsapp_paired,
+        messaging_whatsapp_chat_id = @messaging_whatsapp_chat_id,
+        messaging_whatsapp_route_id = @messaging_whatsapp_route_id,
+        messaging_whatsapp_route_token = @messaging_whatsapp_route_token,
+        messaging_whatsapp_public_url = @messaging_whatsapp_public_url,
+        messaging_whatsapp_bot_token = @messaging_whatsapp_bot_token,
+        messaging_whatsapp_pending_code = @messaging_whatsapp_pending_code,
+        messaging_whatsapp_pending_expires_at = @messaging_whatsapp_pending_expires_at,
+        ${TELEMETRY_UPDATE_ASSIGNMENTS}
+      WHERE id = @id
+    `);
+
+    // Execute with named parameters (safe from SQL injection)
+    const result = stmt.run(row);
+
+    // Verify update succeeded
+    if (result.changes === 0) {
+      throw new Error('Failed to update settings: no rows affected');
+    }
+  }
+}
