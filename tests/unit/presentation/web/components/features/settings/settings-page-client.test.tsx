@@ -1,0 +1,163 @@
+import 'reflect-metadata';
+import { describe, it, expect, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { updateSettingsAction } from '@/app/actions/update-settings';
+import { SettingsPageClient } from '@/components/features/settings/settings-page-client';
+import { createDefaultSettings } from '@shepai/core/domain/factories/settings-defaults.factory';
+
+vi.mock('@/app/actions/update-settings', () => ({
+  updateSettingsAction: vi.fn().mockResolvedValue({ success: true }),
+}));
+
+vi.mock('@/app/actions/security', () => ({
+  updateSecurityModeAction: vi.fn().mockResolvedValue({ success: true }),
+}));
+
+vi.mock('sonner', () => ({
+  toast: { success: vi.fn(), error: vi.fn() },
+}));
+
+// Mock IntersectionObserver for jsdom
+vi.stubGlobal(
+  'IntersectionObserver',
+  class {
+    observe = vi.fn();
+    unobserve = vi.fn();
+    disconnect = vi.fn();
+  }
+);
+
+describe('SettingsPageClient', () => {
+  const settings = createDefaultSettings();
+
+  it('renders heading text "Settings"', () => {
+    render(
+      <SettingsPageClient settings={settings} shepHome="/home/user/.shep" dbFileSize="2.4 MB" />
+    );
+    expect(screen.getByText('Settings')).toBeDefined();
+  });
+
+  it('renders all section components', () => {
+    const withAspm = { ...settings, featureFlags: { ...settings.featureFlags!, aspm: true } };
+    render(
+      <SettingsPageClient settings={withAspm} shepHome="/home/user/.shep" dbFileSize="2.4 MB" />
+    );
+    expect(screen.getByTestId('agent-settings-section')).toBeDefined();
+    expect(screen.getByTestId('environment-settings-section')).toBeDefined();
+    expect(screen.getByTestId('workflow-settings-section')).toBeDefined();
+    expect(screen.getByTestId('security-settings-section')).toBeDefined();
+    expect(screen.getByTestId('notification-settings-section')).toBeDefined();
+    expect(screen.getByTestId('feature-flags-settings-section')).toBeDefined();
+    expect(screen.getByTestId('database-settings-section')).toBeDefined();
+  });
+
+  it('shows the Self-learning section and nav entry only while the selfLearning flag is on', () => {
+    const { unmount } = render(
+      <SettingsPageClient settings={settings} shepHome="/home/user/.shep" dbFileSize="2.4 MB" />
+    );
+    expect(screen.queryByTestId('self-learning-settings-section')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Self-learning' })).toBeNull();
+    unmount();
+
+    const on = { ...settings, featureFlags: { ...settings.featureFlags!, selfLearning: true } };
+    render(<SettingsPageClient settings={on} shepHome="/home/user/.shep" dbFileSize="2.4 MB" />);
+    expect(screen.getByTestId('self-learning-settings-section')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Self-learning' })).toBeDefined();
+  });
+
+  it('shows Connect agents with the token file under shepHome, and the MCP activity tools (spec 149)', () => {
+    render(<SettingsPageClient settings={settings} shepHome="/opt/shep" dbFileSize="10.5 MB" />);
+    expect(screen.getByRole('button', { name: 'Connect agents' })).toBeDefined();
+    expect(screen.getByTestId('a2a-integration-section')).toBeDefined();
+    expect(screen.getByTestId('a2a-token-path').textContent).toBe('/opt/shep/web-auth-token');
+    for (const tool of [
+      'get_agent_activity',
+      'wait_for_agent_activity',
+      'decide_feature_gate',
+      'answer_agent_question',
+    ]) {
+      expect(screen.getByTestId(`mcp-tool-${tool}`)).toBeDefined();
+    }
+  });
+
+  it('hides the supply-chain security section while ASPM is off', () => {
+    render(
+      <SettingsPageClient settings={settings} shepHome="/home/user/.shep" dbFileSize="2.4 MB" />
+    );
+    expect(settings.featureFlags?.aspm).toBe(false);
+    expect(screen.queryByTestId('security-settings-section')).toBeNull();
+  });
+
+  it('passes shepHome and dbFileSize to database section', () => {
+    render(<SettingsPageClient settings={settings} shepHome="/opt/shep" dbFileSize="10.5 MB" />);
+    expect(screen.getByTestId('shep-home-path').textContent).toBe('/opt/shep');
+    expect(screen.getByTestId('db-file-size').textContent).toBe('10.5 MB');
+  });
+
+  it('handles missing featureFlags gracefully', () => {
+    const settingsWithoutFlags = { ...settings, featureFlags: undefined };
+    render(
+      <SettingsPageClient
+        settings={settingsWithoutFlags}
+        shepHome="/home/user/.shep"
+        dbFileSize="2.4 MB"
+      />
+    );
+    expect(screen.getByTestId('feature-flags-settings-section')).toBeDefined();
+  });
+
+  it('renders terminal select in environment section', () => {
+    render(
+      <SettingsPageClient
+        settings={settings}
+        shepHome="/home/user/.shep"
+        dbFileSize="2.4 MB"
+        availableTerminals={[
+          { id: 'system', name: 'System Terminal', available: true },
+          { id: 'warp', name: 'Warp', available: true },
+        ]}
+      />
+    );
+    expect(screen.getByTestId('terminal-select')).toBeDefined();
+  });
+
+  it('renders shell select in environment section', () => {
+    render(
+      <SettingsPageClient settings={settings} shepHome="/home/user/.shep" dbFileSize="2.4 MB" />
+    );
+    expect(screen.getByTestId('shell-select')).toBeDefined();
+  });
+
+  it('renders PR blocked notification toggle', () => {
+    render(
+      <SettingsPageClient settings={settings} shepHome="/home/user/.shep" dbFileSize="2.4 MB" />
+    );
+    expect(screen.getByTestId('switch-event-prBlocked')).toBeDefined();
+    expect(screen.getByText('PR blocked')).toBeDefined();
+  });
+
+  it('renders Merge review ready notification toggle', () => {
+    render(
+      <SettingsPageClient settings={settings} shepHome="/home/user/.shep" dbFileSize="2.4 MB" />
+    );
+    expect(screen.getByTestId('switch-event-mergeReviewReady')).toBeDefined();
+    expect(screen.getByText('Merge review ready')).toBeDefined();
+  });
+
+  it('shows the 30-minute question deadline and saves a change within bounds (spec 134)', async () => {
+    render(
+      <SettingsPageClient settings={settings} shepHome="/home/user/.shep" dbFileSize="2.4 MB" />
+    );
+    const input = screen.getByTestId('input-decision-timeout') as HTMLInputElement;
+    expect(input.value).toBe('30');
+
+    fireEvent.change(input, { target: { value: '99999' } });
+    fireEvent.blur(input);
+
+    await vi.waitFor(() => {
+      expect(updateSettingsAction).toHaveBeenCalledWith(
+        expect.objectContaining({ workflow: { decisionDefaultTimeoutMinutes: 1440 } })
+      );
+    });
+  });
+});
