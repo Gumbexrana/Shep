@@ -1,0 +1,237 @@
+/**
+ * StreamAgentEventsUseCase — Operation-log bus subscription tests.
+ *
+ * Verifies that:
+ *   1. A publish on the bus while the generator is awaiting the next poll
+ *      tick is re-emitted as an `OperationLogAppended` notification carrying
+ *      the full entry payload.
+ *   2. The subscription is torn down on signal abort.
+ */
+
+import 'reflect-metadata';
+import { describe, it, expect, vi } from 'vitest';
+
+import { StreamAgentEventsUseCase } from '@/application/use-cases/agents/stream-agent-events.use-case.js';
+import type { ListFeaturesUseCase } from '@/application/use-cases/features/list-features.use-case.js';
+import type { IAgentRunRepository } from '@/application/ports/output/agents/agent-run-repository.interface.js';
+import type { IPhaseTimingRepository } from '@/application/ports/output/agents/phase-timing-repository.interface.js';
+import { createMockApplicationRepository } from '../../../../helpers/application-repository.mock.js';
+import { createMockInteractiveSessionRepository } from '../../../../helpers/interactive-session-repository.mock.js';
+import type { ICloudDeploymentEventBus } from '@/application/ports/output/services/cloud-deployment-event-bus.interface.js';
+import type { ILogger } from '@/application/ports/output/services/logger.interface.js';
+import type { IProcessLivenessProbe } from '@/application/ports/output/services/process-liveness.interface.js';
+import type { IAgentMessageBus } from '@/application/ports/output/agents/agent-message-bus.interface.js';
+import { InMemoryAgentQuestionRepository } from '@/infrastructure/adapters/in-memory/in-memory-agent-question-repository.js';
+import { InMemorySupervisorDecisionRepository } from '@/infrastructure/adapters/in-memory/in-memory-supervisor-decision-repository.js';
+
+import { InMemoryOperationLogEventBus } from '@/infrastructure/services/events/in-memory-operation-log-event-bus.js';
+
+import type { NotificationEvent, OperationLogEntry } from '@/domain/generated/output.js';
+import {
+  NotificationEventType,
+  NotificationSeverity,
+  OperationLogKind,
+  OperationLogLevel,
+} from '@/domain/generated/output.js';
+
+function buildUseCase(bus: InMemoryOperationLogEventBus): StreamAgentEventsUseCase {
+  const listFeaturesStub = {
+    execute: vi.fn().mockResolvedValue([]),
+  } as unknown as ListFeaturesUseCase;
+
+  const agentRunRepo: IAgentRunRepository = {
+    create: vi.fn(),
+    findById: vi.fn().mockResolvedValue(null),
+    findByThreadId: vi.fn(),
+    findLatestByFeatureId: vi.fn().mockResolvedValue(null),
+    findByIds: vi.fn().mockResolvedValue([]),
+    updateStatus: vi.fn(),
+    updatePinnedConfig: vi.fn(),
+    findRunningByPid: vi.fn(),
+    list: vi.fn().mockResolvedValue([]),
+    delete: vi.fn(),
+  };
+
+  const phaseTimingRepo: IPhaseTimingRepository = {
+    save: vi.fn(),
+    update: vi.fn(),
+    updateApprovalWait: vi.fn(),
+    findByRunId: vi.fn().mockResolvedValue([]),
+    findByRunIds: vi.fn().mockResolvedValue([]),
+    findByFeatureId: vi.fn().mockResolvedValue([]),
+  };
+
+  const sessionRepo = createMockInteractiveSessionRepository();
+
+  const processLiveness: IProcessLivenessProbe = {
+    isProcessAlive: vi.fn().mockReturnValue(true),
+  };
+
+  const cloudEventBus: ICloudDeploymentEventBus = {
+    publish: vi.fn(),
+    subscribe: vi.fn().mockReturnValue(() => undefined),
+  };
+
+  const applicationRepo = createMockApplicationRepository();
+
+  const logger: ILogger = {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  };
+
+  const agentMessageBus: IAgentMessageBus = {
+    publish: vi.fn(),
+    subscribe: vi.fn().mockReturnValue(() => undefined),
+    listFor: vi.fn().mockResolvedValue([]),
+  };
+
+  return new StreamAgentEventsUseCase(
+    listFeaturesStub,
+    agentRunRepo,
+    phaseTimingRepo,
+    sessionRepo,
+    processLiveness,
+    cloudEventBus,
+    applicationRepo,
+    bus,
+    logger,
+    agentMessageBus,
+    new InMemoryAgentQuestionRepository(),
+    new InMemorySupervisorDecisionRepository()
+  );
+}
+
+function makeEntry(overrides: Partial<OperationLogEntry> = {}): OperationLogEntry {
+  return {
+    id: 'log-1',
+    operationKind: OperationLogKind.ApplicationSetup,
+    operationId: 'app-1',
+    level: OperationLogLevel.Info,
+    message: 'hello world',
+    createdAt: new Date('2026-04-14T10:00:00Z'),
+    updatedAt: new Date('2026-04-14T10:00:00Z'),
+    ...overrides,
+  } as unknown as OperationLogEntry;
+}
+
+interface Envelope {
+  kind: string;
+  event?: NotificationEvent;
+}
+
+describe('StreamAgentEventsUseCase — operation log bus', () => {
+  it('re-emits a publish as an OperationLogAppended notification', async () => {
+    const bus = new InMemoryOperationLogEventBus();
+    const useCase = buildUseCase(bus);
+    const controller = new AbortController();
+
+    const entry = makeEntry({ message: 'first entry' });
+    const received: Envelope[] = [];
+
+    // Long poll interval — we want all events to come from the bus, not polling.
+    const iterator = useCase.execute({
+      signal: controller.signal,
+      pollIntervalMs: 10_000,
+    });
+
+    const consume = (async () => {
+      for await (const event of iterator) {
+        received.push(event as Envelope);
+        if ((event as Envelope).event?.eventType === NotificationEventType.OperationLogAppended) {
+          controller.abort();
+        }
+      }
+    })();
+
+    // Let the subscription attach before publishing.
+    await new Promise((resolve) => setImmediate(resolve));
+    bus.publish({ entry });
+
+    await consume;
+
+    const appended = received.find(
+      (e) =>
+        e.kind === 'notification' &&
+        e.event?.eventType === NotificationEventType.OperationLogAppended
+    );
+    expect(appended).toBeDefined();
+    expect(appended?.event?.operationLogAppend?.entry).toEqual(entry);
+    expect(appended?.event?.agentRunId).toBe('app-1');
+    expect(appended?.event?.featureId).toBe('app-1');
+    expect(appended?.event?.severity).toBe(NotificationSeverity.Info);
+  });
+
+  it('maps Warn / Error levels to Warning / Error severity', async () => {
+    const bus = new InMemoryOperationLogEventBus();
+    const useCase = buildUseCase(bus);
+    const controller = new AbortController();
+
+    const received: Envelope[] = [];
+    let seenCount = 0;
+
+    const iterator = useCase.execute({
+      signal: controller.signal,
+      pollIntervalMs: 10_000,
+    });
+
+    const consume = (async () => {
+      for await (const event of iterator) {
+        received.push(event as Envelope);
+        if ((event as Envelope).event?.eventType === NotificationEventType.OperationLogAppended) {
+          seenCount++;
+          if (seenCount >= 2) controller.abort();
+        }
+      }
+    })();
+
+    await new Promise((resolve) => setImmediate(resolve));
+    bus.publish({
+      entry: makeEntry({ id: 'log-w', level: OperationLogLevel.Warn, message: 'warn' }),
+    });
+    bus.publish({
+      entry: makeEntry({ id: 'log-e', level: OperationLogLevel.Error, message: 'err' }),
+    });
+
+    await consume;
+
+    const appendedEvents = received.filter(
+      (e) => e.event?.eventType === NotificationEventType.OperationLogAppended
+    );
+    expect(appendedEvents.length).toBeGreaterThanOrEqual(2);
+    expect(appendedEvents[0]?.event?.severity).toBe(NotificationSeverity.Warning);
+    expect(appendedEvents[1]?.event?.severity).toBe(NotificationSeverity.Error);
+  });
+
+  it('unsubscribes on signal abort so later publishes do not reach a closed generator', async () => {
+    const bus = new InMemoryOperationLogEventBus();
+    const useCase = buildUseCase(bus);
+    const controller = new AbortController();
+
+    const received: Envelope[] = [];
+    const iterator = useCase.execute({
+      signal: controller.signal,
+      pollIntervalMs: 10_000,
+    });
+
+    const consume = (async () => {
+      for await (const event of iterator) {
+        received.push(event as Envelope);
+        controller.abort();
+      }
+    })();
+
+    await new Promise((resolve) => setImmediate(resolve));
+    bus.publish({ entry: makeEntry({ id: 'log-1' }) });
+
+    await consume;
+    const countAfterAbort = received.length;
+
+    // Publishing after abort must NOT reach the (now-returned) generator.
+    bus.publish({ entry: makeEntry({ id: 'log-2' }) });
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(received.length).toBe(countAfterAbort);
+  });
+});
