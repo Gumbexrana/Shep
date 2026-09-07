@@ -1,0 +1,2257 @@
+{
+  "settings": {
+    "title": "الإعدادات",
+    "saving": "جارٍ الحفظ...",
+    "saved": "تم الحفظ",
+    "failedToSave": "فشل حفظ الإعدادات",
+    "sections": {
+      "language": "اللغة",
+      "agent": "الوكيل",
+      "adaptiveModels": "النماذج التكيفية",
+      "environment": "البيئة",
+      "workflow": "سير العمل",
+      "worktree": "شجرة العمل",
+      "ci": "CI",
+      "timeouts": "المهل الزمنية",
+      "notifications": "الإشعارات",
+      "flags": "العلامات",
+      "chat": "المحادثة",
+      "homePage": "Home page",
+      "layout": "التخطيط",
+      "database": "قاعدة البيانات",
+      "integrations": "التكاملات",
+      "security": "Security",
+      "messaging": "Messaging",
+      "mcp": "MCP",
+      "harness": "Harness الوكيل",
+      "selfLearning": "التعلّم الذاتي",
+      "telemetry": "مقاييس الاستخدام",
+      "a2a": "ربط الوكلاء"
+    },
+    "language": {
+      "title": "اللغة",
+      "description": "اختر لغة العرض المفضلة",
+      "label": "لغة العرض",
+      "placeholder": "اختر لغة",
+      "failedToSave": "فشل حفظ إعدادات اللغة"
+    },
+    "agent": {
+      "title": "الوكيل المفضل",
+      "sectionTitle": "الوكيل",
+      "description": "اختر وكيل البرمجة بالذكاء الاصطناعي وطريقة المصادقة",
+      "sectionDescription": "وكيل البرمجة بالذكاء الاصطناعي والمصادقة",
+      "agentType": "نوع الوكيل",
+      "agentAndModel": "الوكيل والنموذج",
+      "agentAndModelDescription": "المزود والنموذج لجميع العمليات",
+      "effort": "مستوى الاستدلال",
+      "effortDescription": "مستوى الاستدلال لكل خطوة في الميزات الجديدة (Claude Code)",
+      "effortFailed": "فشل حفظ مستوى الجهد",
+      "authMethod": "طريقة المصادقة",
+      "apiToken": "رمز API",
+      "apiTokenPlaceholder": "أدخل رمز API الخاص بك",
+      "apiTokenHelper": "يتم الحفظ تلقائيًا عند مغادرة الحقل",
+      "failedToSave": "فشل حفظ إعدادات الوكيل",
+      "hint": "اختر وكيل البرمجة بالذكاء الاصطناعي الذي يشغّل ميزاتك. كل وكيل يدعم نماذج وإمكانيات مختلفة. يتم حل المصادقة تلقائيًا عبر جلستك النشطة.",
+      "links": {
+        "agentSystem": "نظام الوكيل",
+        "addingAgents": "إضافة وكلاء",
+        "configurationGuide": "دليل التكوين"
+      }
+    },
+    "environment": {
+      "title": "بيئة التطوير والطرفية",
+      "sectionTitle": "البيئة",
+      "description": "تكوين المحرر الافتراضي والصدفة وتفضيلات الطرفية",
+      "sectionDescription": "تفضيلات المحرر والصدفة والطرفية",
+      "defaultEditor": "المحرر الافتراضي",
+      "defaultEditorDescription": "المحرر الذي يفتح لعمليات الملفات",
+      "shellPreference": "تفضيل الصدفة",
+      "shell": "الصدفة",
+      "shellDescription": "الصدفة الافتراضية للنصوص البرمجية المولّدة",
+      "terminalEmulator": "محاكي الطرفية",
+      "terminal": "الطرفية",
+      "terminalDescription": "محاكي الطرفية لجلسات الصدفة",
+      "systemTerminal": "طرفية النظام",
+      "failedToSave": "فشل حفظ إعدادات بيئة التطوير والطرفية",
+      "hint": "محررك المفضل يفتح الملفات للمراجعة. إعداد الصدفة يتحكم في النصوص البرمجية المولّدة. يتم تشغيل محاكي الطرفية عند فتح جلسات صدفة من واجهة الويب.",
+      "links": {
+        "configurationGuide": "دليل التكوين"
+      }
+    },
+    "workflow": {
+      "title": "سير العمل",
+      "description": "تكوين سلوك PR وبوابات الموافقة وإعدادات CI",
+      "sectionDescription": "سلوك الأتمتة بعد التنفيذ",
+      "defaultMode": "وضع الميزة الافتراضي",
+      "defaultModeDescription": "الوضع الافتراضي للميزات الجديدة المنشأة عبر CLI أو واجهة الويب",
+      "maxParallelFeatures": "الحد الأقصى للميزات المتوازية",
+      "maxParallelFeaturesDescription": "أقصى عدد من الميزات التي تشغّل وكيلاً في الوقت نفسه. القيمة 0 تعني بلا حد. تُوضع الميزات الإضافية في قائمة انتظار وتبدأ تلقائياً عند توفر مكان.",
+      "decisionTimeout": "مهلة الأسئلة",
+      "decisionTimeoutDescription": "المدة التي ينتظر فيها وكيل الخلفية إجابتك قبل أن يتابع بالخيار الموصى به.",
+      "modeRegular": "عادي",
+      "modeFast": "سريع",
+      "modeExploration": "استكشاف",
+      "subsections": {
+        "approve": "الموافقة",
+        "evidence": "الأدلة",
+        "git": "Git"
+      },
+      "autoApprovePrd": "الموافقة التلقائية على PRD",
+      "autoApprovePrdDescription": "تخطي المراجعة اليدوية للمتطلبات",
+      "autoApprovePlan": "الموافقة التلقائية على الخطة",
+      "autoApprovePlanDescription": "تخطي المراجعة اليدوية لخطة التنفيذ",
+      "autoApproveMerge": "الموافقة التلقائية على الدمج",
+      "autoApproveMergeDescription": "الدمج بدون مراجعة يدوية",
+      "collectEvidence": "جمع الأدلة",
+      "collectEvidenceDescription": "التقاط لقطات الشاشة والمخرجات بعد التنفيذ",
+      "addEvidenceToPr": "إضافة الأدلة إلى PR",
+      "addEvidenceToPrDescription": "تضمين الأدلة في نص طلب السحب",
+      "pushOnComplete": "الدفع عند الاكتمال",
+      "pushOnCompleteDescription": "الدفع إلى الخادم البعيد عند انتهاء التنفيذ",
+      "openPrOnComplete": "فتح PR عند الاكتمال",
+      "openPrOnCompleteDescription": "إنشاء طلب سحب عند الانتهاء",
+      "watchCiAfterPush": "مراقبة CI بعد الدفع",
+      "watchCiAfterPushDescription": "مراقبة CI والإصلاح التلقائي للأخطاء. قم بالتعطيل لتجنب حدود المعدل.",
+      "approvalGates": "بوابات الموافقة",
+      "prdAutoApproval": "الموافقة التلقائية على PRD",
+      "planAutoApproval": "الموافقة التلقائية على الخطة",
+      "mergeAutoApproval": "الموافقة التلقائية على الدمج",
+      "ciSettings": "إعدادات CI",
+      "ciWatchFixLoop": "دورة مراقبة/إصلاح CI",
+      "maxFixAttempts": "الحد الأقصى لمحاولات الإصلاح",
+      "watchTimeout": "مهلة المراقبة (بالثواني)",
+      "maxLogCharacters": "الحد الأقصى لأحرف السجل",
+      "pollInterval": "فترة الاستقصاء (بالثواني)",
+      "hideCiStatus": "إخفاء حالة CI",
+      "stageTimeouts": "المهل الزمنية للمراحل",
+      "failedToSave": "فشل حفظ إعدادات سير العمل",
+      "hint": "تحكم في مدى استقلالية كل تشغيل ميزة. الموافقة التلقائية تتخطى التوقف للمراجعة البشرية في كل مرحلة. خيارات الدفع وPR تتحكم فيما يحدث بعد نجاح التنفيذ.",
+      "links": {
+        "approvalGates": "بوابات الموافقة",
+        "pushAndPrFlags": "علامات الدفع وPR"
+      }
+    },
+    "worktree": {
+      "title": "تهيئة شجرة العمل",
+      "description": "استبدل أو وسّع طريقة إنشاء Shep لشجرة عمل كل ميزة",
+      "createCommand": "أمر الإنشاء المخصص",
+      "createCommandDescription": "يعمل بدلاً من `git worktree add` من المستودع الرئيسي. اتركه فارغاً لاستخدام شجرة عمل git المدمجة.",
+      "createCommandPlaceholder": "my-tool worktree add \"$SHEP_WORKTREE_PATH\" \"$SHEP_BRANCH\"",
+      "postCreateCommand": "أمر ما بعد الإنشاء",
+      "postCreateCommandDescription": "يعمل داخل شجرة العمل الجديدة بعد إنشائها — لإنشاء روابط node_modules أو نسخ الإعدادات أو تسخين الذاكرة المؤقتة.",
+      "postCreateCommandPlaceholder": "ln -s \"$SHEP_REPO_PATH/node_modules\" node_modules",
+      "commandTimeout": "مهلة الأمر (بالمللي ثانية)",
+      "commandTimeoutDescription": "تُطبَّق على كل أمر. ارفعها إذا كان الأمر ينفّذ خطوة تثبيت.",
+      "envVarsHint": "المتغيرات المتاحة: SHEP_REPO_PATH و SHEP_WORKTREE_PATH و SHEP_BRANCH و SHEP_START_POINT (فارغ عندما يكون الفرع موجوداً). فشل الأمر يعني فشل إنشاء الميزة.",
+      "hint": "استخدم هذه الإعدادات عندما لا تكفي شجرة عمل git العادية — مستودعات monorepo التي تحتاج روابط node_modules، أو مشاريع تُبنى فقط من دليل مُهيَّأ.",
+      "links": {
+        "worktreeGuide": "تهيئة شجرة العمل المخصصة"
+      }
+    },
+    "adaptiveModels": {
+      "title": "اختيار النموذج التكيفي",
+      "description": "شغّل كل مهمة مخططة على نموذج يناسب درجة تعقيدها",
+      "enabled": "توجيه المهام حسب التعقيد",
+      "enabledDescription": "بعد التخطيط، تعمل كل مهمة على النموذج المطابق لتعقيدها بدلاً من النموذج المثبّت. تحصل المهام البسيطة على نموذج أصغر وأسرع.",
+      "derived": "مشتق من النموذج المثبّت",
+      "planUnavailable": "تعذّر تحديد نماذج المستويات للوكيل الحالي.",
+      "ceilingHint": "النموذج المثبّت {{model}} على {{agent}} هو الحد الأقصى — لن يتجاوزه أي مستوى ولن يخرج عن عائلته.",
+      "singleModelHint": "لا يوجد مستوى أدنى معروف للنموذج {{model}} في كتالوج هذا الوكيل، لذا ستظل كل المهام تعمل عليه. ثبّت نموذجًا له نظير أصغر، أو اختر نماذج المستويات يدويًا أدناه.",
+      "tiers": {
+        "high": "تعقيد عالٍ",
+        "highDescription": "تصميم جديد، تغييرات شاملة، أعمال الأمان أو التزامن.",
+        "medium": "تعقيد متوسط",
+        "mediumDescription": "عمل ميزات اعتيادي يتبع نمطًا قائمًا.",
+        "low": "تعقيد منخفض",
+        "lowDescription": "تعديلات آلية — مفاتيح الترجمة، عناصر التعداد، القصص، إعادة التسمية."
+      },
+      "hint": "فعّل هذا عندما تثبّت نموذجًا رئيسيًا بينما معظم مهامك آلية. يبقى النموذج المثبّت هو الحد الأقصى، لذا لا يمكن لهذا إلا أن يخفض التكلفة.",
+      "links": {
+        "configurationGuide": "دليل الإعداد"
+      }
+    },
+    "ci": {
+      "title": "التكامل المستمر",
+      "description": "الحدود والمهل الزمنية لمراقبة CI",
+      "maxFixAttempts": "الحد الأقصى لمحاولات الإصلاح",
+      "maxFixAttemptsDescription": "إعادة محاولة الوكيل عند فشل CI",
+      "watchTimeout": "مهلة المراقبة",
+      "watchTimeoutDescription": "أقصى انتظار لاكتمال CI",
+      "maxLogSize": "الحد الأقصى لحجم السجل",
+      "maxLogSizeDescription": "قص سجلات CI بعد هذا الحد",
+      "pollInterval": "فترة الاستقصاء",
+      "pollIntervalDescription": "عدد مرات التحقق من GitHub لتحديثات حالة CI",
+      "hideCiStatus": "إخفاء حالة CI",
+      "hideCiStatusDescription": "إخفاء شارات حالة CI من درج الميزات ومراجعة الدمج",
+      "hint": "عند اكتمال ميزة، يمكن للوكيل مراقبة CI والإصلاح التلقائي للأخطاء. هذه الحدود تمنع إعادة المحاولات المفرطة وتتحكم في حجم مخرجات السجل المرسلة للوكيل للتحليل.",
+      "links": {
+        "cicdPipeline": "خط أنابيب CI/CD",
+        "ciSecurityGates": "بوابات أمان CI"
+      }
+    },
+    "stageTimeouts": {
+      "title": "المهل الزمنية للمراحل",
+      "description": "أقصى وقت تنفيذ لكل مرحلة من مراحل الوكيل",
+      "subsections": {
+        "featureAgent": "وكيل الميزات",
+        "analyzeRepoAgent": "وكيل تحليل المستودع"
+      },
+      "analyze": "التحليل",
+      "analyzeDescription": "مهلة تحليل المستودع",
+      "requirements": "المتطلبات",
+      "requirementsDescription": "مهلة جمع المتطلبات",
+      "research": "البحث",
+      "researchDescription": "مهلة البحث التقني",
+      "plan": "الخطة",
+      "planDescription": "مهلة تخطيط التنفيذ",
+      "implement": "التنفيذ",
+      "implementDescription": "مهلة تنفيذ الكود",
+      "fastImplement": "التنفيذ السريع",
+      "fastImplementDescription": "مهلة التنفيذ في الوضع السريع",
+      "merge": "الدمج",
+      "mergeDescription": "مهلة إنشاء PR والدمج",
+      "hint": "لكل وكيل مهل زمنية مستقلة وقابلة للتكوين لكل مرحلة. عند تجاوز مرحلة لمهلتها الزمنية، يتم إنهاء الوكيل. المهل الأطول مفيدة للتنفيذات المعقدة. المهلة الافتراضية لوكيل الميزات 30 دقيقة لكل مرحلة. المهلة الافتراضية لوكيل تحليل المستودع 10 دقائق."
+    },
+    "notifications": {
+      "title": "الإشعارات",
+      "description": "تكوين قنوات الإشعارات وتفضيلات الأحداث",
+      "sectionDescription": "كيف ومتى يتم إشعارك",
+      "channels": "القنوات",
+      "inApp": "داخل التطبيق",
+      "inAppLabel": "داخل التطبيق",
+      "inAppDescription": "الإشعارات داخل واجهة Shep",
+      "subsections": {
+        "agentEvents": "أحداث الوكيل",
+        "pullRequestEvents": "أحداث طلب السحب"
+      },
+      "events": {
+        "agentStarted": "بدأ الوكيل",
+        "phaseCompleted": "اكتملت المرحلة",
+        "waitingApproval": "في انتظار الموافقة",
+        "agentCompleted": "اكتمل الوكيل",
+        "agentFailed": "فشل الوكيل",
+        "mergeReviewReady": "مراجعة الدمج جاهزة",
+        "prMerged": "تم دمج PR",
+        "prClosed": "تم إغلاق PR",
+        "prChecksPassed": "نجحت فحوصات PR",
+        "prChecksFailed": "فشلت فحوصات PR",
+        "prBlocked": "PR محظور"
+      },
+      "failedToSave": "فشل حفظ إعدادات الإشعارات",
+      "hint": "إشعارات التنبيه داخل التطبيق تبقيك على اطلاع. اضبط أحداث دورة حياة الوكيل التي تُشغّل الإشعارات.",
+      "links": {
+        "notificationSystem": "نظام الإشعارات"
+      }
+    },
+    "featureFlags": {
+      "title": "علامات الميزات",
+      "description": "تبديل الميزات التجريبية والتجريبية المبكرة",
+      "sectionDescription": "تمكين أو تعطيل الميزات التجريبية",
+      "badge": "تجريبي",
+      "envDeploy": "النشر",
+      "envDeployDescription": "تمكين سير عمل نشر البيئات",
+      "debug": "التصحيح",
+      "debugDescription": "عرض لوحات التصحيح والتسجيل المفصل",
+      "reactFileManager": "مدير ملفات React",
+      "reactFileManagerDescription": "استخدام مدير ملفات React المدمج بدلاً من منتقي مجلدات نظام التشغيل الأصلي",
+      "projects": "المشاريع",
+      "projectsDescription": "تمكين التنقل إلى المشاريع وصفحات إدارة المشاريع في واجهة الويب",
+      "codeReview": "AI Code Review",
+      "codeReviewDescription": "Enable AI-powered code review that analyzes PR diffs and posts inline comments to GitHub",
+      "collaboration": "Agent Collaboration & Supervision",
+      "collaborationDescription": "Enable agent-to-agent messaging, supervisor delegation, and the unified agent questions inbox",
+      "aspm": "Application Security Posture Management",
+      "aspmDescription": "Enable the ASPM module — findings ingestion, posture dashboard, remediation campaigns, exceptions, and AI-change review queue",
+      "bedrockIntegration": "Project Bedrock Memory",
+      "bedrockIntegrationDescription": "Enable project-bedrock memory integration (markdown project memory for AI coding agents) — surfaces toggles, drawers, and tabs across applications, repositories, and features. Requires Python 3.9+ and pipx.",
+      "whatsappDispatch": "إرسال المهام عبر واتساب",
+      "whatsappDispatchDescription": "أرسِل وكلاء shep ووجّههم من واتساب — أنشئ الميزات، واستقبل تحديثات الوكيل، ووافق على البوابات بالرد في محادثة.",
+      "clusters": "المجموعات",
+      "clustersDescription": "تمكين التنقل بين المجموعات وإدارة مجموعات Kubernetes في واجهة الويب",
+      "hint": "ميزات تجريبية لا تزال قيد التطوير. قم بتمكينها على مسؤوليتك — قد تتغير أو تُزال في الإصدارات المستقبلية. وضع التصحيح يضيف تسجيلًا مفصلاً مفيدًا لاستكشاف الأخطاء.",
+      "queryAwareHarness": "Harness وكيل مدرك للاستعلام",
+      "queryAwareHarnessDescription": "تجريبي: وكيل Shep Harness و/harness وتبويب السياق في الميزة وطلبات الأذونات",
+      "githubImport": "الاستيراد من GitHub",
+      "githubImportDescription": "استنساخ مستودعات GitHub أو تفريعها وإضافتها إلى Shep",
+      "scheduledWorkflows": "سير العمل المجدول",
+      "scheduledWorkflowsDescription": "إنشاء سير عمل آلي وجدولته وتشغيله وفق جدول cron",
+      "spaces": "المساحات",
+      "spacesDescription": "مساحات وخطوط منتجات تفصل معرفة كل سياق وتسجيلات دخول وكلائه",
+      "trackers": "المتتبعات",
+      "trackersDescription": "مزامنة مهام Linear وJira مع مشاريع Shep في الاتجاهين",
+      "knowledge": "المعرفة",
+      "knowledgeDescription": "مزامنة صفحات Notion مختارة في معرفة المساحة لوكلائها",
+      "signals": "الإشارات",
+      "signalsDescription": "جمع إشارات العملاء والحوادث كأدلة للفرص",
+      "opportunities": "الفرص",
+      "opportunitiesDescription": "ترتيب الفرص حسب القيمة لكل ساعة مراجعة وملء سعة الأسبوع",
+      "feedback": "الملاحظات",
+      "feedbackDescription": "استقبال ملاحظات العملاء عبر نقطة نهاية بمفتاح وتجميعها في مواضيع",
+      "discovery": "الاستكشاف",
+      "discoveryDescription": "السماح لوكيل باقتراح فرص من الأدلة المتفرقة في المساحة",
+      "incidents": "الحوادث",
+      "incidentsDescription": "فتح حوادث من التنبيهات ليرتب وكيل الأسباب ويقترح إصلاحات",
+      "outcomes": "النتائج",
+      "outcomesDescription": "التحقق مما إذا كان العمل المُسلَّم قد أصلح ما بُني من أجله",
+      "docsFirst": "التوثيق أولاً",
+      "docsFirstDescription": "السماح للمساحات باشتراط توثيق يُكتب أثناء التخطيط، مع بوابة دمج للتوثيق",
+      "autopilot": "الطيار الآلي",
+      "autopilotDescription": "السماح لمساحة بالتحقيق والإصلاح والبناء بنفسها ضمن سياستها",
+      "factory": "المصنع",
+      "factoryDescription": "عرض صفحة حالة المصنع لكل مساحة",
+      "sdlcBoard": "لوحة SDLC",
+      "sdlcBoardDescription": "عرض لوحة SDLC: لوحة مباشرة لمهام الوكلاء عبر الميزات النشطة",
+      "agentCoordination": "تنسيق الوكلاء",
+      "agentCoordinationDescription": "عندما تغيّر ميزتان نشطتان الملفات نفسها، دع وكيلًا يقرر ما إذا كان على إحداهما انتظار الأخرى",
+      "selfLearning": "إطار التعلّم الذاتي",
+      "selfLearningDescription": "دع Shep يتعلّم من كل تشغيل لميزة ويقترح تعليمات ومهارات وسكربتات أفضل لوكلائه. أنت توافق على كل تغيير",
+      "groupPlatform": "المنصة",
+      "groupSoftwareFactory": "مصنع البرمجيات",
+      "groupExperimental": "تجريبي",
+      "defaultOn": "الافتراضي: مفعّل",
+      "defaultOff": "الافتراضي: معطّل",
+      "openView": "فتح عرض أعلام الميزات",
+      "backToSettings": "العودة إلى الإعدادات",
+      "pageDescription": "كل ما يستطيع Shep تفعيله أو تعطيله. تسري التغييرات فوراً؛ وتُخفى صفحات وأوامر CLI للميزة المعطّلة.",
+      "onCount": "{{on}} من {{total}} مفعّلة"
+    },
+    "interactiveAgent": {
+      "title": "الوكيل التفاعلي",
+      "description": "إعدادات علامة المحادثة لجلسات الوكيل التفاعلية لكل ميزة",
+      "enableChatTab": "تمكين علامة المحادثة",
+      "enableChatTabDescription": "عرض علامة المحادثة في جميع صفحات تفاصيل الميزات",
+      "autoTimeout": "المهلة التلقائية",
+      "autoTimeoutDescription": "دقائق عدم النشاط قبل إيقاف الوكيل تلقائيًا (1–120)",
+      "maxConcurrentSessions": "الحد الأقصى للجلسات المتزامنة",
+      "maxConcurrentSessionsDescription": "الحد الأقصى لعدد جلسات الوكيل التفاعلية النشطة في وقت واحد (1–10)",
+      "hint": "علامة المحادثة تُنشئ عملية وكيل مستمرة لكل ميزة. المهلة التلقائية تُوقف الجلسات الخاملة تلقائيًا لتوفير الموارد. حد الجلسات المتزامنة يمنع الاستخدام المفرط للموارد على أجهزة المطورين."
+    },
+    "homePage": {
+      "title": "Home page",
+      "description": "Choose which page opens when you navigate to the root URL",
+      "label": "Default page",
+      "labelDescription": "The page you land on when opening the web UI",
+      "options": {
+        "control-center": "Control Center",
+        "applications": "التطبيقات",
+        "features": "Features"
+      },
+      "hint": "This controls where you land when you open the web UI. You can change it at any time."
+    },
+    "fabLayout": {
+      "title": "التخطيط",
+      "description": "التحكم في موضع أزرار الإجراء العائمة في مركز التحكم",
+      "swapPosition": "تبديل مواضع الأزرار العائمة",
+      "swapPositionDescription": "نقل زر المحادثة إلى اليسار وزر الإنشاء إلى اليمين",
+      "hint": "يوجد زران عائمان (إنشاء ومحادثة) في الزوايا السفلية لمركز التحكم. قم بتفعيل هذا الخيار لتبديل مواضعهما."
+    },
+    "security": {
+      "title": "Supply Chain Security",
+      "sectionTitle": "Supply Chain Security",
+      "sectionDescription": "Configure security mode and review policy enforcement findings",
+      "mode": "Security mode",
+      "modeDescription": "Controls how the policy engine responds to violations",
+      "modeDisabled": "Disabled",
+      "modeAdvisory": "Advisory",
+      "modeEnforce": "Enforce",
+      "policySource": "Policy source",
+      "policySourceNone": "No policy loaded",
+      "lastEvaluation": "Last evaluation",
+      "lastEvaluationNever": "Never",
+      "recentFindings": "Recent findings",
+      "noFindings": "No security findings recorded",
+      "runEnforcement": "Run enforcement",
+      "running": "Running...",
+      "severity": {
+        "Low": "Low",
+        "Medium": "Medium",
+        "High": "High",
+        "Critical": "Critical"
+      },
+      "hint": "Security mode controls how the policy engine handles violations. Advisory mode logs findings without blocking. Enforce mode blocks risky actions and fails builds.",
+      "links": {
+        "securitySpec": "Security spec"
+      },
+      "badge": {
+        "advisory": "Security: Advisory",
+        "enforce": "Security: Enforce",
+        "disabled": "Security: Disabled"
+      },
+      "panel": {
+        "title": "Security",
+        "governance": "Governance",
+        "dependencies": "Dependencies",
+        "noFindings": "No security findings",
+        "findingsByCategory": "Findings by category",
+        "totalFindings": "{{count}} finding(s)"
+      }
+    },
+    "database": {
+      "title": "قاعدة البيانات",
+      "description": "مسار قاعدة البيانات وإدارتها",
+      "sectionDescription": "معلومات التخزين المحلي",
+      "location": "الموقع",
+      "locationDescription": "مسار قاعدة بيانات SQLite المحلية",
+      "size": "الحجم",
+      "hint": "جميع الإعدادات مخزنة في قاعدة بيانات SQLite محلية في ~/.shep/data. تستخدم قاعدة البيانات نمط سجل مفرد مع ترحيلات تلقائية عند البدء.",
+      "links": {
+        "settingsService": "خدمة الإعدادات",
+        "settingsSpec": "مواصفات الإعدادات"
+      }
+    },
+    "whatsapp": {
+      "title": "WhatsApp",
+      "description": "Dispatch and steer shep agents from WhatsApp. Send a message to start work, then reply in the thread to keep going.",
+      "hint": "Only numbers in the authorized list can dispatch. Baileys uses your linked WhatsApp Web account (ToS risk); the Cloud API is ban-safe but needs a Meta Business account.",
+      "enable": "Enable WhatsApp integration",
+      "enableDescription": "Connect WhatsApp so you can dispatch and steer agents from your phone.",
+      "adapter": "Adapter",
+      "adapterDescription": "Baileys links a personal/business number; the Cloud API uses the official WhatsApp Business API.",
+      "adapterBaileys": "Baileys (WhatsApp Web)",
+      "adapterCloudApi": "Cloud API (official)",
+      "allowedNumbers": "Authorized senders",
+      "allowedNumbersDescription": "Comma-separated E.164 numbers allowed to dispatch tasks.",
+      "cloudPhoneNumberId": "Cloud API phone number ID",
+      "cloudAccessToken": "Cloud API access token",
+      "cloudVerifyToken": "Webhook verify token",
+      "cloudAppSecret": "App secret",
+      "baileysHint": "Install the optional Baileys package (pnpm add @whiskeysockets/baileys), then link your number — the QR appears here once the server is running.",
+      "cloudApiHint": "Enter your Meta app credentials, then point the WhatsApp webhook at this shep instance.",
+      "statusValue": {
+        "disconnected": "Disconnected",
+        "connecting": "Connecting",
+        "awaiting-scan": "Scan QR",
+        "connected": "Connected",
+        "error": "Error"
+      }
+    },
+    "harness": {
+      "title": "Harness الوكيل",
+      "experimental": "تجريبي",
+      "description": "كيف يبني Shep Harness سياق النموذج، وعلى أي نموذج يعمل، وكيف يستأذن قبل التنفيذ",
+      "hint": "يعمل الـ harness على واجهة SDK خلفية (OpenRouter أو Together AI أو Ollama أو LLMProxy). يمكن تقييم صلة السياق بواسطة نموذج محلي مفتوح المصدر أو بواسطة Jev — أو بشكل حتمي دون أي شبكة.",
+      "mode": "وضع السياق",
+      "modeDescription": "الوضع المدرك للاستعلام يبني خطة سياق جديدة خاصة بالاستعلام لكل استدعاء للنموذج؛ أما الوضع الأساسي فيحتفظ بسجل المحادثة",
+      "backend": "الواجهة الخلفية للنموذج",
+      "backendDescription": "وكيل SDK الذي يستدعيه الـ harness؛ يُؤخذ مفتاحه من رمز الوكيل أو من متغير البيئة الخاص به",
+      "model": "نموذج الواجهة الخلفية",
+      "modelDescription": "معرّف النموذج في الواجهة الخلفية؛ اتركه فارغًا لاستخدام الافتراضي",
+      "modelPlaceholder": "افتراضي الواجهة الخلفية",
+      "budget": "وضع الميزانية",
+      "budgetDescription": "الموازنة بين التكلفة والجودة عند ملاءمة السياق لميزانية الرموز",
+      "maxTurns": "حد الأدوار",
+      "maxTurnsDescription": "عدد استدعاءات النموذج لكل مهمة قبل التوقف",
+      "modelTimeout": "مهلة استدعاء النموذج (بالثواني)",
+      "modelTimeoutDescription": "المدة المسموح بها لاستدعاء واحد للنموذج؛ زِدها للنماذج المحلية البطيئة",
+      "decisionsTitle": "مزوّد تقييم صلة السياق",
+      "decisionsDescription": "من يقيّم مدى صلة كل جزء من الحالة بالاستعلام الحالي. عند أي فشل للمزوّد يتم الرجوع إلى التقييم الحتمي.",
+      "providerKind": "المزوّد",
+      "providerKindDescription": "حتمي (دون شبكة)، أو خادم متوافق مع OpenAI، أو أداة إعادة ترتيب، أو نموذج الـ harness نفسه، أو Jev",
+      "providerEndpoint": "نقطة النهاية",
+      "providerEndpointDescription": "عنوان URL الأساسي للمزوّد",
+      "providerModel": "النموذج",
+      "providerModelDescription": "النموذج الذي يجب أن تستخدمه نقطة النهاية (اختياري)",
+      "providerKeyEnv": "متغير مفتاح API",
+      "providerKeyEnvDescription": "اسم متغير البيئة الذي يحتوي على المفتاح — وليس المفتاح نفسه أبدًا",
+      "shadowTitle": "أوضاع الظل",
+      "shadow": {
+        "contextRouter": "موجّه السياق في وضع الظل",
+        "contextRouterDescription": "التشغيل بالوضع الأساسي وتسجيل خطط السياق المدركة للاستعلام التي كانت ستُستخدم",
+        "permissions": "مخاطر الأذونات في وضع الظل",
+        "permissionsDescription": "تسجيل درجات مخاطر الأذونات من AI دون فرضها",
+        "toolRouter": "موجّه الأدوات في وضع الظل",
+        "toolRouterDescription": "تسجيل توجيه القدرات دون فرضه"
+      },
+      "permissionsTitle": "الأذونات",
+      "unknownDefault": "الإجراءات غير المعروفة",
+      "unknownDefaultDescription": "ما يحدث عندما لا تنطبق أي قاعدة على إجراء",
+      "approvalTimeout": "مهلة الموافقة (بالدقائق)",
+      "approvalTimeoutDescription": "يُرفض الطلب الذي لم تتم الإجابة عليه بعد هذه المدة"
+    },
+    "selfLearning": {
+      "title": "التعلّم الذاتي",
+      "experimental": "تجريبي",
+      "description": "يتعلّم Shep من كل تشغيل لميزة ويحسّن التعليمات والمهارات والفحوصات التي يحصل عليها وكلاؤه",
+      "hint": "يبقى التعلّم متوقفًا حتى تختار وضعًا. كل تغيير يتعلّمه Shep هو مرشّح بإصدار يمكنك مراجعته أو اعتماده أو التراجع عنه في صفحة التعلّم.",
+      "mode": "وضع التعلّم",
+      "modes": {
+        "off": "متوقف",
+        "offDescription": "لا يُتعلَّم شيء؛ تبقى إصدارات الـ harness المعتمدة سارية",
+        "reflect": "تأمّل",
+        "reflectDescription": "بعد كل تشغيل، تقترح مراجعة واحدة تغييرات على الـ harness دون محاولات إضافية",
+        "explore": "استكشاف",
+        "exploreDescription": "تجرّب خطوة التنفيذ عدة صيغ من الـ harness وتحتفظ بأفضل نتيجة"
+      },
+      "exploreTitle": "ميزانية الاستكشاف",
+      "exploreK": "قيمة k للاستكشاف",
+      "exploreKDescription": "{{rollouts}} محاولات تنفيذ لكل ميزة — نحو {{rollouts}} أضعاف تكلفة خطوة تنفيذ واحدة",
+      "exploreRecursion": "شكل البحث",
+      "exploreRecursionDescription": "المتوازي يجرّب صيغًا مستقلة؛ المتتابع يحسّن صيغة واحدة جولة بعد جولة",
+      "recursion": {
+        "parallel": "متوازٍ",
+        "sequential": "متتابع"
+      },
+      "exploreMaxCostUsd": "حدّ التكلفة (دولار)",
+      "exploreMaxCostUsdDescription": "بعد هذا الإنفاق يتوقف الاستكشاف عن بدء محاولات جديدة ويحتفظ بأفضلها حتى الآن",
+      "adoptionTitle": "الاعتماد",
+      "adoptionPolicy": "سياسة الاعتماد",
+      "adoptionPolicyDescription": "تحتاج السكربتات والخطافات دائمًا إلى شخص لاعتمادها، أيًّا كانت السياسة",
+      "policies": {
+        "manual": "اسألني في كل مرة",
+        "auto-text-only": "اعتماد التغييرات النصية المختبرة تلقائيًا",
+        "auto": "اعتماد التغييرات النصية تلقائيًا"
+      },
+      "alwaysOnCharCap": "حدّ النص الدائم",
+      "alwaysOnCharCapDescription": "أقصى عدد أحرف من النص المُتعلَّم يُضاف إلى كل موجّه",
+      "regressionMinSample": "عيّنة التراجع",
+      "regressionMinSampleDescription": "عدد التشغيلات اللازمة على إصدار قبل أن يمكن وسمه بأنه تراجع"
+    }
+  },
+  "navigation": {
+    "controlCenter": "مركز التحكم",
+    "dashboard": "لوحة المعلومات",
+    "features": "الميزات",
+    "inventory": "المخزون",
+    "repositories": "المستودعات",
+    "settings": "الإعدادات",
+    "sessions": "الجلسات",
+    "tools": "الأدوات",
+    "skills": "المهارات",
+    "applications": "التطبيقات",
+    "agentQuestions": "Agent Questions",
+    "aspm": "Security",
+    "aspmDashboard": "Dashboard",
+    "aspmFindings": "Findings",
+    "aspmInventory": "Inventory",
+    "aspmOwners": "Owners",
+    "aspmAiReview": "AI Review",
+    "aspmCompliance": "Compliance",
+    "collaboration": "Collaboration",
+    "clusters": "المجموعات",
+    "plugins": "Plugins",
+    "projectMemory": "Project Memory",
+    "learning": "التعلّم",
+    "harness": "Harness",
+    "spaces": "المساحات",
+    "trackers": "الاتصالات",
+    "opportunities": "الفرص",
+    "incidents": "الحوادث",
+    "factory": "المصنع",
+    "chat": "الدردشة",
+    "agentActivity": "نشاط الوكلاء"
+  },
+  "sidebar": {
+    "features": "الميزات",
+    "switchToLight": "الوضع الفاتح",
+    "switchToDark": "الوضع الداكن",
+    "muteSounds": "كتم الأصوات",
+    "unmuteSounds": "تشغيل الأصوات",
+    "statusActionNeeded": "إجراء مطلوب",
+    "statusInProgress": "قيد التنفيذ",
+    "statusPending": "قيد الانتظار",
+    "statusBlocked": "محظور",
+    "statusError": "خطأ",
+    "statusDone": "مكتمل"
+  },
+  "deleteFeature": {
+    "title": "حذف الميزة؟",
+    "description": "سيتم حذف <strong>{{featureName}}</strong> ({{featureId}}) نهائيًا. لا يمكن التراجع عن هذا الإجراء.",
+    "cleanupLabel": "تنظيف شجرة العمل والفروع",
+    "deleteSubFeatures": "حذف الميزات الفرعية",
+    "closePullRequest": "إغلاق طلب السحب",
+    "cancel": "إلغاء",
+    "deleting": "جارٍ الحذف…",
+    "delete": "حذف"
+  },
+  "rejectFeedback": {
+    "defaultTitle": "رفض المتطلبات",
+    "defaultDescription": "قدّم ملاحظات ليعالجها الوكيل في التكرار التالي. الملاحظات مطلوبة.",
+    "ariaLabel": "ملاحظات الرفض",
+    "placeholder": "صِف ما يحتاج إلى تغيير...",
+    "cancel": "إلغاء",
+    "rejecting": "جارٍ الرفض…",
+    "confirmReject": "تأكيد الرفض"
+  },
+  "emptyState": {
+    "addProject": "إضافة مشروع",
+    "addProjectDescription": "أضف مجلد مشروعك لفتح إمكانية إنشاء الميزات.",
+    "addProjectDescriptionLine2": "صِف ما تحتاجه — Shep يتولى الباقي.",
+    "checkingSetup": "جارٍ التحقق من الإعداد…",
+    "ready": "{{label}} جاهز",
+    "notInstalled": "{{label}} غير مثبت",
+    "reCheck": "إعادة التحقق",
+    "needsAuth": "{{label}} يحتاج إلى مصادقة",
+    "open": "فتح {{label}}",
+    "checking": "جارٍ التحقق من {{label}}…",
+    "notFound": "{{label}} غير موجود",
+    "docs": "التوثيق",
+    "opening": "جارٍ الفتح…",
+    "chooseFolder": "اختر مجلدًا",
+    "folderHint": "أي مجلد يعمل — سيتم تهيئة git تلقائيًا إذا لزم الأمر.",
+    "orUseCli": "أو استخدم CLI",
+    "copyCommands": "نسخ الأوامر",
+    "git": "Git",
+    "gitRequired": "مطلوب لجميع المراحل",
+    "githubCli": "GitHub CLI",
+    "githubCliRequired": "مطلوب لطلبات السحب",
+    "modes": {
+      "spec": {
+        "label": "قائم على المواصفات",
+        "description": "المتطلبات والبحث وخطة أولًا — توافق عليها قبل كتابة أي شيفرة.",
+        "stack": "أي تقنيات، تُختار أثناء البحث"
+      },
+      "fast": {
+        "label": "سريع",
+        "description": "ينفّذ مباشرةً من وصفك، دون مرحلة مواصفات.",
+        "stack": "أي تقنيات"
+      },
+      "application": {
+        "label": "نموذج أولي سريع",
+        "description": "نموذج أولي فوري لتطبيق ويب من قالب Vite + shadcn مع معاينة مباشرة. دون مرحلة مواصفات.",
+        "stack": "Vite + React + Tailwind + shadcn"
+      }
+    },
+    "existingFolder": {
+      "body": "يذكر وصفك {{path}}. يبدأ المشروع الجديد فارغًا ولن يطّلع على محتوى ذلك المجلد.",
+      "fallback": "لمتابعة شيفرة موجودة، افتح ذلك المجلد كمشروع بدلًا من ذلك.",
+      "action": "اعمل على هذا المجلد بدلًا من ذلك"
+    }
+  },
+  "welcome": {
+    "loadingAgents": "جارٍ تحميل الوكلاء…",
+    "chooseAgent": "اختر وكيلك",
+    "pickModel": "اختر نموذجًا",
+    "selectAgentSubtitle": "اختر وكيل البرمجة بالذكاء الاصطناعي الذي تريد أن يستخدمه Shep.",
+    "chooseModelSubtitle": "اختر نموذج {{label}} المراد تشغيله.",
+    "ghCliNotice": "<0>GitHub CLI (gh)</0> مطلوب لإمكانيات الإصلاح الذاتي الكاملة لـ CI/CD. <1>قم بتثبيته من هنا</1>.",
+    "ghCliRequired": "GitHub CLI (gh)",
+    "ghCliRequiredText": "مطلوب لإمكانيات الإصلاح الذاتي الكاملة لـ CI/CD.",
+    "installHere": "قم بتثبيته من هنا",
+    "back": "رجوع"
+  },
+  "canvas": {
+    "noFeatures": "لا توجد ميزات بعد",
+    "noFeaturesDescription": "ابدأ بإنشاء أول ميزة لك.",
+    "newFeature": "ميزة جديدة",
+    "hideArchived": "إخفاء المؤرشف",
+    "showArchived": "إظهار المؤرشف",
+    "hideArchivedLabel": "إخفاء المؤرشف",
+    "showArchivedLabel": "إظهار المؤرشف",
+    "zoomOut": "تصغير",
+    "zoomIn": "تكبير",
+    "fitView": "ملاءمة العرض",
+    "resetView": "إعادة تعيين العرض"
+  },
+  "common": {
+    "noData": "لا توجد بيانات متاحة",
+    "retry": "إعادة المحاولة",
+    "saving": "جارٍ الحفظ...",
+    "saved": "تم الحفظ",
+    "decrease": "تقليل",
+    "increase": "زيادة",
+    "cancel": "إلغاء"
+  },
+  "featureNode": {
+    "archiveFeature": "أرشفة الميزة",
+    "deleteFeature": "حذف الميزة",
+    "unarchiveFeature": "إلغاء أرشفة الميزة",
+    "archiveConfirmTitle": "أرشفة الميزة؟",
+    "archiveConfirmDescription": "<strong>{{name}}</strong> ستُخفى من اللوحة. يمكنك إلغاء أرشفتها لاحقاً.",
+    "cancel": "إلغاء",
+    "archive": "أرشفة",
+    "fastMode": "الوضع السريع",
+    "explorationMode": "Exploration Mode",
+    "specDriven": "مبني على المواصفات",
+    "copied": "تم النسخ!",
+    "chatWithAgent": "محادثة مع الوكيل",
+    "stopDevServer": "إيقاف الخادم",
+    "startDevServer": "تشغيل الخادم",
+    "retryDevServer": "إعادة تشغيل الخادم",
+    "starting": "جارٍ التشغيل…",
+    "retry": "إعادة المحاولة",
+    "start": "تشغيل",
+    "failed": "فشل",
+    "deleting": "جارٍ الحذف…",
+    "addFeature": "إضافة ميزة",
+    "reviewRequirements": "مراجعة المتطلبات",
+    "reviewTechnicalPlan": "مراجعة الخطة التقنية",
+    "reviewChanges": "مراجعة التغييرات",
+    "review": "مراجعة",
+    "creating": "جارٍ الإنشاء...",
+    "completedIn": "اكتمل في {{runtime}}",
+    "completed": "مكتمل",
+    "waitingOn": "بانتظار {{blockedBy}}",
+    "blocked": "محظور",
+    "pending": "قيد الانتظار",
+    "somethingWentWrong": "حدث خطأ ما",
+    "openChat": "فتح المحادثة",
+    "viewSessions": "عرض الجلسات",
+    "sessionsActive": "الجلسات (نشطة)",
+    "sessions": "الجلسات",
+    "agentSessions": "جلسات الوكيل",
+    "noSessionsFound": "لم يتم العثور على جلسات",
+    "showLess": "عرض أقل",
+    "showMore": "عرض {{count}} إضافية"
+  },
+  "applicationNode": {
+    "newFeature": "ميزة جديدة"
+  },
+  "repositoryNode": {
+    "removeRepository": "إزالة المستودع",
+    "removeFailed": "فشل إزالة المستودع",
+    "removeConfirmTitle": "إزالة المستودع؟",
+    "removeConfirmDescription": "سيؤدي هذا إلى إزالة <strong>{{name}}</strong> وجميع ميزاته من مساحة العمل.",
+    "removeConfirmDescriptionKeepFiles": "لن تتأثر ملفات المستودع على القرص.",
+    "removeConfirmDescriptionDeleteFiles": "سيتم حذف مجلد المستودع من القرص نهائيًا. لا يمكن التراجع عن هذا الإجراء.",
+    "deleteFromDiskLabel": "حذف مجلد المستودع من القرص أيضًا",
+    "cancel": "إلغاء",
+    "remove": "إزالة",
+    "openInIde": "فتح في IDE",
+    "openInShell": "فتح في الطرفية",
+    "openFolder": "فتح المجلد",
+    "openRepository": "فتح المستودع",
+    "webhookEnable": "تمكين الويب هوك",
+    "webhookDisable": "تعطيل الويب هوك",
+    "webhookUnavailable": "الويب هوك غير متاح — النفق غير مشغّل",
+    "chatWithAgent": "محادثة مع الوكيل",
+    "newFeature": "ميزة جديدة",
+    "new": "جديد",
+    "behind": "{{count}} متأخر",
+    "notAGitRepository": "ليس مستودع git",
+    "starting": "جارٍ التشغيل...",
+    "run": "تشغيل",
+    "startLocalEnvironment": "تشغيل البيئة المحلية",
+    "stopDevServer": "إيقاف الخادم",
+    "startDevServer": "تشغيل الخادم",
+    "retry": "إعادة المحاولة"
+  },
+  "fab": {
+    "closeActions": "إغلاق الإجراءات",
+    "createNew": "إنشاء جديد",
+    "newFeature": "ميزة جديدة",
+    "localFolder": "مجلد محلي",
+    "folderOfRepos": "مجلد مستودعات",
+    "adoptBranch": "تبني فرع",
+    "fromGithub": "من GitHub",
+    "newApplication": "ابدأ من وصف",
+    "newSddFeature": "ميزة SDD جديدة",
+    "newSddForApp": "ميزة SDD جديدة لـ {{appName}}",
+    "openInControlCenterSdd": "فتح في مركز التحكم (وضع SDD)",
+    "addFeature": "إضافة ميزة"
+  },
+  "chat": {
+    "shepChat": "محادثة Shep",
+    "writeMessage": "اكتب رسالة...",
+    "attachFiles": "إرفاق ملفات",
+    "forceStopAgent": "إيقاف الوكيل إجبارياً",
+    "stop": "إيقاف",
+    "clearChatHistory": "مسح سجل المحادثة",
+    "clear": "مسح",
+    "noSession": "لا توجد جلسة",
+    "yourMessage": "رسالتك",
+    "agentMessage": "رسالة الوكيل",
+    "agentIsTyping": "الوكيل يكتب",
+    "showMore": "عرض المزيد",
+    "showLess": "عرض أقل",
+    "code": "الكود",
+    "preview": "معاينة",
+    "openFullscreen": "فتح ملء الشاشة",
+    "htmlPreview": "معاينة HTML",
+    "htmlPreviewFullscreen": "معاينة HTML ملء الشاشة"
+  },
+  "createDrawer": {
+    "title": "ميزة جديدة",
+    "creating": "جارٍ الإنشاء...",
+    "cancel": "إلغاء",
+    "createFeature": "+ إنشاء ميزة",
+    "repository": "المستودع",
+    "describeFeature": "صِف ميزتك",
+    "featurePlaceholder": "مثال: إضافة تسجيل الدخول عبر GitHub OAuth مع معالجة الاستدعاء وتجديد الرمز...",
+    "parentFeature": "الميزة الأصلية",
+    "selectParent": "اختر الميزة الأصلية...",
+    "searchFeatures": "البحث عن ميزات...",
+    "noParent": "بدون أصل",
+    "noFeaturesFound": "لم يتم العثور على ميزات.",
+    "searchRepositories": "البحث عن مستودعات...",
+    "approve": "الموافقة",
+    "approveDescription": "الموافقة التلقائية على انتقالات المراحل بدون مراجعة يدوية.",
+    "skippedInFastMode": "تم التخطي في الوضع السريع",
+    "all": "الكل",
+    "toggleAllApprovalGates": "تبديل جميع بوابات الموافقة",
+    "evidence": "الأدلة",
+    "evidenceDescription": "جمع وإرفاق الأدلة بعد التنفيذ.",
+    "collect": "جمع",
+    "collectDescription": "التقاط لقطات الشاشة والمخرجات بعد التنفيذ.",
+    "addToPr": "إضافة إلى PR",
+    "requiresPr": "يتطلب تفعيل PR",
+    "requiresEvidence": "يتطلب تفعيل جمع الأدلة",
+    "addToPrDescription": "تضمين الأدلة في نص طلب السحب.",
+    "git": "GIT",
+    "push": "دفع",
+    "pushDescription": "دفع الفرع إلى الخادم البعيد بعد التنفيذ.",
+    "pr": "PR",
+    "prDescription": "فتح طلب سحب بعد الدفع.",
+    "watch": "مراقبة",
+    "watchDescription": "مراقبة CI وإصلاح الأخطاء تلقائياً.",
+    "sync": "Sync",
+    "syncDescription": "Pull latest main from remote before creating the feature branch.",
+    "commitSpecs": "حفظ المواصفات",
+    "commitSpecsDescription": "حفظ المواصفات في المستودع.",
+    "forkAndPr": "Fork و PR",
+    "forkAndPrDescription": "المساهمة عبر fork (PR إلى upstream).",
+    "pendingMode": "قيد الانتظار",
+    "pendingModeDescription": "إنشاء بدون تشغيل — التشغيل يدوياً لاحقاً.",
+    "fastModeLabel": "الوضع السريع",
+    "fastModeDescription": "تخطي مراحل SDLC والتنفيذ مباشرة من الأمر.",
+    "modeGroupLabel": "وضع البناء",
+    "modeApplication": "تطبيق",
+    "modeApplicationDescription": "سير عمل تطبيق كامل مع البحث والتخطيط والتنفيذ.",
+    "modeFast": "سريع",
+    "modeFastDescription": "تخطي مراحل SDLC والتنفيذ مباشرة من الأمر.",
+    "modeSpec": "مواصفات",
+    "modeSpecDescription": "سير عمل قائم على المواصفات مع خطوات PRD وخطة صريحة.",
+    "lockedByApplication": "مقفل بسياق التطبيق — افتح من نقطة دخول أخرى للتغيير.",
+    "fileDropZone": "منطقة إسقاط الملفات",
+    "prd": "PRD",
+    "prdDescription": "الموافقة التلقائية على انتقال المتطلبات إلى التخطيط.",
+    "plan": "خطة",
+    "planDescription": "الموافقة التلقائية على انتقال التخطيط إلى التنفيذ.",
+    "merge": "دمج",
+    "mergeDescription": "الموافقة التلقائية على انتقال الدمج إلى مكتمل.",
+    "skills": "SKILLS",
+    "skillsDescription": "Curated skills to guide the agent during feature development.",
+    "injectSkills": "Inject",
+    "injectSkillsDescription": "Include curated skills in the feature worktree.",
+    "explore": {
+      "label": "التعلّم",
+      "toggle": "استكشاف صيغ الـ harness",
+      "k": "ميزانية الاستكشاف k",
+      "cost": "{{attempts}} محاولات تنفيذ — نحو {{attempts}} أضعاف تكلفة التنفيذ"
+    },
+    "effort": "الجهد",
+    "effortFromSettings": "من الإعدادات"
+  },
+  "featureDrawer": {
+    "copyFeatureId": "نسخ معرف الميزة",
+    "unarchiveFeature": "إلغاء أرشفة الميزة",
+    "archiveFeature": "أرشفة الميزة",
+    "deleteFeature": "حذف الميزة",
+    "stopDevServer": "إيقاف الخادم",
+    "startDevServer": "تشغيل الخادم",
+    "failedToReject": "فشل رفض {{label}}",
+    "rejected": "تم رفض {{label}} — الوكيل يعيد المحاولة (التكرار {{n}})",
+    "excessiveIterations": "التكرار {{n}} — فكر في الموافقة أو تعديل الملاحظات",
+    "failedToApprove": "فشل الموافقة على {{label}}",
+    "approved": "تمت الموافقة على {{label}} — الوكيل يستأنف",
+    "failedToApproveRequirements": "فشل الموافقة على المتطلبات",
+    "requirementsApproved": "تمت الموافقة على المتطلبات — الوكيل يستأنف",
+    "featureResumed": "تم استئناف الميزة — الوكيل يعيد التشغيل",
+    "featureStarted": "تم بدء الميزة",
+    "approvePlan": "الموافقة على الخطة",
+    "sendRevisionFeedback": "إرسال ملاحظات المراجعة"
+  },
+  "coordinationNote": {
+    "waitsFor": "ينتظر {{peer}}",
+    "runsAlongside": "يعمل بالتوازي مع {{peer}}",
+    "anotherFeature": "ميزة أخرى",
+    "sharedFiles": "ملفات مشتركة ({{count}})",
+    "decidedBy": "قرّره وكيل التنسيق · {{when}}",
+    "title": "تنسيق الوكلاء"
+  },
+  "overviewTab": {
+    "created": "تم الإنشاء",
+    "runtime": "وقت التنفيذ",
+    "runningFor": "قيد التشغيل منذ",
+    "blockedBy": "محظور بواسطة",
+    "error": "خطأ",
+    "prd": "PRD",
+    "plan": "خطة",
+    "merge": "دمج",
+    "collect": "جمع",
+    "addToPr": "إضافة إلى PR",
+    "push": "دفع",
+    "pr": "PR",
+    "watch": "مراقبة",
+    "commitSpecs": "حفظ المواصفات",
+    "forkAndPr": "Fork و PR",
+    "effortValue": "الجهد: {{level}}"
+  },
+  "activityTab": {
+    "copyPromptToClipboard": "نسخ الأمر إلى الحافظة",
+    "execution": "التنفيذ",
+    "wait": "الانتظار",
+    "cost": "التكلفة",
+    "modelUsed": "شُغّل على {{model}}",
+    "noActivityRecorded": "لم يتم تسجيل أي نشاط بعد",
+    "decisions": {
+      "title": "القرارات",
+      "pending": "بانتظار إجابة",
+      "answered": "أجاب {{actor}}: {{answer}}",
+      "defaulted": "لا إجابة قبل المهلة — تمت المتابعة بالخيار الموصى به: {{answer}}",
+      "cancelled": "أُلغي دون إجابة"
+    }
+  },
+  "logTab": {
+    "structuredView": "عرض منظم",
+    "rawView": "عرض خام",
+    "noLogOutput": "لا يوجد ناتج سجل بعد"
+  },
+  "planTab": {
+    "noPlanCreated": "لم يتم إنشاء خطة بعد"
+  },
+  "branchSyncStatus": {
+    "refreshSyncStatus": "تحديث حالة المزامنة",
+    "rebaseOnMain": "Rebase على Main"
+  },
+  "drawerActionBar": {
+    "fileDropZone": "منطقة إسقاط الملفات",
+    "askAiToRevise": "اطلب من الذكاء الاصطناعي المراجعة...",
+    "attachFiles": "إرفاق ملفات",
+    "reject": "رفض",
+    "sendRevisionFeedback": "إرسال ملاحظات المراجعة",
+    "approve": "موافقة",
+    "fileTooLarge": "\"{{name}}\" يتجاوز حد 10 ميجابايت",
+    "fileTypeNotAllowed": "نوع الملف \"{{ext}}\" غير مسموح",
+    "uploadFailed": "فشل الرفع"
+  },
+  "taskProgress": {
+    "done": "مكتمل",
+    "inProgress": "قيد التنفيذ",
+    "review": "قيد المراجعة",
+    "todo": "للتنفيذ",
+    "noTasksDefined": "لم يتم تحديد مهام بعد"
+  },
+  "repositoryDrawer": {
+    "openInIde": "فتح في IDE",
+    "openInShell": "فتح في الطرفية",
+    "openFolder": "فتح المجلد",
+    "syncMain": "مزامنة Main"
+  },
+  "adoptBranch": {
+    "failedToAdopt": "فشل تبني الفرع",
+    "repository": "المستودع",
+    "branchName": "اسم الفرع",
+    "searchRepositories": "البحث عن مستودعات...",
+    "searchBranches": "البحث عن فروع..."
+  },
+  "githubImport": {
+    "title": "استيراد من GitHub",
+    "description": "استنساخ مستودع GitHub وإضافته إلى Shep.",
+    "githubUrl": "رابط GitHub",
+    "urlPlaceholder": "owner/repo أو https://github.com/owner/repo",
+    "searchRepositories": "البحث عن مستودعات..."
+  },
+  "versionBadge": {
+    "version": "الإصدار",
+    "branch": "الفرع",
+    "commit": "الالتزام",
+    "path": "المسار"
+  },
+  "mergeReview": {
+    "download": "تنزيل",
+    "dataUnavailable": "بيانات مراجعة الدمج غير متاحة"
+  },
+  "baseDrawer": {
+    "close": "إغلاق",
+    "stopDevServer": "إيقاف الخادم",
+    "startDevServer": "تشغيل الخادم"
+  },
+  "addRepository": {
+    "addRepository": "إضافة مستودع"
+  },
+  "modelPicker": {
+    "searchPlaceholder": "البحث أو كتابة معرف النموذج…"
+  },
+  "effortSelect": {
+    "agentDefault": "الافتراضي للوكيل",
+    "levels": {
+      "low": "منخفض",
+      "medium": "متوسط",
+      "high": "مرتفع",
+      "xhigh": "مرتفع جدًا",
+      "max": "أقصى"
+    }
+  },
+  "skills": {
+    "searchPlaceholder": "البحث عن مهارات..."
+  },
+  "tools": {
+    "noCategoryTools": "لا توجد أدوات في هذه الفئة."
+  },
+  "accessibility": {
+    "close": "إغلاق",
+    "loading": "جارٍ التحميل",
+    "send": "إرسال",
+    "imageNotes": "ملاحظات الصورة",
+    "viewServerLogs": "عرض سجلات الخادم",
+    "toggleSidebar": "تبديل الشريط الجانبي"
+  },
+  "agentEditor": {
+    "prompts": "المطالبات",
+    "graph": "الرسم البياني",
+    "playground": "ساحة التجربة",
+    "usePrompt": "استخدم المطالبة:",
+    "noAgentsRegistered": "لا توجد وكلاء مسجلون",
+    "emptyRegistryPrefix": "سجل المطالبات المدمج فارغ - سجّل الخانات في",
+    "emptyRegistrySuffix": "لعرض الوكلاء في هذا المحرر.",
+    "custom": "مخصص",
+    "promptCount_one": "{{count}} مطالبة",
+    "promptCount_other": "{{count}} مطالبات",
+    "overrideCount_one": "{{count}} تجاوز",
+    "overrideCount_other": "{{count}} تجاوزات",
+    "noGraphDescriptor": "لم يتم تسجيل واصف رسم بياني لهذا الوكيل بعد.",
+    "overridden": "تم تجاوزه",
+    "bundled": "مدمج",
+    "addNode": "إضافة عقدة",
+    "resetToBundled": "إعادة التعيين إلى المدمج",
+    "cancel": "إلغاء",
+    "edit": "تحرير",
+    "saveGraph": "حفظ الرسم البياني",
+    "saving": "جارٍ الحفظ...",
+    "savedAt": "تم الحفظ في {{time}}",
+    "newStep": "خطوة جديدة",
+    "failedToSaveGraph": "فشل حفظ الرسم البياني",
+    "failedToResetGraph": "فشلت إعادة تعيين الرسم البياني",
+    "nodeLabelPlaceholder": "تسمية",
+    "nodeDescriptionPlaceholder": "وصف",
+    "nodeLabelAria": "تسمية العقدة {{id}}",
+    "nodeDescriptionAria": "وصف العقدة {{id}}",
+    "deleteNodeAria": "حذف العقدة {{id}}",
+    "graphMustHaveNode": "يجب أن يحتوي الرسم البياني على عقدة واحدة على الأقل.",
+    "nodeMustHaveLabel": "يجب أن تحتوي العقدة {{id}} على تسمية.",
+    "duplicateNodeId": "معرّف عقدة مكرر: {{id}}",
+    "edgeUnknownSource": "يشير الحرف إلى مصدر غير معروف: {{id}}",
+    "edgeUnknownTarget": "يشير الحرف إلى هدف غير معروف: {{id}}",
+    "createCustomAgent": "إنشاء وكيل مخصص",
+    "createCustomAgentDescription": "أنشئ نوع وكيل جديدًا له خانات مطالبات خاصة ورسم بياني قابل للتحرير. تبقى الوكلاء المدمجون كما هم.",
+    "stableTypeId": "معرّف نوع ثابت",
+    "stableTypeIdPlaceholder": "مثال: code-review",
+    "stableTypeIdHelpPrefix": "kebab-case، يبدأ بحرف، 64 حرفًا كحد أقصى (يطابق",
+    "stableTypeIdHelpSuffix": ")",
+    "displayName": "اسم العرض",
+    "displayNamePlaceholder": "مثال: وكيل مراجعة الكود",
+    "description": "الوصف",
+    "descriptionPlaceholder": "ماذا يفعل هذا الوكيل؟",
+    "seedFirstPrompt": "إنشاء أول مطالبة (اختياري)",
+    "promptSlotId": "معرّف خانة المطالبة",
+    "promptSlotIdPlaceholder": "مثال: system, plan.system",
+    "promptBody": "نص المطالبة",
+    "promptBodyPlaceholder": "مطالبة النظام التي سيعمل بها الوكيل...",
+    "failedToCreateAgent": "فشل إنشاء الوكيل",
+    "newAgent": "وكيل جديد",
+    "creating": "جارٍ الإنشاء...",
+    "createAgent": "إنشاء الوكيل",
+    "promptCount_few": "{{count}} مطالبات",
+    "promptCount_many": "{{count}} مطالبة",
+    "overrideCount_few": "{{count}} تجاوزات",
+    "overrideCount_many": "{{count}} تجاوزًا"
+  },
+  "cluster": {
+    "status": {
+      "provisioning": "جارٍ التوفير",
+      "ready": "جاهز",
+      "stopping": "جارٍ الإيقاف",
+      "stopped": "متوقف",
+      "error": "خطأ",
+      "destroying": "جارٍ التدمير"
+    },
+    "createTitle": "Create cluster",
+    "createDescription": "Spin up a local k3s Kubernetes cluster in Docker.",
+    "createAndProvision": "Create & provision",
+    "creating": "Creating…",
+    "nameLabel": "Name",
+    "namePlaceholder": "my-cluster",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "What is this cluster for?",
+    "argoCdLabel": "Install ArgoCD",
+    "argoCdDescription": "Bootstrap GitOps with ArgoCD after the cluster is ready.",
+    "provision": "Provision",
+    "destroy": "Destroy",
+    "remove": "Remove",
+    "cancel": "Cancel",
+    "removeCluster": "Remove cluster",
+    "removeConfirmTitle": "Remove this cluster?",
+    "removeConfirmDescription": "Cluster \"{{name}}\" will be removed from Shep. If it is running it will be destroyed first.",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "fieldStatus": "Status",
+    "fieldKubeconfig": "Kubeconfig",
+    "fieldArgoCd": "ArgoCD",
+    "fieldArgoCdNamespace": "ArgoCD namespace",
+    "fieldLastProvisioned": "Last provisioned",
+    "fieldLastHealthCheck": "Last health check",
+    "fieldError": "Error",
+    "tabOverview": "Overview",
+    "tabRepositories": "Repositories",
+    "tabApplications": "Applications",
+    "tabStatus": "Live status",
+    "noLinkedRepos": "No repositories linked yet.",
+    "noLinkedApps": "No applications linked yet.",
+    "statusLive": "Live cluster status updates here once the cluster is ready.",
+    "statusNotAvailable": "Live status is only available when the cluster is Ready.",
+    "linkedRepos_one": "{{count}} repo",
+    "linkedRepos_other": "{{count}} repos",
+    "linkedApps_one": "{{count}} app",
+    "linkedApps_other": "{{count}} apps"
+  },
+  "memory": {
+    "title": "Project Memory",
+    "subtitle": "Durable knowledge agents read at the start of every feature. Updated automatically after each merged PR.",
+    "empty": {
+      "title": "No project memory yet",
+      "description": "As features merge, agents distil conventions, library choices, and fixes here."
+    },
+    "categories": {
+      "convention": "Conventions",
+      "architectureDecision": "Architecture Decisions",
+      "library": "Preferred Libraries & Tools",
+      "namingPattern": "Naming Patterns",
+      "ciFixResolution": "Past CI/Build Fixes"
+    },
+    "actions": {
+      "edit": "Edit",
+      "delete": "Delete",
+      "save": "Save",
+      "cancel": "Cancel",
+      "scope": "تغيير من يرى هذا"
+    },
+    "deleteDialog": {
+      "title": "Delete this memory entry?",
+      "description": "Agents will no longer see this guidance when starting a feature. This cannot be undone."
+    },
+    "errors": {
+      "emptyContent": "Memory content cannot be empty.",
+      "updateFailed": "Failed to update the memory entry.",
+      "scopeFailed": "تعذر تغيير من يرى هذا الإدخال."
+    },
+    "scope": {
+      "project": "هذا المستودع فقط",
+      "productLine": "خط المنتج الخاص به",
+      "space": "المساحة بأكملها",
+      "menuLabel": "مشترك مع"
+    },
+    "filter": {
+      "label": "التصفية حسب المساحة",
+      "allSpaces": "كل المساحات"
+    }
+  },
+  "sessionTree": {
+    "title": "الجلسات",
+    "loading": "جارٍ تحميل الجلسات…",
+    "empty": "لا توجد مستودعات متتبعة بعد",
+    "noSessions": "لا جلسات",
+    "notConverted": "غير محوّلة",
+    "showArchived": "إظهار المؤرشفة",
+    "hideArchived": "إخفاء المؤرشفة",
+    "refresh": "تحديث",
+    "collapseAll": "طي الكل",
+    "expandAll": "توسيع الكل",
+    "collapsePanel": "طي اللوحة",
+    "expandPanel": "توسيع اللوحة",
+    "sessionActions": "إجراءات الجلسة",
+    "repositoryActions": "إجراءات المستودع",
+    "archive": "أرشفة",
+    "unarchive": "استعادة",
+    "delete": "حذف النص…",
+    "deleteConfirmTitle": "حذف هذا النص؟",
+    "deleteConfirmDescription": "سيؤدي هذا إلى إزالة ملف المحادثة نهائيًا من القرص. لا يمكن التراجع، وshep لا يملك هذا الملف.",
+    "deleteConfirm": "حذف نهائي",
+    "deleteAdoptedNote": "لن يتم حذف الميزة المستمدة من هذه الجلسة.",
+    "cancel": "إلغاء",
+    "archivedHidden": "{{count}} مؤرشفة مخفية"
+  },
+  "runPlan": {
+    "title": "خطة التشغيل",
+    "description": "ما الذي يعمل عند تشغيل خادم التطوير",
+    "show": "إظهار خطة التشغيل",
+    "hide": "إخفاء خطة التشغيل",
+    "loading": "جارٍ تحميل خطة التشغيل…",
+    "empty": "لا توجد خطة تشغيل بعد — شغّل خادم التطوير مرة واحدة وستظهر الخطة المحدَّدة هنا.",
+    "fields": {
+      "command": "الأمر",
+      "cwd": "مجلد العمل",
+      "language": "اللغة",
+      "framework": "إطار العمل",
+      "expectedPort": "المنفذ المتوقع",
+      "packageManager": "مدير الحزم",
+      "setupCommands": "أوامر التهيئة"
+    },
+    "source": {
+      "label": "المصدر",
+      "deterministic": "مُكتشَف",
+      "agent": "بتحليل الذكاء الاصطناعي",
+      "manual": "مثبَّت"
+    },
+    "staleHint": "تغيّرت ملفات إعداد المستودع منذ إنشاء هذه الخطة. أعد التحليل لاعتماد التغيير، أو أبقِها كما هي.",
+    "repoConfigControlled": "يتحكم في هذا المستودع ملف .shep/dev.json مُودَع في المستودع. تتم قراءته عند كل تشغيل وله الأولوية على أي خطة مخزَّنة — عدّل ذلك الملف لتغيير ما يعمل.",
+    "actions": {
+      "edit": "تعديل",
+      "reanalyze": "إعادة التحليل",
+      "reanalyzing": "جارٍ إعادة التحليل…",
+      "save": "حفظ",
+      "saving": "جارٍ الحفظ…",
+      "cancel": "إلغاء"
+    },
+    "editor": {
+      "title": "تعديل خطة التشغيل",
+      "executionNotice": "سيتم تنفيذ هذا الأمر على جهازك.",
+      "commandPlaceholder": "pnpm dev",
+      "cwdPlaceholder": "جذر المستودع",
+      "cwdHelp": "مسار مطلق، أو نسبي إلى جذر المستودع.",
+      "expectedPortPlaceholder": "يُكتشف تلقائيًا",
+      "setupCommandsLabel": "أوامر التهيئة",
+      "setupCommandsHelp": "أمر واحد في كل سطر، تُنفَّذ قبل بدء خادم التطوير."
+    },
+    "errors": {
+      "loadFailed": "تعذّر تحميل خطة التشغيل.",
+      "saveFailed": "تعذّر حفظ خطة التشغيل.",
+      "reanalyzeFailed": "تعذّر إعادة تعيين خطة التشغيل."
+    }
+  },
+  "features": {
+    "queued": "في قائمة الانتظار",
+    "queuedWithPosition": "في الانتظار · {{position}} قبلها",
+    "queuedTooltip": "بانتظار مكان شاغر ({{position}} في الطابور)",
+    "startAnyway": "ابدأ على أي حال"
+  },
+  "harness": {
+    "title": "Harness الوكيل",
+    "subtitle": "المهام المستقلة، وما رآه النموذج في كل دور، والإجراءات التي تنتظر موافقتك",
+    "loading": "جارٍ التحميل…",
+    "noTasks": "لا توجد مهام بعد.",
+    "taskN": "المهمة {{n}}",
+    "turn": "الدور {{n}}",
+    "tabs": {
+      "sessions": "الجلسات",
+      "newTask": "مهمة جديدة",
+      "approvals": "الموافقات",
+      "catalog": "الأدوات والسياسات",
+      "setup": "إعداد مستودع",
+      "evals": "التقييمات"
+    },
+    "mode": {
+      "query_aware": "مدرك للاستعلام",
+      "baseline": "أساسي"
+    },
+    "budget": {
+      "economy": "اقتصادي",
+      "balanced": "متوازن",
+      "quality": "الجودة"
+    },
+    "effect": {
+      "allow": "سماح",
+      "ask": "سؤال",
+      "deny": "رفض"
+    },
+    "origin": {
+      "feature": "ميزة",
+      "standalone": "مستقلة",
+      "eval": "تقييم"
+    },
+    "sessionStatus": {
+      "active": "قيد التشغيل",
+      "idle": "خاملة",
+      "completed": "مكتملة",
+      "failed": "فشلت",
+      "discarded": "مُهملة"
+    },
+    "visibility": {
+      "hidden": "مخفي",
+      "short": "قصير",
+      "long": "طويل",
+      "full": "كامل"
+    },
+    "source": {
+      "deterministic": "حتمي",
+      "ai": "AI",
+      "policy": "سياسة",
+      "degraded": "متدهور",
+      "escalation": "بطلب من الوكيل",
+      "user": "أنت",
+      "budget": "الميزانية"
+    },
+    "providerKind": {
+      "deterministic": "حتمي",
+      "openai_compatible": "خادم متوافق مع OpenAI",
+      "reranker": "أداة إعادة الترتيب",
+      "structured_llm": "نموذج الـ harness",
+      "jev": "Jev"
+    },
+    "sessions": {
+      "empty": "لا توجد جلسات harness بعد. ابدأ واحدة من مهمة جديدة.",
+      "title": "الجلسة",
+      "origin": "المصدر",
+      "mode": "الوضع",
+      "status": "الحالة",
+      "tasks": "المهام",
+      "pending": "{{count}} قيد الانتظار"
+    },
+    "newTask": {
+      "repository": "المستودع",
+      "task": "المهمة",
+      "taskPlaceholder": "إصلاح التحقق من انتهاء صلاحية رمز التحديث",
+      "worktreeNote": "تعمل في شجرة عمل خاصة بها — لا يتم المساس بنسختك المحلية أبدًا. بعد ذلك يمكنك تطبيقها على فرع أو ترقيتها إلى ميزة أو إهمالها.",
+      "run": "تشغيل المهمة"
+    },
+    "approvals": {
+      "empty": "لا شيء ينتظر الموافقة."
+    },
+    "permission": {
+      "reason": "سبب الوكيل:",
+      "willDo": "سيقوم هذا الإجراء بما يلي:",
+      "noEffects": "(لا توجد تأثيرات متوقعة)",
+      "rules": "القواعد:",
+      "notePlaceholder": "ملاحظة للوكيل (اختياري)، مثلاً: استخدم jose بدلاً من ذلك",
+      "allowOnce": "السماح مرة واحدة",
+      "allowPhase": "السماح لهذه المرحلة",
+      "allowFeature": "السماح لهذه الميزة",
+      "allowSession": "السماح لهذه الجلسة",
+      "deny": "رفض",
+      "hardDeny": "مرفوض بقاعدة صارمة؛ لا يمكن الموافقة عليه."
+    },
+    "banner": {
+      "waiting": "{{count}} إجراء(ات) harness بانتظار موافقتك",
+      "review": "مراجعة"
+    },
+    "context": {
+      "empty": "لم تُشغَّل هذه الميزة على Shep Harness بعد."
+    },
+    "usage": {
+      "turns": "الأدوار",
+      "input": "رموز الإدخال",
+      "output": "رموز الإخراج",
+      "cost": "التكلفة",
+      "toolOutputSeen": "مخرجات الأدوات المعروضة",
+      "denied": "الإجراءات المرفوضة"
+    },
+    "plan": {
+      "summary": "{{tokens}} من {{budget}} رمز · {{count}} مرشح",
+      "shadow": "ظل",
+      "degraded": "متدهور",
+      "overBudget": "تجاوز الميزانية",
+      "none": "اختر دورًا لرؤية ما رآه النموذج.",
+      "chunk": "الجزء",
+      "visibility": "الظهور",
+      "tokens": "الرموز المعروضة/الخام",
+      "relevance": "الصلة",
+      "reason": "السبب",
+      "view": "عرض",
+      "why": "لماذا؟"
+    },
+    "chunk": {
+      "redacted": "هذا الجزء مُعلَّم كسري ولا يُعرض أبدًا.",
+      "truncated": "مقتطع",
+      "storedNote": "معروض من المخرجات المخزنة؛ لم تتم إعادة تشغيل أي شيء"
+    },
+    "why": {
+      "title": "لماذا هذا المستوى من الظهور؟",
+      "tokens": "عُرض {{visible}} من {{raw}} رمز",
+      "relevance": "الصلة {{score}}",
+      "bands": "مخفي < {{hide}} ≤ قصير < {{long}} ≤ طويل < {{full}} ≤ كامل",
+      "noProbabilities": "لا توجد احتمالات للفئات: هذا المزوّد لا يُرجعها.",
+      "provider": "قرّره {{provider}} في {{latency}} مللي ثانية · {{cost}}",
+      "shadow": "ظل",
+      "degraded": "متدهور",
+      "include": "تضمين بدءًا من الدور التالي",
+      "included": "مُضمَّن بدءًا من الدور التالي"
+    },
+    "actions": {
+      "stop": "إيقاف",
+      "stopRequested": "تم طلب الإيقاف؛ ستتوقف المهمة قبل دورها التالي",
+      "stoppedOrphan": "تم الإيقاف: انتهت العملية التي كانت تشغّل المهمة، لذا أُلغيت",
+      "branchPlaceholder": "الفرع (اختياري)",
+      "apply": "تطبيق على الفرع",
+      "applied": "تم إيداع {{count}} ملف(ات) في {{branch}}",
+      "promote": "ترقية إلى ميزة",
+      "discard": "إهمال",
+      "discarded": "تمت إزالة شجرة العمل؛ تم الاحتفاظ بالجلسة"
+    },
+    "capabilities": {
+      "title": "الأدوات التي يمكن للوكيل تحميلها",
+      "description": "تُعرض مقتطفات المستوى 1 دائمًا؛ ولا تُحمَّل مخططات المستوى 2 إلا عندما يطلب الوكيل قدرة ما.",
+      "cost": "{{snippet}} / {{schema}} رمز"
+    },
+    "policies": {
+      "title": "قواعد الأذونات",
+      "description": "الإعدادات الافتراضية لـ Shep إضافةً إلى .shep/harness/policies/*.yaml. الأولوية: deny > ask > allow.",
+      "hard": "صارمة"
+    },
+    "setup": {
+      "description": "يكتشف ملفات التعليمات وأوامر الاختبار والتدقيق والملفات الحساسة، ويعرض معاينة لـ .shep/harness/، ولا يكتب إلا بعد تأكيدك. لا يتم تعديل الملفات المصدرية أبدًا.",
+      "preview": "معاينة",
+      "instructions": "التعليمات",
+      "manifests": "ملفات البيان",
+      "commands": "الاختبار / التدقيق",
+      "sensitive": "الملفات الحساسة",
+      "exists": "موجود، تم الاحتفاظ به",
+      "confirm": "كتابة الملفات",
+      "written": "تمت كتابة {{count}} ملف(ات)"
+    },
+    "evals": {
+      "description": "شغّل المهام نفسها في وضعي baseline وquery-aware، كلٌّ في مستودع مؤقت، وقارن النجاح والرموز والتكلفة والجولات وتغطية الأدلة.",
+      "repeats": "التكرارات",
+      "run": "تشغيل التقييم",
+      "empty": "لا توجد عمليات تقييم بعد.",
+      "score": "المقياس",
+      "change": "التغيّر",
+      "status": {
+        "pending": "قيد الانتظار",
+        "running": "قيد التشغيل",
+        "completed": "مكتمل",
+        "failed": "فشل"
+      },
+      "scores": {
+        "success": "النجاح",
+        "inputTokens": "رموز الإدخال",
+        "outputTokens": "رموز الإخراج",
+        "costUsd": "التكلفة",
+        "turns": "الجولات",
+        "wallMs": "المدة",
+        "repeatedReads": "قراءات مكررة",
+        "toolOutputRatio": "مخرجات الأدوات المعروضة",
+        "evidenceRecall": "تغطية الأدلة"
+      }
+    }
+  },
+  "spaces": {
+    "title": "المساحات",
+    "subtitle": "افصل بين مجالات العمل. الذاكرة المشتركة داخل مساحة لا تصل أبدًا إلى أخرى.",
+    "create": {
+      "title": "مساحة جديدة",
+      "name": "الاسم",
+      "namePlaceholder": "Acme",
+      "description": "الوصف",
+      "descriptionPlaceholder": "عمل للعميل Acme Corp",
+      "color": "اللون",
+      "submit": "إنشاء مساحة"
+    },
+    "card": {
+      "default": "افتراضي",
+      "makeDefault": "تعيين كافتراضي",
+      "delete": "حذف المساحة",
+      "counts": "المستودعات: {{repositories}} · إدخالات الذاكرة: {{memory}}",
+      "edit": "تعديل المساحة",
+      "save": "حفظ"
+    },
+    "lines": {
+      "title": "خطوط المنتجات",
+      "empty": "لا توجد خطوط منتجات بعد.",
+      "placeholder": "خط منتج جديد",
+      "add": "إضافة",
+      "remove": "إزالة {{name}}"
+    },
+    "rules": {
+      "title": "القواعد",
+      "empty": "لا توجد قواعد. تصل المستودعات إلى هنا فقط عند تثبيتها.",
+      "placeholder": "‎/work/acme أو github.com/acme/*",
+      "line": "خط المنتج للمستودعات المطابقة",
+      "noLine": "بلا خط منتج",
+      "add": "إضافة قاعدة",
+      "remove": "إزالة القاعدة"
+    },
+    "repositories": {
+      "title": "المستودعات",
+      "empty": "لا توجد مستودعات بعد. أضف واحدًا من مركز التحكم.",
+      "repository": "المستودع",
+      "space": "المساحة",
+      "line": "خط المنتج",
+      "because": "السبب",
+      "sourceAssignment": "مثبّت",
+      "sourceRule": "قاعدة",
+      "sourceDefault": "المساحة الافتراضية",
+      "pin": "تثبيت في مساحة…",
+      "unpin": "إلغاء التثبيت لتُطبّق القواعد"
+    },
+    "deleteDialog": {
+      "title": "حذف {{name}}؟",
+      "description": "تُزال قواعدها وتثبيتاتها وخطوط منتجاتها. تعود مستودعاتها إلى قواعد أخرى أو إلى المساحة الافتراضية.",
+      "confirm": "حذف المساحة",
+      "cancel": "إلغاء"
+    },
+    "errors": {
+      "actionFailed": "تعذر حفظ التغيير. حاول مرة أخرى."
+    },
+    "agent": {
+      "title": "إعدادات الوكلاء",
+      "customised": "مخصّص",
+      "inherits": "يرث من المضيف",
+      "claudeConfigDir": "دليل إعدادات Claude",
+      "ghConfigDir": "دليل إعدادات gh",
+      "gitName": "اسم مؤلف git",
+      "gitEmail": "بريد مؤلف git",
+      "awsProfile": "ملف AWS",
+      "bedrock": "Amazon Bedrock",
+      "bedrockInherit": "وراثة من المضيف",
+      "bedrockOn": "توجيه Claude عبر Bedrock",
+      "bedrockOff": "عدم استخدام Bedrock أبدًا",
+      "loginHint": "سجّل الدخول مرة واحدة مع تعيين الدليل، مثل CLAUDE_CONFIG_DIR=~/.claude-acme claude أو GH_CONFIG_DIR=~/.config/gh-acme gh auth login. لا يخزّن Shep بيانات الاعتماد أبدًا.",
+      "allowedAgents": "الوكلاء المسموح بهم",
+      "allowedAgentsHint": "عدم التحديد يسمح بكل الوكلاء.",
+      "save": "حفظ إعدادات الوكلاء",
+      "prComments": "تعليقات طلبات الدمج",
+      "prCommentsHint": "تعليقات المراجعة على طلبات دمج shep التي يُرد عليها دون طلب. يمكن معالجة الباقي من الميزة.",
+      "prTrigger": {
+        "Off": "عند الطلب فقط",
+        "Mention": "التعليقات التي تذكر #shep",
+        "All": "كل التعليقات"
+      },
+      "resolveThreads": "إغلاق السلاسل التي عُدّلت الشيفرة لأجلها",
+      "autoActions": "تُنفَّذ دون سؤال عند الحوادث",
+      "autoActionsHint": "ينفّذ Shep هذه على حمل عمل الحادث دون انتظار موافقة. الأخرى تنتظر موافقة أحد.",
+      "docsFirst": "Docs first",
+      "docsFirstHint": "يكتب الوكلاء توثيق المستخدم أثناء التخطيط ويبنون وفقه. ينتظر التغيير الذي لا يمس التوثيق شخصًا قبل الدمج.",
+      "docsFirstOn": "اشتراط docs first",
+      "docsPaths": "مسارات التوثيق"
+    }
+  },
+  "trackers": {
+    "title": "الاتصالات",
+    "subtitle": "مشكلات Linear وJira محفوظة في مشاريع shep، وصفحات Notion محفوظة كمعرفة للفريق.",
+    "syncAll": "مزامنة الآن",
+    "empty": "لا توجد اتصالات بعد. أضف أعلاه مفتاح API لـ Linear أو رمز Jira أو رمز تكامل Notion.",
+    "add": {
+      "title": "إضافة اتصال",
+      "provider": "الأداة",
+      "name": "الاسم",
+      "space": "المساحة",
+      "site": "موقع Jira",
+      "email": "بريد الحساب",
+      "linearSecret": "مفتاح Linear",
+      "jiraSecret": "رمز Jira",
+      "submit": "ربط",
+      "notionSecret": "رمز تكامل Notion"
+    },
+    "connection": {
+      "connected": "متصل",
+      "error": "خطأ",
+      "account": "باسم {{account}}",
+      "space": "المساحة {{space}}",
+      "test": "اختبار",
+      "remove": "إزالة الاتصال",
+      "removeTitle": "إزالة {{name}}؟",
+      "removeDescription": "تتوقف قواعد المزامنة ومصادر المعرفة الخاصة به وتُزال. تبقى عناصر العمل التي زامنها في مشاريعها.",
+      "cancel": "إلغاء"
+    },
+    "rules": {
+      "title": "قواعد المزامنة",
+      "empty": "لا توجد قواعد بعد. أضف قاعدة لاستيراد المهام.",
+      "noProjects": "أنشئ مشروعًا أولًا؛ فالقواعد تكتب المهام في مشروع.",
+      "scope": "مفتاح فريق Linear أو JQL من Jira",
+      "project": "المشروع",
+      "twoWay": "باتجاهين",
+      "import": "استيراد",
+      "every": "كل",
+      "minutes": "دقيقة",
+      "everyShort": "كل {{minutes}} دقيقة",
+      "paused": "متوقفة مؤقتًا",
+      "summary": "{{created}} أُنشئت، {{updated}} حُدّثت، {{pushed}} أُرسلت، {{conflicts}} تعارضات، {{failed}} فشلت",
+      "never": "لم يُشغَّل بعد",
+      "add": "إضافة قاعدة",
+      "pause": "إيقاف مؤقت",
+      "resume": "استئناف",
+      "runNow": "تشغيل الآن",
+      "remove": "إزالة القاعدة"
+    },
+    "errors": {
+      "actionFailed": "تعذر حفظ التغيير. حاول مرة أخرى."
+    },
+    "badge": {
+      "open": "فتح {{key}} في المتتبع"
+    }
+  },
+  "bugLoop": {
+    "title": "التحقيق",
+    "intro": "يقرأ وكيل المستودع في نسخة مؤقتة للقراءة فقط ويرتّب الأسباب المرجّحة. نسختك العاملة لا تُمسّ أبداً.",
+    "repository": "المستودع",
+    "noRepositories": "أضف مستودعاً إلى shep للتحقيق في هذا العنصر.",
+    "investigate": "تحقيق",
+    "investigateAgain": "تحقيق من جديد",
+    "running": "يقرأ الوكيل نسخة للقراءة فقط من {{repository}}…",
+    "approved": "يجري إصلاح الفرضية {{number}}.",
+    "openFeature": "فتح ميزة الإصلاح",
+    "fullSpec": "الإصلاح عبر مسار المواصفات الكامل بدلاً من الوضع السريع",
+    "status": {
+      "Pending": "جارٍ البدء",
+      "Running": "جارٍ التحقيق",
+      "Completed": "الفرضيات جاهزة",
+      "Failed": "فشل"
+    },
+    "confidence": {
+      "High": "ثقة عالية",
+      "Medium": "ثقة متوسطة",
+      "Low": "ثقة منخفضة"
+    },
+    "hypothesis": {
+      "evidence": "الأدلة",
+      "test": "اختبار فاشل",
+      "fix": "الإصلاح",
+      "fixThis": "إصلاح هذا",
+      "fixing": "جارٍ بدء الإصلاح…",
+      "approved": "قيد الإصلاح"
+    }
+  },
+  "prComments": {
+    "title": "تعليقات المراجعة",
+    "refresh": "قراءة التعليقات من GitHub",
+    "address": "معالجة {{count}} معلّقة",
+    "running": "يعالج وكيل {{count}} تعليقات في مساحة عمل الميزة…",
+    "roundPushed": "دفعت الجولة الأخيرة {{sha}} وردّت.",
+    "roundAnswered": "ردّت الجولة الأخيرة دون تعديل الشيفرة.",
+    "roundFailed": "فشلت الجولة الأخيرة: {{error}}",
+    "empty": "لا توجد تعليقات مراجعة على طلب الدمج بعد.",
+    "openOnGitHub": "فتح في GitHub",
+    "status": {
+      "Pending": "معلّق",
+      "Addressing": "قيد المعالجة",
+      "Addressed": "تمت المعالجة",
+      "Declined": "مرفوض",
+      "Failed": "فشل"
+    },
+    "kind": {
+      "Inline": "على سطر",
+      "Conversation": "محادثة",
+      "Review": "مراجعة"
+    },
+    "addressNone": "لا شيء للمعالجة"
+  },
+  "knowledge": {
+    "sources": {
+      "title": "مصادر المعرفة",
+      "empty": "لا توجد مصادر بعد. شارك صفحة أو قاعدة بيانات في Notion مع التكامل ثم أضف رابطها.",
+      "kind": {
+        "Page": "شجرة صفحات",
+        "Database": "قاعدة بيانات"
+      },
+      "productLine": "{{name}} فقط",
+      "wholeSpace": "المساحة كاملة",
+      "productLineLabel": "خط المنتجات",
+      "scope": "رابط صفحة أو قاعدة بيانات في Notion",
+      "documents_one": "{{count}} مستند",
+      "documents_few": "{{count}} مستندات",
+      "documents_many": "{{count}} مستندًا",
+      "documents_other": "{{count}} مستند",
+      "summary": "{{added}} مضاف، {{updated}} محدَّث، {{removed}} محذوف، {{failed}} فاشل",
+      "never": "لم تتم المزامنة بعد",
+      "add": "إضافة مصدر",
+      "syncNow": "مزامنة الآن",
+      "remove": "إزالة المصدر"
+    },
+    "documents": {
+      "title": "معرفة الفريق",
+      "subtitle": "صفحات Notion التي يقرؤها الوكلاء في كل مساحة عندما تطابق المهمة.",
+      "empty": "لا توجد معرفة فريق بعد. أضف اتصال Notion وصفحاته في صفحة",
+      "connections": "الاتصالات"
+    }
+  },
+  "opportunities": {
+    "title": "الفرص",
+    "subtitle": "رهانات مدعومة بالأدلة، مرتبة حسب القيمة لكل ساعة مراجعة.",
+    "space": "المساحة",
+    "empty": "لا توجد فرص مفتوحة في هذه المساحة. صغ واحدة أعلاه.",
+    "errors": {
+      "actionFailed": "تعذر حفظ التغيير. حاول مرة أخرى."
+    },
+    "capacity": {
+      "title": "سعة المراجعة هذا الأسبوع",
+      "used": "{{used}} من {{capacity}} ساعة مراجعة",
+      "waiting_one": "رهان مقبول {{count}} ينتظر السعة",
+      "waiting_few": "{{count}} رهانات مقبولة تنتظر السعة",
+      "waiting_many": "{{count}} رهانًا مقبولًا ينتظر السعة",
+      "waiting_other": "{{count}} رهان مقبول ينتظر السعة"
+    },
+    "row": {
+      "inLine": "في خط هذا الأسبوع",
+      "outOfLine": "خارج الخط",
+      "strategic": "استراتيجية",
+      "cost": "{{hours}} ساعة · ثقة {{confidence}}٪",
+      "evidenceParts": {
+        "signals_one": "{{count}} إشارة",
+        "signals_few": "{{count}} إشارات",
+        "signals_many": "{{count}} إشارة",
+        "signals_other": "{{count}} إشارة",
+        "customers_one": "{{count}} عميل",
+        "customers_few": "{{count}} عملاء",
+        "customers_many": "{{count}} عميلًا",
+        "customers_other": "{{count}} عميل",
+        "urgent_one": "{{count}} عاجلة",
+        "urgent_few": "{{count}} عاجلة",
+        "urgent_many": "{{count}} عاجلة",
+        "urgent_other": "{{count}} عاجلة",
+        "revenue": "{{revenue}}/شهر"
+      }
+    },
+    "status": {
+      "Proposed": "مقترحة",
+      "Accepted": "مقبولة",
+      "Building": "قيد البناء",
+      "Shipped": "مُطلقة",
+      "Dropped": "مستبعدة"
+    },
+    "kind": {
+      "Feedback": "ملاحظات",
+      "Incident": "حادث",
+      "Tracker": "متتبع",
+      "Discovery": "اكتشاف",
+      "Manual": "ملاحظة"
+    },
+    "actions": {
+      "accept": "قبول",
+      "build": "بناء",
+      "drop": "استبعاد",
+      "cancel": "إلغاء",
+      "reason": "لماذا تُستبعد؟",
+      "project": "المشروع",
+      "noProjects": "أنشئ مشروعًا أولًا؛ البناء ينشئ فيه عنصر عمل.",
+      "ship": "وضع علامة الإطلاق"
+    },
+    "inbox": {
+      "title": "إشارات للربط ({{count}})",
+      "empty": "كل إشارة تدعم فرصة.",
+      "urgent": "عاجل",
+      "customerRevenue": "{{customer}} · {{revenue}} شهريًا",
+      "link": "ربط بـ…",
+      "remove": "إزالة الإشارة"
+    },
+    "signalForm": {
+      "title": "تسجيل إشارة",
+      "signal": "الإشارة",
+      "placeholder": "ماذا طلب مستخدم، أو ما الذي تعطل؟",
+      "kind": "النوع",
+      "customer": "العميل",
+      "revenue": "الإيراد شهريًا",
+      "urgent": "عاجل",
+      "submit": "تسجيل"
+    },
+    "opportunityForm": {
+      "title": "صياغة فرصة",
+      "name": "الفرصة",
+      "placeholder": "رهان يستحق البناء",
+      "hours": "ساعات مراجعة",
+      "confidence": "٪ ثقة",
+      "productLine": "خط المنتجات",
+      "anyLine": "المساحة كاملة",
+      "strategic": "استراتيجية",
+      "submit": "إضافة"
+    },
+    "weights": {
+      "title": "الأوزان والسعة",
+      "formula": "القيمة = الانتشار × العملاء + الإيراد × (الإيراد المعرّض للخطر ÷ 1000) + الإلحاح × الإشارات العاجلة + الاستراتيجي. الدرجة = القيمة × الثقة ÷ ساعات المراجعة.",
+      "reach": "الانتشار",
+      "revenue": "الإيراد",
+      "urgency": "الإلحاح",
+      "strategic": "استراتيجي",
+      "weeklyReviewHours": "ساعات مراجعة/أسبوع",
+      "save": "حفظ"
+    },
+    "themes": {
+      "title": "المواضيع في الإشارات غير المرتبطة",
+      "empty": "لا مواضيع بعد: لا توجد إشارتان غير مرتبطتين تتشاركان كلمات كافية.",
+      "promote": "ترقية",
+      "hours": "ساعات المراجعة"
+    },
+    "feedbackKeys": {
+      "title": "مفاتيح الملاحظات",
+      "subtitle": "ترسل الأدوات الملاحظات بمفتاح: {{endpoint}} مع \"Authorization: Bearer <المفتاح>\".",
+      "empty": "لا توجد مفاتيح بعد.",
+      "name": "الأداة",
+      "namePlaceholder": "Zendesk أو أداة أو سكربت…",
+      "create": "إنشاء مفتاح",
+      "secretOnce": "انسخ هذا المفتاح الآن؛ لن يُعرض مرة أخرى.",
+      "revoke": "إلغاء",
+      "revoked": "ملغى",
+      "lastUsed": "آخر استخدام {{when}}",
+      "neverUsed": "لم يُستخدم"
+    },
+    "source": {
+      "Manual": "يدوية",
+      "Theme": "من موضوع",
+      "Discovery": "مكتشفة"
+    },
+    "discovery": {
+      "title": "الاكتشاف",
+      "run": "اكتشف الآن",
+      "discovering": "جارٍ الاكتشاف…",
+      "schedule": "الجدولة",
+      "off": "متوقف",
+      "everyHours": "كل {{hours}} ساعة",
+      "never": "لم يعمل الاكتشاف في هذه المساحة بعد.",
+      "running": "الاكتشاف قيد التشغيل…",
+      "failed": "فشل التشغيل الأخير: {{error}}",
+      "succeeded": "آخر تشغيل: اقتُرحت {{proposed}} من {{read}} إشارة، {{when}}"
+    },
+    "outcomes": {
+      "title": "النتائج",
+      "check": "تحقق الآن",
+      "empty": "لم يُطلق شيء في هذه المساحة بعد.",
+      "judgedOn": "يُحكم عليها في {{date}}",
+      "counts": "{{before}} بلاغات مشابهة قبل، {{after}} بعد",
+      "hours": "ساعات المراجعة",
+      "saveHours": "حفظ",
+      "hoursTaken": "استغرقت {{actual}} س من {{estimated}} س مقدّرة",
+      "note": "أخبرهم أن «{{title}}» أُطلقت:",
+      "markTold": "وضع علامة الإبلاغ",
+      "hoursRatio": "ساعات المراجعة الفعلية تساوي {{ratio}}× التقديرات (سُجّل {{timed}})",
+      "noHours": "لم تُسجَّل ساعات مراجعة فعلية بعد",
+      "solvedShare": "حُلّت {{solved}} من {{judged}} نتيجة محكوم عليها",
+      "noVerdicts": "لم يُحكم على أي نتيجة بعد",
+      "verdict": {
+        "Pending": "قيد الانتظار",
+        "Solved": "حُلّت",
+        "Persisting": "مستمرة"
+      }
+    }
+  },
+  "incidents": {
+    "title": "الحوادث",
+    "subtitle": "مشاكل بيئة الإنتاج وفرزها، وإعادة التشغيل والتراجع وتغيير الحجم التي تصلحها، وتقرير ما بعد الحادث.",
+    "space": "المساحة",
+    "list": "الحوادث",
+    "empty": "لا توجد حوادث في هذه المساحة.",
+    "timeline": "الخط الزمني",
+    "actions": "إجراءات التشغيل",
+    "approve": "موافقة",
+    "reject": "رفض",
+    "recovered": "تعافى",
+    "notRecovered": "لم يتعافَ",
+    "scaleTo": "تغيير الحجم إلى {{replicas}} نسخ",
+    "showEvidence": "عرض الأدلة",
+    "triage": "فرز",
+    "triaging": "جارٍ الفرز…",
+    "workload": "deployment/{{workload}} في {{namespace}} ({{context}})",
+    "currentContext": "السياق الحالي",
+    "noWorkload": "لا يوجد حمل عمل — الإجراءات متوقفة.",
+    "openLink": "فتح التنبيه",
+    "errors": {
+      "actionFailed": "فشل الإجراء."
+    },
+    "form": {
+      "title": "فتح حادث",
+      "incident": "حادث",
+      "placeholder": "ما المشكلة؟",
+      "severity": "الخطورة",
+      "workload": "حمل العمل",
+      "namespace": "Namespace",
+      "context": "السياق",
+      "submit": "فتح"
+    },
+    "act": {
+      "title": "تشغيل إجراء",
+      "kind": "الإجراء",
+      "replicas": "النسخ",
+      "reason": "لماذا؟",
+      "submit": "تشغيل",
+      "running": "جارٍ التشغيل…"
+    },
+    "note": {
+      "title": "ملاحظة",
+      "placeholder": "إضافة ملاحظة إلى الخط الزمني",
+      "submit": "إضافة"
+    },
+    "resolve": {
+      "title": "حل",
+      "postmortem": "تقرير ما بعد الحادث",
+      "placeholder": "اكتب التقرير، أو اتركه فارغًا لمسودة من الخط الزمني",
+      "submit": "حل"
+    },
+    "severity": {
+      "Critical": "حرج",
+      "Major": "كبير",
+      "Minor": "بسيط"
+    },
+    "status": {
+      "Open": "مفتوح",
+      "Mitigated": "مُخفَّف",
+      "Resolved": "محلول"
+    },
+    "actionKind": {
+      "Restart": "إعادة تشغيل",
+      "Rollback": "تراجع",
+      "Scale": "تغيير الحجم"
+    },
+    "actionStatus": {
+      "Proposed": "بانتظار الموافقة",
+      "Approved": "تمت الموافقة",
+      "Rejected": "مرفوض",
+      "Succeeded": "تم",
+      "Failed": "فشل"
+    },
+    "proposedBy": {
+      "Agent": "اقترحه الوكيل",
+      "Person": "طلبه شخص"
+    },
+    "eventKind": {
+      "Opened": "فُتح",
+      "Note": "ملاحظة",
+      "Evidence": "أدلة",
+      "Hypothesis": "فرضية",
+      "ActionProposed": "اقتُرح إجراء",
+      "ActionApproved": "تمت الموافقة على إجراء",
+      "ActionRejected": "رُفض إجراء",
+      "ActionSucceeded": "تم إجراء",
+      "ActionFailed": "فشل إجراء",
+      "Recovered": "تعافى",
+      "NotRecovered": "لم يتعافَ",
+      "Resolved": "حُلّ"
+    }
+  },
+  "factory": {
+    "title": "المصنع",
+    "subtitle": "ما يفعله مصنع البرمجيات في المساحة وما ينتظر الأشخاص.",
+    "space": "المساحة",
+    "errors": {
+      "actionFailed": "فشل الإجراء."
+    },
+    "cards": {
+      "line": "ساعات المراجعة هذا الأسبوع",
+      "building": "قيد البناء",
+      "incidents": "حوادث مفتوحة",
+      "actions": "إجراءات بانتظار الموافقة",
+      "outcomes": "نتائج معلّقة",
+      "customers": "عملاء للإبلاغ",
+      "features": "ميزات قيد التنفيذ",
+      "approval": "بانتظار الموافقة"
+    },
+    "runs": {
+      "title": "جولات autopilot",
+      "none": "لم يعمل autopilot في هذه المساحة بعد.",
+      "pass": "حُقّق في {{investigated}} · أُصلح {{fixed}} · بُني {{built}}"
+    },
+    "autopilot": {
+      "title": "Autopilot",
+      "hint": "ما يبدؤه shep هنا بنفسه كل ساعة. كل شيء متوقف حتى تشغّله.",
+      "investigate": "التحقيق في العناصر العاجلة المفتوحة",
+      "fix": "الإصلاح عندما تكون الفرضية الأولى High",
+      "mergeFixes": "السماح بدمج هذه الإصلاحات دون شخص",
+      "fillLine": "بناء الفرص المقبولة في الخط",
+      "budget": "إصلاحات في اليوم",
+      "project": "البناء في",
+      "noProject": "بلا مشروع",
+      "save": "حفظ",
+      "run": "تشغيل الآن",
+      "running": "جارٍ التشغيل…"
+    }
+  },
+  "decision": {
+    "answeredQuestions": "أسئلة تمت الإجابة عنها",
+    "recommended": "موصى به",
+    "selectMany": "اختر خيارًا واحدًا أو أكثر.",
+    "otherPlaceholder": "اكتب إجابتك الخاصة، أو اتركه فارغًا لاستخدام الخيار المحدد",
+    "composerHint": "اكتب في مربع الرسالة للإجابة بكلماتك.",
+    "restoreText": "استعادة النص المكتوب",
+    "notResumable": "لم يعد بالإمكان الإجابة عن هذا السؤال — الوكيل الذي طرحه لم يعد ينتظر.",
+    "defaultsAt": "إذا لم يُجب أحد قبل {{time}}، يتابع الوكيل بالخيار الموصى به.",
+    "preview": "معاينة",
+    "previous": "السابق",
+    "next": "التالي",
+    "submit": "إرسال",
+    "submitting": "جارٍ الإرسال…",
+    "new": "جديد"
+  },
+  "telemetry": {
+    "fieldsHeading": "ما الذي يُرسل",
+    "fields": {
+      "installId": "معرّف تثبيت عشوائي",
+      "usage": "الأوامر والصفحات والميزات التي تستخدمها، وكيف تنتهي عمليات التشغيل",
+      "platform": "إصدار Shep ونظام التشغيل وإصدار Node.js",
+      "agentAccountHash": "تجزئة SHA-256 لمعرّف حسابك على Claude أو Codex",
+      "githubUsername": "اسم المستخدم الخاص بك على GitHub (يُقرأ باستخدام gh)",
+      "githubOwners": "مالكو المستودعات على GitHub (مستخدمون أو مؤسسات) التي تستخدمها مع Shep",
+      "contactConsent": "ما إذا كان يمكن لفريق Shep التواصل معك على GitHub"
+    },
+    "identityHeading": "يُرسل فقط إذا فعّلت «تضمين هويتي» (معطّل افتراضيًا)",
+    "neverSent": "لا يُرسل أبدًا: المطالبات أو الشيفرة أو مسارات الملفات أو أسماء المستودعات أو الفروع أو عناوين الميزات أو رسائل الخطأ.",
+    "reasons": {
+      "ci": "تم تعيين متغير البيئة CI",
+      "do-not-track": "تم تعيين DO_NOT_TRACK",
+      "env-disabled": "تم تعيين SHEP_TELEMETRY_DISABLED",
+      "test": "يعمل ضمن مشغّل اختبارات",
+      "user-opt-out": "قمت بإيقافها"
+    },
+    "notice": {
+      "title": "يجمع Shep مقاييس الاستخدام",
+      "intro": "لمعرفة الميزات المستخدمة، يرسل Shep أحداث الاستخدام إلى فريق Shep (PostHog، منطقة الاتحاد الأوروبي). يمكنك إيقاف ذلك في أي وقت.",
+      "turnOff": "إيقاف",
+      "turnedOff": "مقاييس الاستخدام متوقفة. تم حذف الأحداث في قائمة الانتظار.",
+      "dismiss": "حسنًا",
+      "failed": "تعذّر تحديث مقاييس الاستخدام. حاول مرة أخرى من الإعدادات."
+    },
+    "controls": {
+      "enabled": "إرسال مقاييس الاستخدام",
+      "enabledDescription": "يؤدي إيقاف هذا الخيار أيضًا إلى حذف الأحداث التي لم تُرسل بعد.",
+      "identity": "تضمين هويتي (اسم المستخدم على GitHub، المؤسسة، تجزئة الحساب)",
+      "identityDescription": "معطّل حتى تفعّله. ما دام معطّلًا تبقى مقاييس الاستخدام مجهولة الهوية.",
+      "contact": "يمكن لفريق Shep التواصل معي على GitHub",
+      "contactDescription": "متوقف ما لم تقم بتشغيله."
+    },
+    "settings": {
+      "title": "مقاييس الاستخدام",
+      "description": "ساعد في تحديد ما سيتم بناؤه لاحقًا عبر إرسال أحداث الاستخدام إلى فريق Shep.",
+      "forcedOff": "متوقف في هذه البيئة: {{reason}}.",
+      "queued": "أحداث بانتظار الإرسال: {{count}}",
+      "destination": "تُرسل إلى {{destination}}",
+      "notConfigured": "لم يتم تكوين مفتاح مشروع في هذا الإصدار، لذلك لا يُرسل شيء.",
+      "hint": "شغّل `shep telemetry show` لترى بالضبط ما سيتم إرساله.",
+      "loading": "جارٍ تحميل إعدادات مقاييس الاستخدام…",
+      "loadFailed": "تعذّر تحميل إعدادات مقاييس الاستخدام."
+    }
+  },
+  "checkpoints": {
+    "loading": "جارٍ تحميل نقاط الحفظ…",
+    "empty": "لا توجد نقاط حفظ بعد. يحفظ Shep شجرة العمل بعد كل خطوة عند تشغيل الوكيل.",
+    "modeStep": "لكل خطوة",
+    "modeCompare": "مقارنة",
+    "kindBaseline": "البداية",
+    "kindPreRestore": "قبل الاستعادة",
+    "files_one": "{{count}} ملف",
+    "files_few": "{{count}} ملفات",
+    "files_many": "{{count}} ملفًا",
+    "files_other": "{{count}} ملف",
+    "from": "من",
+    "to": "إلى",
+    "selectStep": "اختر خطوة لرؤية ما غيّرته.",
+    "baselineSelected": "هذه نقطة البداية: لا شيء قبلها.",
+    "diffLoading": "جارٍ تحميل الفروق…",
+    "noChanges": "لا توجد تغييرات بين هاتين الخطوتين.",
+    "restore": "استعادة",
+    "restoreAria": "استعادة شجرة العمل إلى {{step}}",
+    "restoreTitle": "استعادة شجرة العمل إلى {{step}}؟",
+    "restoreDescription": "تُستبدل ملفات شجرة العمل بنقطة الحفظ هذه. تُحفظ الحالة الحالية أولًا كنقطة حفظ جديدة، ولا يتغير الفرع ولا إيداعاته.",
+    "restoreConfirm": "استعادة",
+    "cancel": "إلغاء",
+    "restored": "استُعيدت شجرة العمل إلى {{step}}",
+    "restoreFailed": "فشلت الاستعادة",
+    "blocked": {
+      "NoOwnWorktree": "الاستعادة متاحة فقط لميزة لها شجرة عمل خاصة بها.",
+      "NotLinkedWorktree": "الاستعادة غير متاحة: المجلد ليس شجرة عمل git مرتبطة.",
+      "WorktreeUnavailable": "الاستعادة غير متاحة: تعذّرت قراءة شجرة العمل.",
+      "AgentRunning": "الاستعادة غير متاحة أثناء تشغيل الوكيل."
+    }
+  },
+  "chatBlocks": {
+    "kinds": {
+      "spec_review": "مراجعة المواصفات",
+      "html_preview": "معاينة",
+      "plan_card": "خطة"
+    },
+    "actions": {
+      "approve": "موافقة",
+      "request_changes": "طلب تعديلات",
+      "implement": "تنفيذ",
+      "refine": "تحسين"
+    },
+    "resolved": {
+      "approve": "تمت الموافقة",
+      "request_changes": "طُلبت تعديلات",
+      "implement": "قيد التنفيذ",
+      "refine": "طُلب تحسين"
+    },
+    "notePlaceholder": "ما الذي يجب تغييره؟",
+    "send": "إرسال",
+    "cancel": "إلغاء",
+    "preview": "معاينة",
+    "source": "المصدر",
+    "openFullScreen": "فتح بملء الشاشة",
+    "sandboxNote": "يعمل في بيئة معزولة بلا وصول إلى الشبكة.",
+    "answerFailed": "لم يتم تسليم إجابتك",
+    "answerFailedDescription": "ما زالت الكتلة مفتوحة. حاول مرة أخرى.",
+    "retry": "إعادة المحاولة"
+  },
+  "chats": {
+    "title": "الدردشة",
+    "conversations": "المحادثات",
+    "conversation": "المحادثة",
+    "groups": {
+      "global": "Shep",
+      "repository": "المستودعات",
+      "feature": "الميزات",
+      "application": "التطبيقات"
+    },
+    "openOnCanvas": "فتح على اللوحة",
+    "openApplication": "فتح التطبيق",
+    "lifecycle": {
+      "Started": "بدأت",
+      "Analyze": "تحليل",
+      "Requirements": "المتطلبات",
+      "Research": "البحث",
+      "Planning": "التخطيط",
+      "Implementation": "التنفيذ",
+      "Review": "المراجعة",
+      "Maintain": "مدمجة",
+      "Blocked": "محظورة",
+      "Pending": "قيد الانتظار",
+      "Exploring": "استكشاف",
+      "Deleting": "قيد الحذف",
+      "AwaitingUpstream": "بانتظار المصدر",
+      "Archived": "مؤرشفة"
+    }
+  },
+  "agentActivity": {
+    "states": {
+      "working": "يعمل",
+      "blocked": "يحتاجك",
+      "waiting": "ينتظر",
+      "done": "مكتمل",
+      "failed": "فاشل"
+    },
+    "reasons": {
+      "deleting": "جارٍ الحذف",
+      "archived": "مؤرشفة",
+      "queued-for-capacity": "في قائمة الانتظار حتى يتوفر مكان ضمن حد الميزات المتوازية",
+      "deferred": "مؤجلة: لم يبدأ أي وكيل بعد",
+      "waiting-on-parent": "تنتظر انتهاء الميزة الأم",
+      "approval-gate": "تنتظر موافقتك",
+      "agent-question": "طرح الوكيل سؤالًا",
+      "run-failed": "فشل التشغيل",
+      "run-interrupted": "تمت مقاطعة التشغيل",
+      "run-cancelled": "تم إلغاء التشغيل",
+      "run-completed": "اكتملت",
+      "agent-running": "الوكيل يعمل",
+      "process-died": "توقفت عملية الوكيل بشكل غير متوقع",
+      "maintained": "اكتملت؛ قيد الصيانة",
+      "awaiting-review": "طلب الدمج ينتظر مراجعتك",
+      "plan-task-in-review": "مهمة في الخطة تنتظر مراجعتك",
+      "plan-tasks-done": "اكتملت كل مهام الخطة",
+      "in-progress": "قيد التنفيذ"
+    },
+    "labels": {
+      "why": "السبب",
+      "asks": "يسأل",
+      "phase": "المرحلة",
+      "run": "التشغيل",
+      "error": "الخطأ",
+      "pr": "طلب السحب",
+      "next": "التالي"
+    },
+    "next": {
+      "answer": "أجب عن السؤال",
+      "review": "راجع ووافق",
+      "openPr": "راجع طلب السحب",
+      "resume": "افتح للاستئناف",
+      "inDrawer": {
+        "review": "وافق أو ارفض في تبويب المراجعة",
+        "resume": "استخدم «Retry» أعلى هذه اللوحة"
+      }
+    },
+    "card": {
+      "title": "حالة الوكيل",
+      "loading": "جارٍ قراءة حالة الوكيل…",
+      "error": "تعذّرت قراءة حالة الوكيل: {{error}}",
+      "notFound": "لا توجد حالة وكيل لهذه الميزة"
+    },
+    "notify": {
+      "start": "نبّهني",
+      "stop": "إيقاف",
+      "watching": "قيد المراقبة — ستصلك إشعارات عندما تحتاجك أو تنتهي أو تفشل",
+      "failed": "توقفت المراقبة: {{error}}",
+      "title": "{{name}}: {{state}}"
+    },
+    "list": {
+      "empty": "لا توجد ميزة نشطة الآن",
+      "open": "فتح"
+    },
+    "page": {
+      "title": "نشاط الوكلاء",
+      "description": "ما يفعله وكيل كل ميزة ولماذا — الإجابة نفسها التي تقدمها shep feat status وMCP وA2A",
+      "showFinished": "عرض المكتملة",
+      "needsYou": "{{count}} تحتاجك",
+      "error": "تعذّرت قراءة نشاط الوكلاء: {{error}}"
+    },
+    "connect": {
+      "title": "ربط الوكلاء",
+      "badge": "A2A 1.0",
+      "description": "تسلّم الوكلاء والمنسّقات الأخرى Shep طلبات الميزات وتتابعها كمهام A2A: يعمل، أو يلزم إدخال (بوابة أو سؤال بانتظارك)، أو مكتملة، أو فاشلة.",
+      "endpoint": "نقطة نهاية JSON-RPC",
+      "agentCard": "Agent card",
+      "token": "المصادقة",
+      "tokenHelp": "أرسل Authorization: Bearer مع الرمز الموجود في هذا الملف. لا يراه المتصفح أبدًا.",
+      "request": "جرّبه",
+      "copied": "تم النسخ",
+      "copyFailed": "تعذّر النسخ",
+      "herdr": "Herdr",
+      "herdrHelp": "شغّل shep tui داخل لوحة Herdr: يعرض الشريط الجانبي في Herdr أن Shep يعمل، أو محظور عندما تحتاجك ميزة.",
+      "cli": "الطرفية",
+      "cliHelp": "يشرح shep feat status <id> ميزة؛ ويعود shep feat wait <id> عندما تحتاجك أو تنتهي أو تفشل.",
+      "guide": "دليل A2A",
+      "cardVersion": "Shep {{version}}",
+      "cardError": "لم يتم تحميل agent card: {{error}}",
+      "copyLabel": "نسخ {{label}}",
+      "hint": "ترسل أنظمة الوكلاء الأخرى إلى Shep طلب ميزة عبر A2A وتتابعه كمهمة. النشاط نفسه يغذي MCP وواجهة سطر الأوامر وHerdr وهذه الواجهة."
+    }
+  },
+  "learning": {
+    "title": "التعلّم",
+    "subtitle": "ما تعلّمه Shep عن العمل في هذا المستودع، وكيف كان أداء كل إصدار، وما يجب الإبقاء عليه",
+    "repository": "المستودع",
+    "chooseRepository": "اختر مستودعًا",
+    "loadError": "تعذّر تحميل الـ harness المُتعلَّم: {{error}}",
+    "noRepositories": "أضف مستودعًا لبدء التعلّم.",
+    "current": "يعمل على الإصدار {{id}}",
+    "currentNone": "يعمل على الـ harness الأساسي — لم يُعتمد شيء بعد",
+    "rollback": "تراجع",
+    "rollbackConfirm": "العودة إلى الإصدار السابق؟",
+    "cancel": "إلغاء",
+    "rolledBack": "تم التراجع",
+    "versions": "الإصدارات",
+    "selectVersion": "اختر إصدارًا لترى ما يغيّره.",
+    "lessons": "الدروس",
+    "adopted": "تم اعتماد الإصدار",
+    "rejected": "تم رفض الإصدار",
+    "working": "جارٍ التنفيذ…",
+    "noVersions": "لا توجد إصدارات بعد. فعّل وضع تعلّم في الإعدادات ثم أكمل ميزة.",
+    "noLessons": "لا توجد دروس بعد.",
+    "trend": {
+      "regressed": "تراجع الأداء",
+      "improved": "تحسّن",
+      "unchanged": "بلا تغيير",
+      "insufficient-data": "لا توجد تشغيلات كافية بعد",
+      "no-baseline": "لا يوجد إصدار سابق للمقارنة"
+    },
+    "status": {
+      "candidate": "مرشّح",
+      "adopted": "معتمد",
+      "rejected": "مرفوض",
+      "rolled-back": "تم التراجع عنه",
+      "superseded": "مُستبدَل"
+    },
+    "origin": {
+      "base": "أساسي",
+      "reflect": "تأمّل",
+      "explore": "استكشاف",
+      "manual": "يدوي"
+    },
+    "metrics": {
+      "runs": "التشغيلات: {{count}}",
+      "mergeRate": "المدمجة: {{percent}}%"
+    },
+    "detail": {
+      "title": "الإصدار {{id}}",
+      "against": "مقارنةً بالإصدار {{id}}",
+      "againstBase": "مقارنةً بالـ harness الأساسي",
+      "reason": "السبب: {{reason}}",
+      "runsCode": "هذا الإصدار يشغّل شيفرة (سكربتات أو خطافات). اقرأها قبل الاعتماد — لا يعتمد Shep هذه من تلقاء نفسه أبدًا.",
+      "added": "مُضاف",
+      "modified": "مُعدَّل",
+      "removed": "محذوف",
+      "noChanges": "لا تغييرات في الملفات.",
+      "edits": "سبب كل تغيير",
+      "feedbackPlaceholder": "اختياري: لماذا ترفضه (سيقرأ Shep هذا في المرة القادمة)",
+      "adopt": "اعتماد",
+      "reject": "رفض"
+    },
+    "verdict": {
+      "helped": "ساعد",
+      "hurt": "أضرّ",
+      "no-observed-effect": "لا أثر ملحوظ",
+      "confounded": "غير حاسم",
+      "untested": "غير مختبر"
+    },
+    "lesson": {
+      "when": "عندما: {{cue}}"
+    },
+    "confidence": {
+      "high": "ثقة عالية",
+      "medium": "ثقة متوسطة",
+      "low": "ثقة منخفضة"
+    }
+  }
+}
