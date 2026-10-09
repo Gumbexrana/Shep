@@ -1,0 +1,385 @@
+{
+  "prompts": {
+    "selectAgent": {
+      "message": "בחר את סוכן הקידוד שלך",
+      "choices": {
+        "claudeCode": {
+          "name": "Claude Code",
+          "description": "Claude Code CLI של Anthropic"
+        },
+        "geminiCli": {
+          "name": "Gemini CLI",
+          "description": "Gemini CLI של Google"
+        },
+        "codexCli": {
+          "name": "Codex CLI",
+          "description": "סוכן טרמינל Codex CLI של OpenAI (מודלי GPT)"
+        },
+        "copilotCli": {
+          "name": "Copilot CLI",
+          "description": "GitHub Copilot CLI (ברירת מחדל: Claude Sonnet 4.5, דורש מנוי Copilot)"
+        },
+        "cursor": {
+          "name": "Cursor",
+          "description": "סוכן קידוד Cursor AI"
+        },
+        "cline": {
+          "name": "Cline",
+          "description": "Multi-provider agentic coding assistant with full tool use (requires cline CLI)"
+        },
+        "devMock": {
+          "name": "Dev (Mock)",
+          "description": "מוק פיתוח מקומי — לא נדרש קובץ סוכן"
+        },
+        "openRouter": {
+          "name": "OpenRouter",
+          "description": "גישה למאות מודלי AI דרך ממשק OpenRouter API (נדרש מפתח API)"
+        },
+        "togetherAi": {
+          "name": "Together AI",
+          "description": "הסקה מהירה של מודלים בקוד פתוח דרך ממשק Together AI API (נדרש מפתח API)"
+        },
+        "ollama": {
+          "name": "Ollama",
+          "description": "הרצת מודלי LLM מקומיים דרך Ollama (לא נדרש מפתח API, רץ על localhost)"
+        },
+        "kimiCode": {
+          "name": "Kimi Code",
+          "description": "סוכן טרמינל Kimi Code CLI מבית Moonshot AI (מודלי Kimi K)"
+        },
+        "llmProxy": {
+          "name": "LLM Proxy",
+          "description": "פרוקסי מקומי תואם OpenAI (בדרך כלל בפורט 4000)"
+        },
+        "shepHarness": {
+          "name": "Shep Harness (ניסיוני)",
+          "description": "לולאת סוכן בניהול Shep, מודעת לשאילתה, עם בקשות הרשאה"
+        }
+      }
+    },
+    "selectIde": {
+      "message": "בחר את סביבת הפיתוח המועדפת"
+    },
+    "selectAuthMethod": {
+      "message": "בחר שיטת אימות",
+      "choices": {
+        "session": {
+          "name": "השתמש בסשן קיים",
+          "description": "השתמש באימות המובנה של Claude Code"
+        },
+        "token": {
+          "name": "השתמש באסימון API",
+          "description": "ספק מפתח API של Anthropic"
+        }
+      }
+    },
+    "enterApiKey": "הזן את מפתח ה-API של Anthropic",
+    "prdReview": {
+      "reviewComplete": "הסקירה הושלמה{{changeLabel}}. מה תרצה לעשות?",
+      "changeLabel_one": " (שינוי {{count}})",
+      "changeLabel_other": " ({{count}} שינויים)",
+      "approveAndContinue": "אשר והמשך",
+      "approveDescription": "קבל את הדרישות והמשך למחקר",
+      "rejectAndIterate": "דחה וחזור",
+      "rejectDescription": "ספק משוב והרץ מחדש את הדרישות",
+      "feedbackPrompt": "מה צריך לשנות? (משוב לחזרה)",
+      "feedbackRequired": "נדרש משוב לדחייה"
+    },
+    "selectLanguage": {
+      "message": "בחר שפת תצוגה"
+    }
+  },
+  "wizards": {
+    "onboarding": {
+      "welcomeTitle": "ברוכים הבאים ל-Shep AI CLI",
+      "welcomeSubtitle": "בואו נגדיר את הסביבה שלכם ב-3 צעדים מהירים.",
+      "prerequisiteWarning": "דרישת קדם: ",
+      "prerequisiteLabel": "GitHub CLI (gh)",
+      "prerequisiteDescription": "נדרש ליכולות ריפוי עצמי מלאות של CI/CD.",
+      "installFrom": "התקן מ: ",
+      "installUrl": "https://cli.github.com/",
+      "setupComplete": "ההגדרה הושלמה! אתה מוכן להשתמש ב-Shep."
+    },
+    "agentConfig": {
+      "enterApiKey": "הזן את מפתח ה-API של Anthropic"
+    },
+    "githubImport": {
+      "methodMessage": "כיצד תרצה להוסיף מאגר GitHub?",
+      "pasteUrl": "הדבק כתובת URL של GitHub",
+      "pasteUrlDescription": "הזן כתובת URL של מאגר GitHub או קיצור owner/repo",
+      "browseRepos": "עיין במאגרים שלי",
+      "browseReposDescription": "חפש ובחר מתוך מאגרי ה-GitHub שלך",
+      "enterUrl": "הזן כתובת URL של מאגר GitHub או owner/repo",
+      "urlRequired": "נדרשת כתובת URL",
+      "invalidUrlFormat": "פורמט כתובת URL לא חוקי של GitHub. השתמש ב-https://github.com/owner/repo או owner/repo",
+      "selectRepo": "בחר מאגר לייבוא",
+      "noRepos": "לא נמצאו מאגרים. ודא שיש לך מאגרים ב-GitHub.",
+      "cloneDestination": "יעד שיבוט (השאר ריק לברירת מחדל)"
+    },
+    "mergeReview": {
+      "message": "סקור את המיזוג. מה תרצה לעשות?",
+      "approveAndMerge": "אשר ומזג",
+      "approveDescription": "קבל את השינויים ומזג את הענף",
+      "reject": "דחה",
+      "rejectDescription": "ספק משוב — המימוש יעבור חזרה",
+      "rejectFeedback": "מה צריך לשנות לפני המיזוג?",
+      "approveComment": "הערות? (אופציונלי, לחץ Enter לדילוג)",
+      "feedbackRequired": "נדרש משוב לדחייה"
+    },
+    "planReview": {
+      "message": "סקור את תוכנית המימוש. מה תרצה לעשות?",
+      "approveAndContinue": "אשר והמשך",
+      "approveDescription": "קבל את התוכנית והמשך למימוש",
+      "rejectAndIterate": "דחה וחזור",
+      "rejectDescription": "ספק משוב והרץ מחדש את התכנון",
+      "rejectFeedback": "מה צריך לשנות בתוכנית?",
+      "approveComment": "הערות? (אופציונלי, לחץ Enter לדילוג)",
+      "feedbackRequired": "נדרש משוב לדחייה"
+    },
+    "workflowDefaults": {
+      "message": "בחר ברירות מחדל לתהליך עבודה עבור פיצ'רים חדשים",
+      "instructions": "(רווח לשינוי, Enter לאישור)",
+      "allowPrd": "אשר PRD",
+      "allowPrdDescription": "אשר אוטומטית את שלב הדרישות",
+      "allowPlan": "אשר תוכנית",
+      "allowPlanDescription": "אשר אוטומטית את שלב התכנון",
+      "allowMerge": "אשר מיזוג",
+      "allowMergeDescription": "אשר ומזג אוטומטית לאחר מימוש",
+      "pushOnFinish": "דחוף בסיום",
+      "pushOnFinishDescription": "דחוף ענף לשרת כאשר המימוש מסתיים",
+      "createPr": "צור PR",
+      "createPrDescription": "פתח בקשת משיכה כאשר המימוש מסתיים"
+    }
+  },
+  "console": {
+    "title": "פיצ'רים",
+    "summary": {
+      "needsYou": "ממתינים לך",
+      "running": "רצים",
+      "waiting": "ממתינים",
+      "failed": "נכשלו",
+      "done": "הושלמו"
+    },
+    "fleet": {
+      "queuePaused": "תור ההמתנה מושהה {{duration}}",
+      "breakerTripped": "מפסק ההגנה הופעל"
+    },
+    "strip": {
+      "label": "ממתין לך",
+      "empty": "כרגע שום דבר לא ממתין לך",
+      "questions": "שאלות: {{count}}",
+      "gate": "לבדוק {{phase}}"
+    },
+    "columns": {
+      "state": "מצב",
+      "feature": "פיצ'ר",
+      "repo": "ריפו",
+      "phase": "שלב",
+      "agent": "סוכן",
+      "elapsed": "זמן",
+      "cost": "עלות"
+    },
+    "state": {
+      "running": "רץ",
+      "action-required": "ממתין לך",
+      "blocked": "חסום",
+      "pending": "נדחה",
+      "queued": "בתור",
+      "done": "הושלם",
+      "error": "נכשל",
+      "deleting": "נמחק",
+      "archived": "בארכיון",
+      "question": "שאלה"
+    },
+    "phase": {
+      "analyze": "ניתוח",
+      "requirements": "דרישות",
+      "research": "מחקר",
+      "plan": "תכנון",
+      "implement": "מימוש",
+      "merge": "מיזוג",
+      "maintain": "תחזוקה",
+      "blocked": "חסום",
+      "pending": "נדחה",
+      "archived": "בארכיון",
+      "prototype-generate": "אב-טיפוס"
+    },
+    "inspector": {
+      "repo": "ריפו",
+      "branch": "ענף",
+      "worktree": "Worktree",
+      "state": "מצב",
+      "agent": "סוכן",
+      "elapsed": "זמן",
+      "cost": "עלות",
+      "tokens": "טוקנים",
+      "tokensValue": "{{input}} נכנס · {{output}} יוצא",
+      "pr": "PR",
+      "questions": "שאלות",
+      "questionsHint": "{{count}} פתוחות · לענות עם: shep agent questions ls",
+      "error": "שגיאה",
+      "noSelection": "לא נבחר פיצ'ר"
+    },
+    "log": {
+      "title": "לוג",
+      "empty": "עדיין אין פלט",
+      "noRun": "לפיצ'ר הזה עדיין אין הרצת סוכן"
+    },
+    "keys": {
+      "select": "בחירה",
+      "details": "פרטים",
+      "log": "לוג",
+      "approve": "אישור",
+      "reject": "דחייה",
+      "stop": "עצירה",
+      "resume": "המשך",
+      "releaseQueue": "שחרור התור",
+      "help": "עזרה",
+      "quit": "יציאה",
+      "shell": "מעטפת",
+      "follow": "מעקב אחר הלוג",
+      "filter": "סינון",
+      "palette": "פקודות",
+      "copyId": "העתקת מזהה",
+      "chat": "צ'אט",
+      "harness": "שינויי harness ({{count}})",
+      "newFeature": "פיצ'ר חדש"
+    },
+    "reject": {
+      "prompt": "משוב עבור {{name}}:",
+      "hint": "enter שליחה · esc ביטול"
+    },
+    "stop": {
+      "confirm": "לעצור את {{name}}? אפשר יהיה להמשיך את ההרצה. (y/n)"
+    },
+    "progress": {
+      "approve": "מאשר את {{name}}…",
+      "reject": "דוחה את {{name}}…",
+      "stop": "עוצר את {{name}}…",
+      "resume": "ממשיך את {{name}}…",
+      "releaseQueue": "משחרר את התור המושהה…"
+    },
+    "refreshFailed": "הרענון נכשל: {{message}}",
+    "empty": {
+      "title": "עדיין אין פיצ'רים",
+      "hint": "צור אחד עם: shep feat new \"<מה לבנות>\""
+    },
+    "help": {
+      "title": "מקשים",
+      "navigate": "↑ ↓ / j k   תנועה",
+      "pages": "PgUp PgDn / g G   עמוד, ראשון, אחרון",
+      "details": "enter / i   חלונית פרטים",
+      "log": "l   חלונית לוג",
+      "approve": "a   אישור השלב",
+      "reject": "r   דחיית השלב עם משוב",
+      "stop": "s   עצירת ההרצה (שואל קודם)",
+      "resume": "R   המשך הרצה שנקטעה או נכשלה",
+      "releaseQueue": "u   שחרור התור המושהה (יבקש אישור)",
+      "help": "?   העזרה הזו (esc סוגר)",
+      "quit": "q / ctrl+c   יציאה",
+      "shell": "t / T   מעטפת ב-worktree (פיצול / חלון חדש)",
+      "follow": "f / F   מעקב אחר לוג הסוכן (פיצול / חלון חדש)",
+      "filter": "/   סינון הפיצ'רים (esc מנקה)",
+      "palette": ":/ctrl+p   לוח פקודות",
+      "copyId": "c   העתקת מזהה הפיצ'ר",
+      "controlCenter": "C   חלון לכל פיצ'ר פעיל (מרכז בקרה)",
+      "chat": "o   צ'אט עם הסוכן של הפיצ'ר (esc חוזר)",
+      "harness": "d   שינויי harness שנלמדו וממתינים לך (אימוץ / דחייה)",
+      "newFeature": "N   פיצ'ר חדש במאגר של הפיצ'ר הנבחר"
+    },
+    "notTty": "shep tui צריך טרמינל אינטראקטיבי. בסקריפטים ובצינורות, השתמש ב-\"shep feat ls\".",
+    "filter": {
+      "hint": "הקלד לסינון · enter שמירה · esc ניקוי",
+      "active": "סינון “{{query}}” · {{shown}} מתוך {{total}}",
+      "noMatch": "אין פיצ'ר שתואם ל-“{{query}}”"
+    },
+    "inline": {
+      "shell": "מעטפת ב-{{cwd}}. הקלד exit כדי לחזור ל-shep tui.",
+      "log": "עוקב אחר הלוג של {{name}}. לחץ ctrl+c כדי לחזור ל-shep tui."
+    },
+    "notify": {
+      "body": "{{name}} צריך אותך"
+    },
+    "windowTitle": {
+      "attention": "shep · מחכים לך: {{count}}",
+      "idle": "shep tui"
+    },
+    "palette": {
+      "title": "פקודות",
+      "count": "{{count}} זמינות",
+      "noMatch": "אין פקודה תואמת",
+      "hint": "הקלד לחיפוש · ↑↓ בחירה · enter הרצה · esc סגירה",
+      "commands": {
+        "approve": "אישור השער",
+        "reject": "דחיית השער עם משוב",
+        "stop": "עצירת הריצה",
+        "resume": "חידוש הריצה",
+        "shell": "פתיחת מעטפת ליד הקונסולה",
+        "shell-window": "פתיחת מעטפת בחלון חדש",
+        "follow-log": "מעקב אחר לוג הסוכן ליד הקונסולה",
+        "follow-log-window": "מעקב אחר לוג הסוכן בחלון חדש",
+        "details": "הצגת פרטים",
+        "log": "הצגת הלוג",
+        "copy-id": "העתקת מזהה הפיצ'ר",
+        "filter": "סינון פיצ'רים",
+        "clear-filter": "ניקוי הסינון",
+        "help": "הצגת מקשים",
+        "quit": "יציאה",
+        "control-center": "פתיחת חלון לכל פיצ'ר פעיל",
+        "chat": "צ'אט עם הסוכן של הפיצ'ר",
+        "harness-decisions": "סקירת שינויי harness שנלמדו",
+        "new-feature": "יצירת פיצ'ר חדש"
+      }
+    },
+    "copied": "המזהה של {{name}} הועתק: {{id}}",
+    "controlCenter": {
+      "none": "לכל פיצ'ר פעיל כבר יש חלון"
+    },
+    "chat": {
+      "title": "צ'אט",
+      "you": "את/ה",
+      "working": "עובד…",
+      "loading": "טוען את הצ'אט…",
+      "empty": "אין עדיין הודעות. כתוב למטה כדי לדבר עם הסוכן של הפיצ'ר; הוא רץ ב-{{directory}}.",
+      "answerPrompt": "תשובה",
+      "hint": "enter שליחה · esc חזרה לפיצ'רים",
+      "hintQuestion": "1–9 בחירת אפשרות · או הקלד תשובה ולחץ enter · esc חזרה"
+    },
+    "release": {
+      "confirm": "לשחרר את התור המושהה? פיצ'רים חדשים יוכלו להתחיל. (y/n)",
+      "done": "התור שוחרר — פיצ'רים ממתינים יוכלו להתחיל"
+    },
+    "hostStatus": {
+      "blocked": "צריכים אותך: {{count}}"
+    },
+    "harness": {
+      "title": "שינויי harness שנלמדו",
+      "waiting": "ממתינים: {{count}}",
+      "empty": "אין שינוי harness שממתין לך",
+      "hint": "↑↓ בחירה · a אימוץ · r דחייה · esc חזרה לפיצ'רים",
+      "rejectPrompt": "דחייה — למה?",
+      "rejectHint": "משוב אופציונלי מכוון את ההצעה הבאה · enter דחייה · esc ביטול",
+      "progress": "עונה על שינוי ה-harness…",
+      "adopted": "שינוי ה-harness אומץ",
+      "rejected": "שינוי ה-harness נדחה",
+      "alreadySettled": "כבר ענו על שינוי ה-harness הזה במקום אחר",
+      "collaborationOff": "עונים על שינויי harness דרך תיבת הדואר הנכנס; הפעילו אותה עם: shep settings flags enable collaboration"
+    },
+    "create": {
+      "title": "פיצ'ר חדש ב-{{repository}}",
+      "prompt": "תיאור",
+      "describe": "תארו את הפיצ'ר בשורה למטה והקישו enter. שערים, push ו-PR פועלים לפי הגדרות זרימת העבודה שלכם.",
+      "explore": "Explore",
+      "k": "k",
+      "on": "פעיל",
+      "off": "כבוי",
+      "kRange": "↑↓ 1–{{max}}",
+      "exploreCost": "Explore מנסה כמה גרסאות של ה-harness בשלב המימוש, לפיצ'ר הזה בלבד, ושומר את הטובה ביותר. העלות היא בערך פי 4 משלב המימוש ב-k = 1, ויותר ב-k גבוה יותר.",
+      "hint": "enter יצירה · esc ביטול",
+      "hintExplore": "enter יצירה · tab Explore פעיל/כבוי · ↑↓ k · esc ביטול",
+      "progress": "יוצר פיצ'ר ב-{{repository}}…",
+      "created": "{{name}} נוצר",
+      "queued": "{{name}} נוצר — בתור במקום {{position}}"
+    }
+  }
+}
