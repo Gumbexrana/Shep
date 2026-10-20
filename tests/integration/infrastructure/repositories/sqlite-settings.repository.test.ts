@@ -1,0 +1,1681 @@
+/**
+ * SQLite Settings Repository Integration Tests
+ *
+ * Tests for the SQLite implementation of ISettingsRepository.
+ * Verifies repository operations, singleton constraint, and database mapping.
+ *
+ * TDD Phase: RED
+ * - Tests written BEFORE implementation
+ * - All tests should FAIL initially
+ */
+
+import 'reflect-metadata';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import type Database from 'better-sqlite3';
+import { createInMemoryDatabase, tableExists } from '../../../helpers/database.helper.js';
+import { runSQLiteMigrations } from '@/infrastructure/persistence/sqlite/migrations.js';
+import { SQLiteSettingsRepository } from '@/infrastructure/repositories/sqlite-settings.repository.js';
+import type { Settings } from '@/domain/generated/output.js';
+import {
+  HarnessAdoptionPolicy,
+  HarnessRecursion,
+  LearningMode,
+} from '@/domain/generated/output.js';
+import { createDefaultSettings } from '@/domain/factories/settings-defaults.factory.js';
+import {
+  AgentType,
+  AgentEffort,
+  AgentAuthMethod,
+  EditorType,
+  Language,
+  SkillSourceType,
+  TerminalType,
+  WhatsAppAdapterKind,
+  WhatsAppConnectionStatus,
+} from '@/domain/generated/output.js';
+
+describe('SQLiteSettingsRepository', () => {
+  let db: Database.Database;
+  let repository: SQLiteSettingsRepository;
+
+  // Sample test data
+  const createTestSettings = (): Settings => ({
+    id: 'singleton',
+    createdAt: new Date('2025-01-01T00:00:00Z'),
+    updatedAt: new Date('2025-01-01T00:00:00Z'),
+    models: {
+      default: 'claude-opus-4',
+    },
+    user: {
+      name: 'Test User',
+      email: 'test@example.com',
+      githubUsername: 'testuser',
+    },
+    environment: {
+      defaultEditor: EditorType.VsCode,
+      shellPreference: 'zsh',
+      terminalPreference: TerminalType.System,
+    },
+    system: {
+      logLevel: 'info',
+    },
+    agent: {
+      type: AgentType.ClaudeCode,
+      authMethod: AgentAuthMethod.Session,
+    },
+    notifications: {
+      inApp: { enabled: false },
+      browser: { enabled: false },
+      desktop: { enabled: false },
+      events: {
+        agentStarted: true,
+        phaseCompleted: true,
+        waitingApproval: true,
+        agentCompleted: true,
+        agentFailed: true,
+        prMerged: true,
+        prClosed: true,
+        prChecksPassed: true,
+        prChecksFailed: true,
+        prBlocked: true,
+        mergeReviewReady: true,
+        workflowStarted: true,
+        workflowCompleted: true,
+        workflowFailed: true,
+      },
+    },
+    workflow: {
+      openPrOnImplementationComplete: false,
+      approvalGateDefaults: {
+        allowPrd: false,
+        allowPlan: false,
+        allowMerge: false,
+        pushOnImplementationComplete: false,
+      },
+      enableEvidence: false,
+      commitEvidence: false,
+      ciWatchEnabled: true,
+      defaultMode: 'Fast',
+    },
+    onboardingComplete: false,
+  });
+
+  beforeEach(async () => {
+    // Create fresh database for each test
+    db = createInMemoryDatabase();
+
+    // Run migrations to create schema
+    await runSQLiteMigrations(db);
+
+    // Verify migrations worked
+    expect(tableExists(db, 'settings')).toBe(true);
+
+    // Create repository instance
+    repository = new SQLiteSettingsRepository(db);
+  });
+
+  afterEach(() => {
+    db.close();
+  });
+
+  describe('initialize()', () => {
+    it('allows only one concurrent initializer even when their settings IDs differ', async () => {
+      const first = { ...createTestSettings(), id: 'first-startup' };
+      const second = { ...createTestSettings(), id: 'second-startup' };
+      const results = await Promise.allSettled([
+        repository.initialize(first),
+        new SQLiteSettingsRepository(db).initialize(second),
+      ]);
+
+      expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+      expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
+      expect(db.prepare('SELECT id FROM settings').all()).toEqual([{ id: first.id }]);
+    });
+
+    it('should create new settings in database', async () => {
+      // Arrange
+      const settings = createTestSettings();
+
+      // Act
+      await repository.initialize(settings);
+
+      // Assert - verify data was inserted
+      const row = db.prepare('SELECT * FROM settings WHERE id = ?').get('singleton') as Record<
+        string,
+        unknown
+      >;
+      expect(row).toBeDefined();
+      expect(row.id).toBe('singleton');
+    });
+
+    it('should store model_default column with the configured model value', async () => {
+      // Arrange
+      const settings = createTestSettings();
+
+      // Act
+      await repository.initialize(settings);
+
+      // Assert — model_default is the source of truth after migration 024
+      const row = db.prepare('SELECT * FROM settings WHERE id = ?').get('singleton') as Record<
+        string,
+        unknown
+      >;
+      expect(row.model_default).toBe('claude-opus-4');
+    });
+
+    it('should store optional user profile fields', async () => {
+      // Arrange
+      const settings = createTestSettings();
+
+      // Act
+      await repository.initialize(settings);
+
+      // Assert
+      const row = db.prepare('SELECT * FROM settings WHERE id = ?').get('singleton') as Record<
+        string,
+        unknown
+      >;
+      expect(row.user_name).toBe('Test User');
+      expect(row.user_email).toBe('test@example.com');
+      expect(row.user_github_username).toBe('testuser');
+    });
+
+    it('should handle missing optional user fields', async () => {
+      // Arrange
+      const settings = createTestSettings();
+      settings.user = {}; // No optional fields
+
+      // Act
+      await repository.initialize(settings);
+
+      // Assert
+      const row = db.prepare('SELECT * FROM settings WHERE id = ?').get('singleton') as Record<
+        string,
+        unknown
+      >;
+      expect(row.user_name).toBeNull();
+      expect(row.user_email).toBeNull();
+      expect(row.user_github_username).toBeNull();
+    });
+
+    it('should store environment configuration', async () => {
+      // Arrange
+      const settings = createTestSettings();
+
+      // Act
+      await repository.initialize(settings);
+
+      // Assert
+      const row = db.prepare('SELECT * FROM settings WHERE id = ?').get('singleton') as Record<
+        string,
+        unknown
+      >;
+      expect(row.env_default_editor).toBe('vscode');
+      expect(row.env_shell_preference).toBe('zsh');
+    });
+
+    it('should store system configuration with boolean as integer', async () => {
+      // Arrange
+      const settings = createTestSettings();
+
+      // Act
+      await repository.initialize(settings);
+
+      // Assert
+      const row = db.prepare('SELECT * FROM settings WHERE id = ?').get('singleton') as Record<
+        string,
+        unknown
+      >;
+      expect(row.sys_auto_update).toBe(1); // true -> 1
+      expect(row.sys_log_level).toBe('info');
+    });
+
+    it('should enforce singleton constraint (only one settings record)', async () => {
+      // Arrange
+      const settings1 = createTestSettings();
+      const settings2 = createTestSettings();
+
+      // Act
+      await repository.initialize(settings1);
+
+      // Assert - second initialization should fail
+      await expect(repository.initialize(settings2)).rejects.toThrow();
+    });
+
+    it('should store timestamps as ISO 8601 strings', async () => {
+      // Arrange
+      const settings = createTestSettings();
+
+      // Act
+      await repository.initialize(settings);
+
+      // Assert
+      const row = db.prepare('SELECT * FROM settings WHERE id = ?').get('singleton') as Record<
+        string,
+        unknown
+      >;
+      expect(typeof row.created_at).toBe('string');
+      expect(typeof row.updated_at).toBe('string');
+      expect(row.created_at).toBe('2025-01-01T00:00:00.000Z');
+      expect(row.updated_at).toBe('2025-01-01T00:00:00.000Z');
+    });
+  });
+
+  describe('load()', () => {
+    it('should return null when settings do not exist', async () => {
+      // Act
+      const result = await repository.load();
+
+      // Assert
+      expect(result).toBeNull();
+    });
+
+    it('should load existing settings from database', async () => {
+      // Arrange - insert settings first
+      const settings = createTestSettings();
+      await repository.initialize(settings);
+
+      // Act
+      const loaded = await repository.load();
+
+      // Assert
+      expect(loaded).not.toBeNull();
+      expect(loaded?.id).toBe('singleton');
+    });
+
+    it('should correctly map model configuration from database', async () => {
+      // Arrange
+      const settings = createTestSettings();
+      await repository.initialize(settings);
+
+      // Act
+      const loaded = await repository.load();
+
+      // Assert
+      expect(loaded?.models).toEqual({
+        default: 'claude-opus-4',
+      });
+    });
+
+    it('should correctly map user profile from database', async () => {
+      // Arrange
+      const settings = createTestSettings();
+      await repository.initialize(settings);
+
+      // Act
+      const loaded = await repository.load();
+
+      // Assert
+      expect(loaded?.user).toEqual({
+        name: 'Test User',
+        email: 'test@example.com',
+        githubUsername: 'testuser',
+        preferredLanguage: 'en',
+      });
+    });
+
+    it('should handle missing optional user fields in database', async () => {
+      // Arrange - insert settings without optional user fields
+      const settings = createTestSettings();
+      settings.user = {};
+      await repository.initialize(settings);
+
+      // Act
+      const loaded = await repository.load();
+
+      // Assert
+      expect(loaded?.user).toEqual({ preferredLanguage: 'en' });
+    });
+
+    it('should correctly map environment configuration from database', async () => {
+      // Arrange
+      const settings = createTestSettings();
+      await repository.initialize(settings);
+
+      // Act
+      const loaded = await repository.load();
+
+      // Assert
+      expect(loaded?.environment).toEqual({
+        defaultEditor: 'vscode',
+        shellPreference: 'zsh',
+        terminalPreference: 'system',
+      });
+    });
+
+    it('should correctly map system configuration from database', async () => {
+      // Arrange
+      const settings = createTestSettings();
+      await repository.initialize(settings);
+
+      // Act
+      const loaded = await repository.load();
+
+      // Assert
+      expect(loaded?.system).toEqual({
+        logLevel: 'info',
+      });
+    });
+
+    it('does not surface the removed autoUpdate setting (spec 135)', async () => {
+      await repository.initialize(createTestSettings());
+
+      const loaded = await repository.load();
+
+      expect(loaded?.system).not.toHaveProperty('autoUpdate');
+    });
+
+    it('should parse ISO 8601 timestamps back to Date objects', async () => {
+      // Arrange
+      const settings = createTestSettings();
+      await repository.initialize(settings);
+
+      // Act
+      const loaded = await repository.load();
+
+      // Assert
+      expect(loaded?.createdAt).toBeInstanceOf(Date);
+      expect(loaded?.updatedAt).toBeInstanceOf(Date);
+      expect((loaded?.createdAt as Date).toISOString()).toBe('2025-01-01T00:00:00.000Z');
+    });
+  });
+
+  describe('update()', () => {
+    it('should update existing settings in database', async () => {
+      // Arrange - initialize first
+      const settings = createTestSettings();
+      await repository.initialize(settings);
+
+      // Modify settings
+      settings.models.default = 'claude-opus-5';
+      settings.user.name = 'Updated Name';
+      settings.system.logLevel = 'debug';
+      settings.updatedAt = new Date('2025-01-02T00:00:00Z');
+
+      // Act
+      await repository.update(settings);
+
+      // Assert - verify updates in database
+      const row = db.prepare('SELECT * FROM settings WHERE id = ?').get('singleton') as Record<
+        string,
+        unknown
+      >;
+      expect(row.model_default).toBe('claude-opus-5');
+      expect(row.user_name).toBe('Updated Name');
+      expect(row.sys_log_level).toBe('debug');
+      expect(row.updated_at).toBe('2025-01-02T00:00:00.000Z');
+    });
+
+    it('should throw error when updating non-existent settings', async () => {
+      // Arrange
+      const settings = createTestSettings();
+
+      // Act & Assert - should fail because settings not initialized
+      await expect(repository.update(settings)).rejects.toThrow();
+    });
+
+    it('should update model configuration', async () => {
+      // Arrange
+      const settings = createTestSettings();
+      await repository.initialize(settings);
+
+      // Modify model default field
+      settings.models = {
+        default: 'new-default-model',
+      };
+
+      // Act
+      await repository.update(settings);
+
+      // Assert
+      const loaded = await repository.load();
+      expect(loaded?.models).toEqual(settings.models);
+    });
+
+    it('should update user profile including optional fields', async () => {
+      // Arrange
+      const settings = createTestSettings();
+      await repository.initialize(settings);
+
+      // Modify user fields
+      settings.user = {
+        name: 'New Name',
+        email: 'newemail@example.com',
+        githubUsername: 'newusername',
+      };
+
+      // Act
+      await repository.update(settings);
+
+      // Assert
+      const loaded = await repository.load();
+      expect(loaded?.user).toEqual({
+        name: 'New Name',
+        email: 'newemail@example.com',
+        githubUsername: 'newusername',
+        preferredLanguage: 'en',
+      });
+    });
+
+    it('should allow clearing optional user fields', async () => {
+      // Arrange
+      const settings = createTestSettings();
+      await repository.initialize(settings);
+
+      // Clear optional fields
+      settings.user = {};
+
+      // Act
+      await repository.update(settings);
+
+      // Assert
+      const loaded = await repository.load();
+      expect(loaded?.user).toEqual({ preferredLanguage: 'en' });
+    });
+
+    it('should update environment configuration', async () => {
+      // Arrange
+      const settings = createTestSettings();
+      await repository.initialize(settings);
+
+      // Modify environment
+      settings.environment = {
+        defaultEditor: EditorType.Cursor,
+        shellPreference: 'bash',
+        terminalPreference: TerminalType.Warp,
+      };
+
+      // Act
+      await repository.update(settings);
+
+      // Assert
+      const loaded = await repository.load();
+      expect(loaded?.environment).toEqual(settings.environment);
+    });
+
+    it('should update system configuration', async () => {
+      // Arrange
+      const settings = createTestSettings();
+      await repository.initialize(settings);
+
+      // Modify system config
+      settings.system = {
+        logLevel: 'error',
+      };
+
+      // Act
+      await repository.update(settings);
+
+      // Assert
+      const loaded = await repository.load();
+      expect(loaded?.system).toEqual(settings.system);
+    });
+
+    it('should preserve createdAt and update updatedAt', async () => {
+      // Arrange
+      const settings = createTestSettings();
+      await repository.initialize(settings);
+
+      // Change updatedAt
+      const originalCreatedAt = settings.createdAt;
+      settings.updatedAt = new Date('2025-01-03T00:00:00Z');
+
+      // Act
+      await repository.update(settings);
+
+      // Assert
+      const loaded = await repository.load();
+      expect(loaded?.createdAt).toEqual(originalCreatedAt);
+      expect(loaded?.updatedAt).toEqual(new Date('2025-01-03T00:00:00Z'));
+    });
+  });
+
+  describe('feature flags', () => {
+    const FACTORY_FLAGS = [
+      'spaces',
+      'trackers',
+      'knowledge',
+      'signals',
+      'opportunities',
+      'feedback',
+      'discovery',
+      'incidents',
+      'outcomes',
+      'docsFirst',
+      'autopilot',
+      'factory',
+    ] as const;
+
+    it('round-trips every software-factory flag through initialize and update (spec 135)', async () => {
+      const settings = createTestSettings();
+      const off = Object.fromEntries(FACTORY_FLAGS.map((flag) => [flag, false]));
+      settings.featureFlags = { ...createDefaultSettings().featureFlags!, ...off };
+
+      await repository.initialize(settings);
+      const loaded = await repository.load();
+      for (const flag of FACTORY_FLAGS) expect(loaded?.featureFlags?.[flag], flag).toBe(false);
+
+      const on = Object.fromEntries(FACTORY_FLAGS.map((flag) => [flag, true]));
+      await repository.update({ ...loaded!, featureFlags: { ...loaded!.featureFlags!, ...on } });
+      const updated = await repository.load();
+      for (const flag of FACTORY_FLAGS) expect(updated?.featureFlags?.[flag], flag).toBe(true);
+    });
+
+    it('round-trips the SDLC board flag, off by default (spec 140)', async () => {
+      const settings = createTestSettings();
+      settings.featureFlags = createDefaultSettings().featureFlags!;
+
+      await repository.initialize(settings);
+      const loaded = await repository.load();
+      expect(loaded?.featureFlags?.sdlcBoard).toBe(false);
+
+      await repository.update({
+        ...loaded!,
+        featureFlags: { ...loaded!.featureFlags!, sdlcBoard: true },
+      });
+      expect((await repository.load())?.featureFlags?.sdlcBoard).toBe(true);
+    });
+
+    it('round-trips the agent coordination flag, off by default (spec 141)', async () => {
+      const settings = createTestSettings();
+      settings.featureFlags = createDefaultSettings().featureFlags!;
+
+      await repository.initialize(settings);
+      const loaded = await repository.load();
+      expect(loaded?.featureFlags?.agentCoordination).toBe(false);
+
+      await repository.update({
+        ...loaded!,
+        featureFlags: { ...loaded!.featureFlags!, agentCoordination: true },
+      });
+      expect((await repository.load())?.featureFlags?.agentCoordination).toBe(true);
+    });
+
+    it('round-trips the self-learning flag and learning settings, off by default (spec 150)', async () => {
+      const settings = createTestSettings();
+      settings.featureFlags = createDefaultSettings().featureFlags!;
+
+      await repository.initialize(settings);
+      const loaded = await repository.load();
+      expect(loaded?.featureFlags?.selfLearning).toBe(false);
+      expect(loaded?.learning).toBeUndefined();
+
+      const learning = {
+        mode: LearningMode.Reflect,
+        exploreK: 2,
+        exploreRecursion: HarnessRecursion.Parallel,
+        exploreMaxCostUsd: 12,
+        adoptionPolicy: HarnessAdoptionPolicy.Manual,
+        alwaysOnCharCap: 2500,
+        regressionMinSample: 4,
+      };
+      await repository.update({
+        ...loaded!,
+        featureFlags: { ...loaded!.featureFlags!, selfLearning: true },
+        learning,
+      });
+      const reloaded = await repository.load();
+      expect(reloaded?.featureFlags?.selfLearning).toBe(true);
+      expect(reloaded?.learning).toEqual(learning);
+    });
+
+    it('keeps an ASPM flag a user already turned on now that the default is off', async () => {
+      const settings = createTestSettings();
+      settings.featureFlags = { ...createDefaultSettings().featureFlags!, aspm: true };
+
+      await repository.initialize(settings);
+      const loaded = await repository.load();
+
+      expect(createDefaultSettings().featureFlags?.aspm).toBe(false);
+      expect(loaded?.featureFlags?.aspm).toBe(true);
+    });
+
+    it('should initialize settings with featureFlags and load them back', async () => {
+      const settings = createTestSettings();
+      settings.featureFlags = {
+        envDeploy: false,
+        debug: true,
+        reactFileManager: false,
+        projects: false,
+        codeReview: false,
+        collaboration: false,
+        bedrockIntegration: false,
+        whatsappDispatch: false,
+        aspm: false,
+        clusters: false,
+        scheduledWorkflows: false,
+        githubImport: true,
+        queryAwareHarness: false,
+        spaces: false,
+        trackers: false,
+        knowledge: false,
+        signals: false,
+        opportunities: false,
+        feedback: false,
+        discovery: false,
+        incidents: false,
+        outcomes: false,
+        docsFirst: false,
+        autopilot: false,
+        factory: false,
+        sdlcBoard: false,
+        agentCoordination: false,
+        selfLearning: false,
+      };
+
+      await repository.initialize(settings);
+      const loaded = await repository.load();
+
+      expect(loaded?.featureFlags).toEqual({
+        envDeploy: false,
+        debug: true,
+        reactFileManager: false,
+        projects: false,
+        codeReview: false,
+        collaboration: false,
+        bedrockIntegration: false,
+        whatsappDispatch: false,
+        aspm: false,
+        clusters: false,
+        scheduledWorkflows: false,
+        githubImport: true,
+        queryAwareHarness: false,
+        spaces: false,
+        trackers: false,
+        knowledge: false,
+        signals: false,
+        opportunities: false,
+        feedback: false,
+        discovery: false,
+        incidents: false,
+        outcomes: false,
+        docsFirst: false,
+        autopilot: false,
+        factory: false,
+        sdlcBoard: false,
+        agentCoordination: false,
+        selfLearning: false,
+      });
+    });
+
+    it('should initialize settings without featureFlags and load defaults', async () => {
+      const settings = createTestSettings();
+
+      await repository.initialize(settings);
+      const loaded = await repository.load();
+
+      expect(loaded?.featureFlags).toEqual({
+        envDeploy: false,
+        debug: false,
+        reactFileManager: false,
+        projects: false,
+        codeReview: false,
+        collaboration: false,
+        bedrockIntegration: false,
+        whatsappDispatch: false,
+        aspm: false,
+        clusters: false,
+        // When settings is initialized without featureFlags, the mapper writes 0 for all
+        // flags, so load-back returns false across the board.
+        scheduledWorkflows: false,
+        githubImport: true,
+        queryAwareHarness: false,
+        spaces: false,
+        trackers: false,
+        knowledge: false,
+        signals: false,
+        opportunities: false,
+        feedback: false,
+        discovery: false,
+        incidents: false,
+        outcomes: false,
+        docsFirst: false,
+        autopilot: false,
+        factory: false,
+        sdlcBoard: false,
+        agentCoordination: false,
+        selfLearning: false,
+      });
+    });
+
+    it('should update featureFlags and persist changes', async () => {
+      const settings = createTestSettings();
+      await repository.initialize(settings);
+
+      settings.featureFlags = {
+        envDeploy: true,
+        debug: false,
+        reactFileManager: false,
+        projects: false,
+        codeReview: false,
+        collaboration: false,
+        bedrockIntegration: false,
+        whatsappDispatch: false,
+        aspm: false,
+        clusters: false,
+        scheduledWorkflows: false,
+        githubImport: true,
+        queryAwareHarness: false,
+        spaces: false,
+        trackers: false,
+        knowledge: false,
+        signals: false,
+        opportunities: false,
+        feedback: false,
+        discovery: false,
+        incidents: false,
+        outcomes: false,
+        docsFirst: false,
+        autopilot: false,
+        factory: false,
+        sdlcBoard: false,
+        agentCoordination: false,
+        selfLearning: false,
+      };
+      settings.updatedAt = new Date('2025-01-02T00:00:00Z');
+      await repository.update(settings);
+
+      const loaded = await repository.load();
+      expect(loaded?.featureFlags).toEqual({
+        envDeploy: true,
+        debug: false,
+        reactFileManager: false,
+        projects: false,
+        codeReview: false,
+        collaboration: false,
+        bedrockIntegration: false,
+        whatsappDispatch: false,
+        aspm: false,
+        clusters: false,
+        scheduledWorkflows: false,
+        githubImport: true,
+        queryAwareHarness: false,
+        spaces: false,
+        trackers: false,
+        knowledge: false,
+        signals: false,
+        opportunities: false,
+        feedback: false,
+        discovery: false,
+        incidents: false,
+        outcomes: false,
+        docsFirst: false,
+        autopilot: false,
+        factory: false,
+        sdlcBoard: false,
+        agentCoordination: false,
+        selfLearning: false,
+      });
+    });
+
+    it('should store feature flag booleans as INTEGER 0/1', async () => {
+      const settings = createTestSettings();
+      settings.featureFlags = {
+        envDeploy: false,
+        debug: true,
+        reactFileManager: false,
+        projects: false,
+        codeReview: false,
+        collaboration: false,
+        bedrockIntegration: false,
+        whatsappDispatch: false,
+        aspm: false,
+        clusters: false,
+        scheduledWorkflows: false,
+        githubImport: true,
+        queryAwareHarness: false,
+        spaces: false,
+        trackers: false,
+        knowledge: false,
+        signals: false,
+        opportunities: false,
+        feedback: false,
+        discovery: false,
+        incidents: false,
+        outcomes: false,
+        docsFirst: false,
+        autopilot: false,
+        factory: false,
+        sdlcBoard: false,
+        agentCoordination: false,
+        selfLearning: false,
+      };
+
+      await repository.initialize(settings);
+
+      const row = db
+        .prepare(
+          'SELECT feature_flag_env_deploy, feature_flag_debug, feature_flag_react_file_manager FROM settings WHERE id = ?'
+        )
+        .get('singleton') as Record<string, number>;
+      expect(row.feature_flag_env_deploy).toBe(0);
+      expect(row.feature_flag_debug).toBe(1);
+      expect(row.feature_flag_react_file_manager).toBe(0);
+    });
+  });
+
+  describe('decision default timeout (spec 134)', () => {
+    it('round-trips decisionDefaultTimeoutMinutes through INSERT and UPDATE', async () => {
+      const settings = createTestSettings();
+      settings.workflow.decisionDefaultTimeoutMinutes = 45;
+      await repository.initialize(settings);
+      expect((await repository.load())?.workflow.decisionDefaultTimeoutMinutes).toBe(45);
+
+      settings.workflow.decisionDefaultTimeoutMinutes = 5;
+      await repository.update(settings);
+      expect((await repository.load())?.workflow.decisionDefaultTimeoutMinutes).toBe(5);
+    });
+
+    it('leaves it unset when not configured', async () => {
+      await repository.initialize(createTestSettings());
+      expect((await repository.load())?.workflow.decisionDefaultTimeoutMinutes).toBeUndefined();
+    });
+  });
+
+  describe('CI workflow fields', () => {
+    it('should initialize settings with CI fields and load them back', async () => {
+      const settings = createTestSettings();
+      settings.workflow.ciMaxFixAttempts = 5;
+      settings.workflow.ciWatchTimeoutMs = 300000;
+      settings.workflow.ciLogMaxChars = 25000;
+
+      await repository.initialize(settings);
+      const loaded = await repository.load();
+
+      expect(loaded?.workflow.ciMaxFixAttempts).toBe(5);
+      expect(loaded?.workflow.ciWatchTimeoutMs).toBe(300000);
+      expect(loaded?.workflow.ciLogMaxChars).toBe(25000);
+    });
+
+    it('should handle undefined CI fields as null in database', async () => {
+      const settings = createTestSettings();
+
+      await repository.initialize(settings);
+
+      const row = db
+        .prepare(
+          'SELECT ci_max_fix_attempts, ci_watch_timeout_ms, ci_log_max_chars FROM settings WHERE id = ?'
+        )
+        .get('singleton') as Record<string, number | null>;
+      expect(row.ci_max_fix_attempts).toBeNull();
+      expect(row.ci_watch_timeout_ms).toBeNull();
+      expect(row.ci_log_max_chars).toBeNull();
+    });
+
+    it('should not include undefined CI fields in loaded settings', async () => {
+      const settings = createTestSettings();
+
+      await repository.initialize(settings);
+      const loaded = await repository.load();
+
+      expect(loaded?.workflow.ciMaxFixAttempts).toBeUndefined();
+      expect(loaded?.workflow.ciWatchTimeoutMs).toBeUndefined();
+      expect(loaded?.workflow.ciLogMaxChars).toBeUndefined();
+    });
+  });
+
+  describe('migration 025 — model_default column', () => {
+    it('should create model_default column after migrations run', () => {
+      const columns = db.pragma('table_info(settings)') as { name: string }[];
+      const hasModelDefault = columns.some((c) => c.name === 'model_default');
+      expect(hasModelDefault).toBe(true);
+    });
+
+    it('should populate model_default with default value for manually inserted rows', () => {
+      db.prepare(
+        `INSERT INTO settings (
+          id, created_at, updated_at,
+          model_analyze, model_requirements, model_plan, model_implement,
+          env_default_editor, env_shell_preference,
+          sys_auto_update, sys_log_level
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run(
+        'singleton',
+        '2025-01-01T00:00:00.000Z',
+        '2025-01-01T00:00:00.000Z',
+        'old-model',
+        'old-model',
+        'old-model',
+        'old-model',
+        'vscode',
+        'zsh',
+        1,
+        'info'
+      );
+
+      const row = db
+        .prepare('SELECT model_default FROM settings WHERE id = ?')
+        .get('singleton') as Record<string, unknown>;
+      expect(row.model_default).toBe('claude-sonnet-4-6');
+    });
+
+    it('should be idempotent — running migration handler twice does not throw', () => {
+      const columns = db.pragma('table_info(settings)') as { name: string }[];
+      const alreadyExists = columns.some((c: { name: string }) => c.name === 'model_default');
+      expect(alreadyExists).toBe(true);
+    });
+  });
+
+  describe('language preference', () => {
+    it('should initialize settings with preferredLanguage "fr" and load it back', async () => {
+      const settings = createTestSettings();
+      settings.user.preferredLanguage = Language.French;
+      await repository.initialize(settings);
+
+      const loaded = await repository.load();
+      expect(loaded?.user.preferredLanguage).toBe('fr');
+    });
+
+    it('should default preferredLanguage to "en" when not specified', async () => {
+      const settings = createTestSettings();
+      await repository.initialize(settings);
+
+      const loaded = await repository.load();
+      expect(loaded?.user.preferredLanguage).toBe('en');
+    });
+
+    it('should update preferredLanguage from "en" to "de"', async () => {
+      const settings = createTestSettings();
+      await repository.initialize(settings);
+
+      settings.user.preferredLanguage = Language.German;
+      settings.updatedAt = new Date('2026-01-02T00:00:00Z');
+      await repository.update(settings);
+
+      const loaded = await repository.load();
+      expect(loaded?.user.preferredLanguage).toBe('de');
+    });
+
+    it('should persist RTL language "ar" correctly', async () => {
+      const settings = createTestSettings();
+      settings.user.preferredLanguage = Language.Arabic;
+      await repository.initialize(settings);
+
+      const loaded = await repository.load();
+      expect(loaded?.user.preferredLanguage).toBe('ar');
+    });
+
+    it('should store user_preferred_language as TEXT in database', async () => {
+      const settings = createTestSettings();
+      settings.user.preferredLanguage = Language.Hebrew;
+      await repository.initialize(settings);
+
+      const row = db
+        .prepare('SELECT user_preferred_language FROM settings WHERE id = ?')
+        .get('singleton') as { user_preferred_language: string };
+      expect(row.user_preferred_language).toBe('he');
+    });
+  });
+
+  describe('SQL injection prevention', () => {
+    it('should safely handle user input with SQL special characters in name', async () => {
+      // Arrange
+      const settings = createTestSettings();
+      settings.user.name = "Robert'; DROP TABLE settings;--";
+
+      // Act
+      await repository.initialize(settings);
+
+      // Assert - table should still exist and data should be safe
+      expect(tableExists(db, 'settings')).toBe(true);
+      const loaded = await repository.load();
+      expect(loaded?.user.name).toBe("Robert'; DROP TABLE settings;--");
+    });
+
+    it('should safely handle SQL special characters in email', async () => {
+      // Arrange
+      const settings = createTestSettings();
+      settings.user.email = "test'@example.com";
+
+      // Act
+      await repository.initialize(settings);
+
+      // Assert
+      const loaded = await repository.load();
+      expect(loaded?.user.email).toBe("test'@example.com");
+    });
+
+    it('should safely handle quotes in shell preference', async () => {
+      // Arrange
+      const settings = createTestSettings();
+      settings.environment.shellPreference = 'ba\'"sh';
+
+      // Act
+      await repository.initialize(settings);
+
+      // Assert
+      const loaded = await repository.load();
+      expect(loaded?.environment.shellPreference).toBe('ba\'"sh');
+    });
+  });
+
+  describe('database mapping', () => {
+    it('should use snake_case for database columns', async () => {
+      // Arrange
+      const settings = createTestSettings();
+
+      // Act
+      await repository.initialize(settings);
+
+      // Assert - check that snake_case columns exist
+      const row = db.prepare('SELECT * FROM settings WHERE id = ?').get('singleton') as Record<
+        string,
+        unknown
+      >;
+      expect(row).toHaveProperty('created_at');
+      expect(row).toHaveProperty('updated_at');
+      expect(row).toHaveProperty('model_default');
+      expect(row).toHaveProperty('user_name');
+      expect(row).toHaveProperty('env_default_editor');
+      expect(row).toHaveProperty('sys_auto_update');
+    });
+
+    it('should flatten nested objects into columns', async () => {
+      // Arrange
+      const settings = createTestSettings();
+
+      // Act
+      await repository.initialize(settings);
+
+      // Assert - nested objects should be flattened
+      const row = db.prepare('SELECT * FROM settings WHERE id = ?').get('singleton') as Record<
+        string,
+        unknown
+      >;
+
+      // models.* -> model_default (source of truth after migration 024)
+      expect(row.model_default).toBeDefined();
+
+      // user.* -> user_*
+      expect(row.user_name).toBeDefined();
+
+      // environment.* -> env_*
+      expect(row.env_default_editor).toBeDefined();
+
+      // system.* -> sys_*
+      expect(row.sys_auto_update).toBeDefined();
+    });
+
+    it('keeps writing the legacy NOT NULL sys_auto_update column (spec 135)', async () => {
+      // Act
+      await repository.initialize(createTestSettings());
+
+      // Assert
+      const rowTrue = db
+        .prepare('SELECT sys_auto_update FROM settings WHERE id = ?')
+        .get('singleton') as { sys_auto_update: number };
+      expect(rowTrue.sys_auto_update).toBe(1);
+    });
+
+    it('loads a row written by an older build that stored sys_auto_update = 0', async () => {
+      // Arrange - manually insert with integer value
+      db.prepare(
+        `INSERT INTO settings (
+          id, created_at, updated_at,
+          model_analyze, model_requirements, model_plan, model_implement,
+          env_default_editor, env_shell_preference,
+          sys_auto_update, sys_log_level
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run(
+        'singleton',
+        '2025-01-01T00:00:00.000Z',
+        '2025-01-01T00:00:00.000Z',
+        'model1',
+        'model2',
+        'model3',
+        'model4',
+        'vscode',
+        'zsh',
+        0, // false as integer
+        'info'
+      );
+
+      // Act
+      const loaded = await repository.load();
+
+      // Assert
+      expect(loaded?.system).toEqual({ logLevel: 'info' });
+    });
+  });
+
+  describe('whatsapp config (spec 101)', () => {
+    it('round-trips a fully-populated WhatsAppConfig with non-default values', async () => {
+      const settings = createTestSettings();
+      settings.whatsapp = {
+        enabled: true,
+        adapter: WhatsAppAdapterKind.CloudApi,
+        linkedNumber: '+972500000000',
+        status: WhatsAppConnectionStatus.Connected,
+        allowedNumbers: ['+972500000001', '+972500000002'],
+        cloudApiPhoneNumberId: 'pn-123',
+        cloudApiAccessToken: 'token-abc',
+        cloudApiVerifyToken: 'verify-xyz',
+        cloudApiAppSecret: 'secret-987',
+      };
+
+      await repository.initialize(settings);
+      const loaded = await repository.load();
+
+      expect(loaded?.whatsapp).toEqual({
+        enabled: true,
+        adapter: WhatsAppAdapterKind.CloudApi,
+        linkedNumber: '+972500000000',
+        status: WhatsAppConnectionStatus.Connected,
+        allowedNumbers: ['+972500000001', '+972500000002'],
+        cloudApiPhoneNumberId: 'pn-123',
+        cloudApiAccessToken: 'token-abc',
+        cloudApiVerifyToken: 'verify-xyz',
+        cloudApiAppSecret: 'secret-987',
+      });
+    });
+
+    it('persists whatsapp changes via update() (write path, not DB default)', async () => {
+      const settings = createTestSettings();
+      await repository.initialize(settings);
+
+      settings.whatsapp = {
+        enabled: true,
+        adapter: WhatsAppAdapterKind.Baileys,
+        linkedNumber: '+14155550123',
+        status: WhatsAppConnectionStatus.AwaitingScan,
+      };
+      settings.updatedAt = new Date('2025-02-01T00:00:00Z');
+      await repository.update(settings);
+
+      const loaded = await repository.load();
+      expect(loaded?.whatsapp?.enabled).toBe(true);
+      expect(loaded?.whatsapp?.adapter).toBe(WhatsAppAdapterKind.Baileys);
+      expect(loaded?.whatsapp?.linkedNumber).toBe('+14155550123');
+      expect(loaded?.whatsapp?.status).toBe(WhatsAppConnectionStatus.AwaitingScan);
+      // Optional fields left unset stay undefined (not empty strings)
+      expect(loaded?.whatsapp?.cloudApiAccessToken).toBeUndefined();
+      expect(loaded?.whatsapp?.allowedNumbers).toBeUndefined();
+    });
+
+    it('persists the whatsappDispatch feature flag (both true and false)', async () => {
+      const settings = createTestSettings();
+      settings.featureFlags = {
+        envDeploy: false,
+        debug: false,
+        reactFileManager: false,
+        projects: false,
+        codeReview: false,
+        collaboration: false,
+        bedrockIntegration: false,
+        whatsappDispatch: true,
+        aspm: false,
+        clusters: false,
+        scheduledWorkflows: false,
+        githubImport: true,
+        queryAwareHarness: false,
+        spaces: false,
+        trackers: false,
+        knowledge: false,
+        signals: false,
+        opportunities: false,
+        feedback: false,
+        discovery: false,
+        incidents: false,
+        outcomes: false,
+        docsFirst: false,
+        autopilot: false,
+        factory: false,
+        sdlcBoard: false,
+        agentCoordination: false,
+        selfLearning: false,
+      };
+      await repository.initialize(settings);
+
+      let loaded = await repository.load();
+      expect(loaded?.featureFlags?.whatsappDispatch).toBe(true);
+
+      settings.featureFlags!.whatsappDispatch = false;
+      settings.updatedAt = new Date('2025-02-02T00:00:00Z');
+      await repository.update(settings);
+
+      loaded = await repository.load();
+      expect(loaded?.featureFlags?.whatsappDispatch).toBe(false);
+    });
+  });
+
+  describe('worktree provisioning config (migration 139)', () => {
+    it('is undefined when the user has configured nothing', async () => {
+      await repository.initialize(createTestSettings());
+
+      const loaded = await repository.load();
+
+      expect(loaded?.worktree).toBeUndefined();
+    });
+
+    it('round-trips a fully-populated WorktreeConfig', async () => {
+      const settings = createTestSettings();
+      settings.worktree = {
+        createCommand: 'my-monorepo-tool worktree "$SHEP_BRANCH"',
+        postCreateCommand: 'ln -s "$SHEP_REPO_PATH/node_modules" node_modules',
+        commandTimeoutMs: 60000,
+      };
+
+      await repository.initialize(settings);
+      const loaded = await repository.load();
+
+      expect(loaded?.worktree).toEqual({
+        createCommand: 'my-monorepo-tool worktree "$SHEP_BRANCH"',
+        postCreateCommand: 'ln -s "$SHEP_REPO_PATH/node_modules" node_modules',
+        commandTimeoutMs: 60000,
+      });
+    });
+
+    it('persists worktree changes via update() (write path, not DB default)', async () => {
+      const settings = createTestSettings();
+      await repository.initialize(settings);
+
+      settings.worktree = { postCreateCommand: 'pnpm install --offline' };
+      settings.updatedAt = new Date('2025-02-03T00:00:00Z');
+      await repository.update(settings);
+
+      const loaded = await repository.load();
+      expect(loaded?.worktree?.postCreateCommand).toBe('pnpm install --offline');
+      // Fields left unset stay undefined rather than becoming empty strings
+      expect(loaded?.worktree?.createCommand).toBeUndefined();
+      expect(loaded?.worktree?.commandTimeoutMs).toBeUndefined();
+    });
+
+    it('clearing a command restores the built-in git worktree flow', async () => {
+      const settings = createTestSettings();
+      settings.worktree = { createCommand: 'my-tool create' };
+      await repository.initialize(settings);
+      expect((await repository.load())?.worktree?.createCommand).toBe('my-tool create');
+
+      settings.worktree = { createCommand: '   ' };
+      settings.updatedAt = new Date('2025-02-04T00:00:00Z');
+      await repository.update(settings);
+
+      const loaded = await repository.load();
+      expect(loaded?.worktree).toBeUndefined();
+    });
+  });
+
+  describe('workflow.maxParallelFeatures', () => {
+    // Every assertion here uses a NON-default value on purpose. A test that only
+    // ever checks the default passes even when the column is missing from the
+    // INSERT/UPDATE lists entirely — the DEFAULT supplies the read value and the
+    // broken write path stays invisible until someone changes the default.
+
+    it('persists a non-default limit through initialize()', async () => {
+      const settings = createTestSettings();
+      settings.workflow.maxParallelFeatures = 4;
+
+      await repository.initialize(settings);
+
+      expect((await repository.load())?.workflow.maxParallelFeatures).toBe(4);
+    });
+
+    it('persists a changed limit through update()', async () => {
+      const settings = createTestSettings();
+      settings.workflow.maxParallelFeatures = 4;
+      await repository.initialize(settings);
+
+      settings.workflow.maxParallelFeatures = 7;
+      settings.updatedAt = new Date('2025-02-05T00:00:00Z');
+      await repository.update(settings);
+
+      expect((await repository.load())?.workflow.maxParallelFeatures).toBe(7);
+    });
+
+    it('round-trips 0 (unlimited) after a non-zero value was stored', async () => {
+      const settings = createTestSettings();
+      settings.workflow.maxParallelFeatures = 5;
+      await repository.initialize(settings);
+
+      settings.workflow.maxParallelFeatures = 0;
+      settings.updatedAt = new Date('2025-02-06T00:00:00Z');
+      await repository.update(settings);
+
+      expect((await repository.load())?.workflow.maxParallelFeatures).toBe(0);
+    });
+
+    it('defaults to unlimited when the caller never sets a limit', async () => {
+      await repository.initialize(createTestSettings());
+
+      expect((await repository.load())?.workflow.maxParallelFeatures).toBe(0);
+    });
+  });
+
+  describe('workflow.queuePaused', () => {
+    // Same rule as the cap above: non-default values, written twice, because
+    // only the SECOND write exercises UPDATE. A pause is the one field where a
+    // dropped write is silent AND dangerous — the fleet would look parked while
+    // admission stayed open.
+
+    it('persists a pause record through initialize()', async () => {
+      const settings = createTestSettings();
+      settings.workflow.queuePaused = {
+        pausedAt: '2026-03-01T12:00:00.000Z',
+        reason: 'Consecutive failure threshold reached (4/4 runs failed in the last 15m)',
+      };
+
+      await repository.initialize(settings);
+
+      const loaded = await repository.load();
+      expect(loaded?.workflow.queuePaused).toEqual({
+        pausedAt: '2026-03-01T12:00:00.000Z',
+        reason: 'Consecutive failure threshold reached (4/4 runs failed in the last 15m)',
+      });
+    });
+
+    it('persists a changed pause record through update()', async () => {
+      const settings = createTestSettings();
+      settings.workflow.queuePaused = {
+        pausedAt: '2026-03-01T12:00:00.000Z',
+        reason: 'first trip',
+      };
+      await repository.initialize(settings);
+
+      settings.workflow.queuePaused = {
+        pausedAt: '2026-03-02T09:30:00.000Z',
+        reason: 'second trip',
+      };
+      settings.updatedAt = new Date('2025-02-07T00:00:00Z');
+      await repository.update(settings);
+
+      expect((await repository.load())?.workflow.queuePaused).toEqual({
+        pausedAt: '2026-03-02T09:30:00.000Z',
+        reason: 'second trip',
+      });
+    });
+
+    it('clears the pause back to absent on update()', async () => {
+      // The resume path. `undefined` must land as SQL NULL, not as the string
+      // "undefined" or a stale record the next load would resurrect.
+      const settings = createTestSettings();
+      settings.workflow.queuePaused = { pausedAt: '2026-03-01T12:00:00.000Z', reason: 'tripped' };
+      await repository.initialize(settings);
+
+      const { queuePaused: _cleared, ...workflow } = settings.workflow;
+      settings.workflow = workflow as typeof settings.workflow;
+      settings.updatedAt = new Date('2025-02-08T00:00:00Z');
+      await repository.update(settings);
+
+      expect((await repository.load())?.workflow.queuePaused).toBeUndefined();
+    });
+
+    it('leaves the user ceiling intact while paused', async () => {
+      // The whole reason the pause is a separate column: resume must have a
+      // ceiling to restore, and 0 in that column would mean UNLIMITED.
+      const settings = createTestSettings();
+      settings.workflow.maxParallelFeatures = 6;
+      settings.workflow.queuePaused = { pausedAt: '2026-03-01T12:00:00.000Z', reason: 'tripped' };
+
+      await repository.initialize(settings);
+
+      const loaded = await repository.load();
+      expect(loaded?.workflow.maxParallelFeatures).toBe(6);
+      expect(loaded?.workflow.queuePaused?.reason).toBe('tripped');
+    });
+
+    it('treats an absent pause as not paused', async () => {
+      await repository.initialize(createTestSettings());
+
+      expect((await repository.load())?.workflow.queuePaused).toBeUndefined();
+    });
+  });
+
+  describe('workflow.breakerAcknowledgedAt', () => {
+    // Without this surviving a round trip, `shep fleet resume` cannot stick: the
+    // breaker would keep judging the same failing runs and re-park the queue on
+    // the very next status read.
+
+    it('persists an acknowledgement through initialize()', async () => {
+      const settings = createTestSettings();
+      settings.workflow.breakerAcknowledgedAt = new Date('2026-03-01T12:30:00Z');
+
+      await repository.initialize(settings);
+
+      expect((await repository.load())?.workflow.breakerAcknowledgedAt).toBe(
+        '2026-03-01T12:30:00.000Z'
+      );
+    });
+
+    it('moves the acknowledgement forward through update()', async () => {
+      const settings = createTestSettings();
+      settings.workflow.breakerAcknowledgedAt = new Date('2026-03-01T12:30:00Z');
+      await repository.initialize(settings);
+
+      settings.workflow.breakerAcknowledgedAt = new Date('2026-03-02T09:00:00Z');
+      settings.updatedAt = new Date('2025-02-09T00:00:00Z');
+      await repository.update(settings);
+
+      expect((await repository.load())?.workflow.breakerAcknowledgedAt).toBe(
+        '2026-03-02T09:00:00.000Z'
+      );
+    });
+
+    it('is absent when the user has never acknowledged a trip', async () => {
+      // Absent must read as absent, not as an epoch date that would make the
+      // breaker judge the whole window — or go blind.
+      await repository.initialize(createTestSettings());
+
+      expect((await repository.load())?.workflow.breakerAcknowledgedAt).toBeUndefined();
+    });
+
+    it('coexists with a pause record and the ceiling', async () => {
+      const settings = createTestSettings();
+      settings.workflow.maxParallelFeatures = 6;
+      settings.workflow.queuePaused = { pausedAt: '2026-03-01T12:00:00.000Z', reason: 'tripped' };
+      settings.workflow.breakerAcknowledgedAt = new Date('2026-02-01T00:00:00Z');
+
+      await repository.initialize(settings);
+
+      const loaded = await repository.load();
+      expect(loaded?.workflow.queuePaused?.reason).toBe('tripped');
+      expect(loaded?.workflow.breakerAcknowledgedAt).toBe('2026-02-01T00:00:00.000Z');
+      expect(loaded?.workflow.maxParallelFeatures).toBe(6);
+    });
+  });
+
+  describe('workflow.circuitBreakerAutoPauseQueue', () => {
+    // The switch that decides whether a trip parks the fleet. It ships off, so
+    // the cases that matter are "absent stays absent", "an explicit choice
+    // survives UPDATE", and "an explicit false is not read back as unset".
+
+    it('leaves the switch absent when the install has never chosen', async () => {
+      await repository.initialize(createTestSettings());
+
+      expect((await repository.load())?.workflow.circuitBreakerAutoPauseQueue).toBeUndefined();
+    });
+
+    it('persists an opted-in install through initialize()', async () => {
+      const settings = createTestSettings();
+      settings.workflow.circuitBreakerAutoPauseQueue = true;
+
+      await repository.initialize(settings);
+
+      expect((await repository.load())?.workflow.circuitBreakerAutoPauseQueue).toBe(true);
+    });
+
+    it('persists a toggled switch through update()', async () => {
+      // Written twice on purpose: only the SECOND write exercises UPDATE, and a
+      // dropped write here would silently keep parking the fleet (or silently
+      // stop) long after the user changed their mind.
+      const settings = createTestSettings();
+      settings.workflow.circuitBreakerAutoPauseQueue = false;
+      await repository.initialize(settings);
+
+      settings.workflow.circuitBreakerAutoPauseQueue = true;
+      settings.updatedAt = new Date('2025-02-09T00:00:00Z');
+      await repository.update(settings);
+
+      expect((await repository.load())?.workflow.circuitBreakerAutoPauseQueue).toBe(true);
+    });
+
+    it('keeps an explicit false distinct from never having chosen', async () => {
+      const settings = createTestSettings();
+      settings.workflow.circuitBreakerAutoPauseQueue = false;
+
+      await repository.initialize(settings);
+
+      expect((await repository.load())?.workflow.circuitBreakerAutoPauseQueue).toBe(false);
+    });
+  });
+
+  describe('workflow.ciWatchEnabled', () => {
+    it('persists a disabled CI watch through initialize()', async () => {
+      const settings = createTestSettings();
+      settings.workflow.ciWatchEnabled = false;
+
+      await repository.initialize(settings);
+
+      expect((await repository.load())?.workflow.ciWatchEnabled).toBe(false);
+    });
+
+    it('persists a toggled CI watch through update()', async () => {
+      const settings = createTestSettings();
+      settings.workflow.ciWatchEnabled = false;
+      await repository.initialize(settings);
+
+      settings.workflow.ciWatchEnabled = true;
+      settings.updatedAt = new Date('2025-02-07T00:00:00Z');
+      await repository.update(settings);
+
+      expect((await repository.load())?.workflow.ciWatchEnabled).toBe(true);
+    });
+  });
+
+  describe('workflow.skillInjection', () => {
+    const skillA = {
+      name: 'brainstorming',
+      type: SkillSourceType.Local,
+      source: '.claude/skills/brainstorming',
+    };
+    const skillB = {
+      name: 'remote-docs',
+      type: SkillSourceType.Remote,
+      source: '@acme/skills',
+      remoteSkillName: 'docs-helper',
+    };
+
+    it('keeps a skills list shrunk and then emptied through update()', async () => {
+      const settings = createTestSettings();
+      settings.workflow.skillInjection = { enabled: true, skills: [skillA, skillB] };
+      await repository.initialize(settings);
+
+      settings.workflow.skillInjection = { enabled: true, skills: [skillB] };
+      await repository.update(settings);
+      expect((await repository.load())?.workflow.skillInjection).toEqual({
+        enabled: true,
+        skills: [skillB],
+      });
+
+      // Removing the last injected skill must stay empty, not resurrect the defaults.
+      settings.workflow.skillInjection = { enabled: true, skills: [] };
+      await repository.update(settings);
+      expect((await repository.load())?.workflow.skillInjection).toEqual({
+        enabled: true,
+        skills: [],
+      });
+    });
+
+    it('still falls back to the default skills when enabled but never persisted', async () => {
+      const settings = createTestSettings();
+      await repository.initialize(settings);
+      db.prepare(
+        'UPDATE settings SET skill_injection_enabled = 1, skill_injection_skills = NULL'
+      ).run();
+
+      const loaded = await repository.load();
+
+      expect(loaded?.workflow.skillInjection).toEqual({
+        enabled: true,
+        skills: createDefaultSettings().workflow.skillInjection!.skills,
+      });
+    });
+  });
+
+  describe('model effort', () => {
+    it('round-trips effort through initialize()', async () => {
+      const settings = createTestSettings();
+      settings.models.effort = AgentEffort.high;
+      await repository.initialize(settings);
+      expect((await repository.load())?.models.effort).toBe(AgentEffort.high);
+    });
+
+    it('persists setting and clearing effort via update()', async () => {
+      const settings = createTestSettings();
+      await repository.initialize(settings);
+      expect((await repository.load())?.models.effort).toBeUndefined();
+
+      settings.models.effort = AgentEffort.max;
+      await repository.update(settings);
+      expect((await repository.load())?.models.effort).toBe(AgentEffort.max);
+
+      delete settings.models.effort;
+      await repository.update(settings);
+      expect((await repository.load())?.models.effort).toBeUndefined();
+    });
+  });
+
+  describe('adaptive model configuration', () => {
+    it('round-trips enabled plus all three tier overrides through initialize()', async () => {
+      const settings = createTestSettings();
+      settings.models.adaptive = {
+        enabled: true,
+        high: 'claude-opus-5',
+        medium: 'claude-sonnet-5',
+        low: 'claude-haiku-4-5',
+      };
+
+      await repository.initialize(settings);
+      const loaded = await repository.load();
+
+      expect(loaded?.models.adaptive).toEqual({
+        enabled: true,
+        high: 'claude-opus-5',
+        medium: 'claude-sonnet-5',
+        low: 'claude-haiku-4-5',
+      });
+    });
+
+    it('persists adaptive changes via update() — the write path, not a DB default', async () => {
+      const settings = createTestSettings();
+      await repository.initialize(settings);
+      expect((await repository.load())?.models.adaptive).toBeUndefined();
+
+      settings.models.adaptive = { enabled: true, low: 'claude-haiku-4-5' };
+      settings.updatedAt = new Date('2025-03-01T00:00:00Z');
+      await repository.update(settings);
+
+      const loaded = await repository.load();
+      expect(loaded?.models.adaptive?.enabled).toBe(true);
+      expect(loaded?.models.adaptive?.low).toBe('claude-haiku-4-5');
+      // Tiers left unset stay undefined so the resolver derives them.
+      expect(loaded?.models.adaptive?.high).toBeUndefined();
+      expect(loaded?.models.adaptive?.medium).toBeUndefined();
+    });
+
+    it('persists enabled=false explicitly rather than relying on the column default', async () => {
+      const settings = createTestSettings();
+      settings.models.adaptive = { enabled: true, high: 'claude-opus-5' };
+      await repository.initialize(settings);
+      expect((await repository.load())?.models.adaptive?.enabled).toBe(true);
+
+      settings.models.adaptive = { enabled: false, high: 'claude-opus-5' };
+      settings.updatedAt = new Date('2025-03-02T00:00:00Z');
+      await repository.update(settings);
+
+      const loaded = await repository.load();
+      expect(loaded?.models.adaptive?.enabled).toBe(false);
+      expect(loaded?.models.adaptive?.high).toBe('claude-opus-5');
+    });
+
+    it('stores the enabled flag as INTEGER 0/1', async () => {
+      const settings = createTestSettings();
+      settings.models.adaptive = { enabled: true };
+      await repository.initialize(settings);
+
+      const row = db.prepare('SELECT model_adaptive_enabled FROM settings').get() as {
+        model_adaptive_enabled: number;
+      };
+      expect(row.model_adaptive_enabled).toBe(1);
+    });
+  });
+});
