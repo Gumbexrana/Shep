@@ -1,0 +1,385 @@
+{
+  "prompts": {
+    "selectAgent": {
+      "message": "Выберите вашего AI-агента для кодирования",
+      "choices": {
+        "claudeCode": {
+          "name": "Claude Code",
+          "description": "Anthropic Claude Code CLI"
+        },
+        "geminiCli": {
+          "name": "Gemini CLI",
+          "description": "Google Gemini CLI"
+        },
+        "codexCli": {
+          "name": "Codex CLI",
+          "description": "Терминальный агент OpenAI Codex CLI (модели GPT)"
+        },
+        "copilotCli": {
+          "name": "Copilot CLI",
+          "description": "GitHub Copilot CLI (по умолчанию: Claude Sonnet 4.5, требуется подписка Copilot)"
+        },
+        "cursor": {
+          "name": "Cursor",
+          "description": "AI-агент для кодирования Cursor"
+        },
+        "cline": {
+          "name": "Cline",
+          "description": "Multi-provider agentic coding assistant with full tool use (requires cline CLI)"
+        },
+        "devMock": {
+          "name": "Dev (Mock)",
+          "description": "Локальная заглушка для разработки — бинарный файл агента не требуется"
+        },
+        "openRouter": {
+          "name": "OpenRouter",
+          "description": "Доступ к сотням моделей ИИ через API OpenRouter (требуется API-ключ)"
+        },
+        "togetherAi": {
+          "name": "Together AI",
+          "description": "Быстрый инференс моделей с открытым исходным кодом через API Together AI (требуется API-ключ)"
+        },
+        "ollama": {
+          "name": "Ollama",
+          "description": "Запуск локальных LLM через Ollama (API-ключ не требуется, работает на localhost)"
+        },
+        "kimiCode": {
+          "name": "Kimi Code",
+          "description": "Терминальный агент Kimi Code CLI от Moonshot AI (модели Kimi K)"
+        },
+        "llmProxy": {
+          "name": "LLM Proxy",
+          "description": "Локальный OpenAI-совместимый прокси (обычно на порту 4000)"
+        },
+        "shepHarness": {
+          "name": "Shep Harness (экспериментально)",
+          "description": "Управляемый Shep цикл агента с учётом запроса и запросами разрешений"
+        }
+      }
+    },
+    "selectIde": {
+      "message": "Выберите предпочитаемую IDE"
+    },
+    "selectAuthMethod": {
+      "message": "Выберите метод аутентификации",
+      "choices": {
+        "session": {
+          "name": "Использовать существующую сессию",
+          "description": "Использовать встроенную аутентификацию Claude Code"
+        },
+        "token": {
+          "name": "Использовать API-токен",
+          "description": "Указать API-ключ Anthropic"
+        }
+      }
+    },
+    "enterApiKey": "Введите ваш API-ключ Anthropic",
+    "prdReview": {
+      "reviewComplete": "Проверка завершена{{changeLabel}}. Что вы хотите сделать?",
+      "changeLabel_one": " ({{count}} изменение)",
+      "changeLabel_other": " ({{count}} изменений)",
+      "approveAndContinue": "Одобрить и продолжить",
+      "approveDescription": "Принять требования и перейти к исследованию",
+      "rejectAndIterate": "Отклонить и доработать",
+      "rejectDescription": "Дать обратную связь и повторно запустить сбор требований",
+      "feedbackPrompt": "Что нужно изменить? (обратная связь для доработки)",
+      "feedbackRequired": "Обратная связь обязательна при отклонении"
+    },
+    "selectLanguage": {
+      "message": "Выберите язык интерфейса"
+    }
+  },
+  "wizards": {
+    "onboarding": {
+      "welcomeTitle": "Добро пожаловать в Shep AI CLI",
+      "welcomeSubtitle": "Давайте настроим вашу среду за 3 быстрых шага.",
+      "prerequisiteWarning": "Необходимое условие: ",
+      "prerequisiteLabel": "GitHub CLI (gh)",
+      "prerequisiteDescription": "необходим для полноценных возможностей CI/CD самовосстановления.",
+      "installFrom": "Установите отсюда: ",
+      "installUrl": "https://cli.github.com/",
+      "setupComplete": "Настройка завершена! Вы готовы использовать Shep."
+    },
+    "agentConfig": {
+      "enterApiKey": "Введите ваш API-ключ Anthropic"
+    },
+    "githubImport": {
+      "methodMessage": "Как вы хотите добавить репозиторий GitHub?",
+      "pasteUrl": "Вставить URL GitHub",
+      "pasteUrlDescription": "Введите URL репозитория GitHub или сокращение owner/repo",
+      "browseRepos": "Просмотреть мои репозитории",
+      "browseReposDescription": "Найти и выбрать из ваших репозиториев GitHub",
+      "enterUrl": "Введите URL репозитория GitHub или owner/repo",
+      "urlRequired": "URL обязателен",
+      "invalidUrlFormat": "Неверный формат URL GitHub. Используйте https://github.com/owner/repo или owner/repo",
+      "selectRepo": "Выберите репозиторий для импорта",
+      "noRepos": "Репозитории не найдены. Убедитесь, что у вас есть репозитории на GitHub.",
+      "cloneDestination": "Каталог для клонирования (оставьте пустым для значения по умолчанию)"
+    },
+    "mergeReview": {
+      "message": "Просмотрите слияние. Что вы хотите сделать?",
+      "approveAndMerge": "Одобрить и слить",
+      "approveDescription": "Принять изменения и слить ветку",
+      "reject": "Отклонить",
+      "rejectDescription": "Дать обратную связь — реализация будет доработана",
+      "rejectFeedback": "Что нужно изменить перед слиянием?",
+      "approveComment": "Комментарии? (необязательно, нажмите Enter для пропуска)",
+      "feedbackRequired": "Обратная связь обязательна при отклонении"
+    },
+    "planReview": {
+      "message": "Просмотрите план реализации. Что вы хотите сделать?",
+      "approveAndContinue": "Одобрить и продолжить",
+      "approveDescription": "Принять план и перейти к реализации",
+      "rejectAndIterate": "Отклонить и доработать",
+      "rejectDescription": "Дать обратную связь и повторно запустить планирование",
+      "rejectFeedback": "Что нужно изменить в плане?",
+      "approveComment": "Комментарии? (необязательно, нажмите Enter для пропуска)",
+      "feedbackRequired": "Обратная связь обязательна при отклонении"
+    },
+    "workflowDefaults": {
+      "message": "Выберите настройки рабочего процесса по умолчанию для новых функций",
+      "instructions": "(Пробел для переключения, Enter для подтверждения)",
+      "allowPrd": "Разрешить PRD",
+      "allowPrdDescription": "Автоматически одобрять этап требований",
+      "allowPlan": "Разрешить план",
+      "allowPlanDescription": "Автоматически одобрять этап планирования",
+      "allowMerge": "Разрешить слияние",
+      "allowMergeDescription": "Автоматически одобрять и сливать после реализации",
+      "pushOnFinish": "Отправить по завершении",
+      "pushOnFinishDescription": "Отправить ветку на удалённый сервер после завершения реализации",
+      "createPr": "Создать PR",
+      "createPrDescription": "Открыть запрос на слияние после завершения реализации"
+    }
+  },
+  "console": {
+    "title": "Фичи",
+    "summary": {
+      "needsYou": "ждут вас",
+      "running": "в работе",
+      "waiting": "ожидают",
+      "failed": "с ошибкой",
+      "done": "готово"
+    },
+    "fleet": {
+      "queuePaused": "очередь на паузе {{duration}}",
+      "breakerTripped": "предохранитель сработал"
+    },
+    "strip": {
+      "label": "ЖДУТ ВАС",
+      "empty": "Сейчас ничего не ждёт вас",
+      "questions": "вопросов: {{count}}",
+      "gate": "проверить: {{phase}}"
+    },
+    "columns": {
+      "state": "СТАТУС",
+      "feature": "ФИЧА",
+      "repo": "РЕПО",
+      "phase": "ФАЗА",
+      "agent": "АГЕНТ",
+      "elapsed": "ВРЕМЯ",
+      "cost": "ЦЕНА"
+    },
+    "state": {
+      "running": "В работе",
+      "action-required": "Ждёт вас",
+      "blocked": "Заблокирована",
+      "pending": "Отложена",
+      "queued": "В очереди",
+      "done": "Готово",
+      "error": "Ошибка",
+      "deleting": "Удаляется",
+      "archived": "В архиве",
+      "question": "Вопрос"
+    },
+    "phase": {
+      "analyze": "анализ",
+      "requirements": "требования",
+      "research": "исследование",
+      "plan": "план",
+      "implement": "реализация",
+      "merge": "слияние",
+      "maintain": "поддержка",
+      "blocked": "заблокирована",
+      "pending": "отложена",
+      "archived": "в архиве",
+      "prototype-generate": "прототип"
+    },
+    "inspector": {
+      "repo": "Репо",
+      "branch": "Ветка",
+      "worktree": "Worktree",
+      "state": "Статус",
+      "agent": "Агент",
+      "elapsed": "Время",
+      "cost": "Цена",
+      "tokens": "Токены",
+      "tokensValue": "{{input}} вход · {{output}} выход",
+      "pr": "PR",
+      "questions": "Вопросы",
+      "questionsHint": "открыто: {{count}} · ответить: shep agent questions ls",
+      "error": "Ошибка",
+      "noSelection": "Фича не выбрана"
+    },
+    "log": {
+      "title": "Лог",
+      "empty": "Пока нет вывода",
+      "noRun": "У этой фичи ещё нет запуска агента"
+    },
+    "keys": {
+      "select": "выбор",
+      "details": "подробности",
+      "log": "лог",
+      "approve": "одобрить",
+      "reject": "отклонить",
+      "stop": "остановить",
+      "resume": "продолжить",
+      "releaseQueue": "снять паузу с очереди",
+      "help": "справка",
+      "quit": "выход",
+      "shell": "оболочка",
+      "follow": "следить за логом",
+      "filter": "фильтр",
+      "palette": "команды",
+      "copyId": "копировать id",
+      "chat": "чат",
+      "harness": "изменения harness ({{count}})",
+      "newFeature": "новая функция"
+    },
+    "reject": {
+      "prompt": "Отзыв для {{name}}:",
+      "hint": "enter отправить · esc отмена"
+    },
+    "stop": {
+      "confirm": "Остановить {{name}}? Запуск можно будет продолжить. (y/n)"
+    },
+    "progress": {
+      "approve": "Одобряем {{name}}…",
+      "reject": "Отклоняем {{name}}…",
+      "stop": "Останавливаем {{name}}…",
+      "resume": "Продолжаем {{name}}…",
+      "releaseQueue": "Снимаю паузу с очереди…"
+    },
+    "refreshFailed": "Не удалось обновить: {{message}}",
+    "empty": {
+      "title": "Фич пока нет",
+      "hint": "Создайте фичу: shep feat new \"<что построить>\""
+    },
+    "help": {
+      "title": "Клавиши",
+      "navigate": "↑ ↓ / j k   перемещение",
+      "pages": "PgUp PgDn / g G   страница, первая, последняя",
+      "details": "enter / i   панель подробностей",
+      "log": "l   панель лога",
+      "approve": "a   одобрить этап",
+      "reject": "r   отклонить этап с отзывом",
+      "stop": "s   остановить запуск (с подтверждением)",
+      "resume": "R   продолжить прерванный или упавший запуск",
+      "releaseQueue": "u   снять паузу с очереди (спросит подтверждение)",
+      "help": "?   эта справка (esc закрывает)",
+      "quit": "q / ctrl+c   выход",
+      "shell": "t / T   оболочка в worktree (сплит / новое окно)",
+      "follow": "f / F   следить за логом агента (сплит / новое окно)",
+      "filter": "/   фильтровать фичи (esc сбрасывает)",
+      "palette": ":/ctrl+p   палитра команд",
+      "copyId": "c   скопировать id фичи",
+      "controlCenter": "C   окно на каждую активную фичу (центр управления)",
+      "chat": "o   чат с агентом фичи (esc — назад)",
+      "harness": "d   изученные изменения harness, ждущие вас (принять / отклонить)",
+      "newFeature": "N   новая функция в репозитории выбранной функции"
+    },
+    "notTty": "shep tui нужен интерактивный терминал. В скриптах и конвейерах используйте \"shep feat ls\".",
+    "filter": {
+      "hint": "печатайте для фильтра · enter оставить · esc сбросить",
+      "active": "фильтр «{{query}}» · {{shown}} из {{total}}",
+      "noMatch": "Ни одна фича не подходит под «{{query}}»"
+    },
+    "inline": {
+      "shell": "Оболочка в {{cwd}}. Введите exit, чтобы вернуться в shep tui.",
+      "log": "Слежение за логом {{name}}. Ctrl+C — вернуться в shep tui."
+    },
+    "notify": {
+      "body": "{{name}} ждёт вас"
+    },
+    "windowTitle": {
+      "attention": "shep · ждут вас: {{count}}",
+      "idle": "shep tui"
+    },
+    "palette": {
+      "title": "Команды",
+      "count": "доступно: {{count}}",
+      "noMatch": "Нет подходящих команд",
+      "hint": "печатайте для поиска · ↑↓ выбор · enter выполнить · esc закрыть",
+      "commands": {
+        "approve": "Одобрить gate",
+        "reject": "Отклонить gate с отзывом",
+        "stop": "Остановить запуск",
+        "resume": "Возобновить запуск",
+        "shell": "Открыть оболочку рядом с консолью",
+        "shell-window": "Открыть оболочку в новом окне",
+        "follow-log": "Следить за логом агента рядом с консолью",
+        "follow-log-window": "Следить за логом агента в новом окне",
+        "details": "Показать детали",
+        "log": "Показать лог",
+        "copy-id": "Скопировать id фичи",
+        "filter": "Фильтровать фичи",
+        "clear-filter": "Сбросить фильтр",
+        "help": "Показать клавиши",
+        "quit": "Выйти",
+        "control-center": "Открыть окно для каждой активной фичи",
+        "chat": "Чат с агентом фичи",
+        "harness-decisions": "Просмотреть изученные изменения harness",
+        "new-feature": "Создать новую функцию"
+      }
+    },
+    "copied": "Id {{name}} скопирован: {{id}}",
+    "controlCenter": {
+      "none": "У каждой активной фичи уже есть окно"
+    },
+    "chat": {
+      "title": "Чат",
+      "you": "вы",
+      "working": "работает…",
+      "loading": "Загрузка чата…",
+      "empty": "Сообщений пока нет. Напишите ниже, чтобы поговорить с агентом этой фичи; он работает в {{directory}}.",
+      "answerPrompt": "ответ",
+      "hint": "enter отправить · esc назад к фичам",
+      "hintQuestion": "1–9 выбрать вариант · или введите ответ и нажмите enter · esc назад"
+    },
+    "release": {
+      "confirm": "Снять паузу с очереди? Новые фичи смогут запуститься. (y/n)",
+      "done": "Очередь освобождена — ожидающие фичи могут запуститься"
+    },
+    "hostStatus": {
+      "blocked": "ждут вас: {{count}}"
+    },
+    "harness": {
+      "title": "Изученные изменения harness",
+      "waiting": "ожидают: {{count}}",
+      "empty": "Нет изменений harness, ожидающих вас",
+      "hint": "↑↓ выбрать · a принять · r отклонить · esc назад к функциям",
+      "rejectPrompt": "Отклонить — почему?",
+      "rejectHint": "необязательный отзыв направит следующее предложение · enter отклонить · esc отмена",
+      "progress": "Ответ на изменение harness…",
+      "adopted": "Изменение harness принято",
+      "rejected": "Изменение harness отклонено",
+      "alreadySettled": "На это изменение harness уже ответили в другом месте",
+      "collaborationOff": "На изменения harness отвечают через входящие; включите их: shep settings flags enable collaboration"
+    },
+    "create": {
+      "title": "Новая функция в {{repository}}",
+      "prompt": "описание",
+      "describe": "Опишите функцию в строке ниже и нажмите enter. Проверки, push и PR следуют вашим настройкам рабочего процесса.",
+      "explore": "Explore",
+      "k": "k",
+      "on": "вкл",
+      "off": "выкл",
+      "kRange": "↑↓ 1–{{max}}",
+      "exploreCost": "Explore пробует несколько вариантов harness на шаге реализации, только для этой функции, и оставляет лучший. Это стоит примерно в 4 раза больше шага реализации при k = 1, больше при большем k.",
+      "hint": "enter создать · esc отмена",
+      "hintExplore": "enter создать · tab Explore вкл/выкл · ↑↓ k · esc отмена",
+      "progress": "Создание функции в {{repository}}…",
+      "created": "Создано: {{name}}",
+      "queued": "Создано: {{name}} — в очереди на позиции {{position}}"
+    }
+  }
+}
