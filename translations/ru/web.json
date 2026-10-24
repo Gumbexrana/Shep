@@ -1,0 +1,2257 @@
+{
+  "settings": {
+    "title": "Настройки",
+    "saving": "Сохранение...",
+    "saved": "Сохранено",
+    "failedToSave": "Не удалось сохранить настройки",
+    "sections": {
+      "language": "Язык",
+      "agent": "Агент",
+      "adaptiveModels": "Адаптивные модели",
+      "environment": "Окружение",
+      "workflow": "Рабочий процесс",
+      "worktree": "Рабочее дерево",
+      "ci": "CI",
+      "timeouts": "Таймауты",
+      "notifications": "Уведомления",
+      "flags": "Флаги",
+      "chat": "Чат",
+      "homePage": "Home page",
+      "layout": "Расположение",
+      "database": "База данных",
+      "integrations": "Интеграции",
+      "security": "Security",
+      "messaging": "Messaging",
+      "mcp": "MCP",
+      "harness": "Harness агента",
+      "selfLearning": "Самообучение",
+      "telemetry": "Метрики использования",
+      "a2a": "Подключить агентов"
+    },
+    "language": {
+      "title": "Язык",
+      "description": "Выберите предпочитаемый язык интерфейса",
+      "label": "Язык интерфейса",
+      "placeholder": "Выберите язык",
+      "failedToSave": "Не удалось сохранить настройки языка"
+    },
+    "agent": {
+      "title": "Предпочитаемый агент",
+      "sectionTitle": "Агент",
+      "description": "Выберите AI-агента для кодирования и метод аутентификации",
+      "sectionDescription": "AI-агент для кодирования и аутентификация",
+      "agentType": "Тип агента",
+      "agentAndModel": "Агент и модель",
+      "agentAndModelDescription": "Провайдер и модель для всех операций",
+      "effort": "Уровень рассуждений",
+      "effortDescription": "Уровень рассуждений для новых фич (Claude Code)",
+      "effortFailed": "Не удалось сохранить уровень",
+      "authMethod": "Метод аутентификации",
+      "apiToken": "API-токен",
+      "apiTokenPlaceholder": "Введите ваш API-токен",
+      "apiTokenHelper": "Сохраняется автоматически при выходе из поля",
+      "failedToSave": "Не удалось сохранить настройки агента",
+      "hint": "Выберите, какой AI-агент для кодирования будет использоваться для ваших функций. Каждый агент поддерживает разные модели и возможности. Аутентификация разрешается автоматически через вашу активную сессию.",
+      "links": {
+        "agentSystem": "Система агентов",
+        "addingAgents": "Добавление агентов",
+        "configurationGuide": "Руководство по настройке"
+      }
+    },
+    "environment": {
+      "title": "IDE и терминал",
+      "sectionTitle": "Окружение",
+      "description": "Настройте редактор по умолчанию, оболочку и параметры терминала",
+      "sectionDescription": "Редактор, оболочка и параметры терминала",
+      "defaultEditor": "Редактор по умолчанию",
+      "defaultEditorDescription": "Редактор для операций с файлами",
+      "shellPreference": "Предпочитаемая оболочка",
+      "shell": "Оболочка",
+      "shellDescription": "Оболочка по умолчанию для сгенерированных скриптов",
+      "terminalEmulator": "Эмулятор терминала",
+      "terminal": "Терминал",
+      "terminalDescription": "Эмулятор терминала для сессий оболочки",
+      "systemTerminal": "Системный терминал",
+      "failedToSave": "Не удалось сохранить настройки IDE и терминала",
+      "hint": "Ваш предпочитаемый редактор открывает файлы для проверки. Настройка оболочки управляет сгенерированными скриптами. Эмулятор терминала запускается при открытии сессий оболочки из веб-интерфейса.",
+      "links": {
+        "configurationGuide": "Руководство по настройке"
+      }
+    },
+    "workflow": {
+      "title": "Рабочий процесс",
+      "description": "Настройте поведение PR, этапы одобрения и параметры CI",
+      "sectionDescription": "Поведение автоматизации после реализации",
+      "defaultMode": "Режим функции по умолчанию",
+      "defaultModeDescription": "Режим по умолчанию для новых функций, созданных через CLI или веб-интерфейс",
+      "maxParallelFeatures": "Максимум параллельных функций",
+      "maxParallelFeaturesDescription": "Максимальное количество функций, одновременно выполняющих агента. 0 означает без ограничений. Остальные функции ставятся в очередь и запускаются автоматически при освобождении места.",
+      "decisionTimeout": "Срок ответа на вопросы",
+      "decisionTimeoutDescription": "Сколько фоновый агент ждёт вашего ответа, прежде чем продолжить с рекомендуемым вариантом.",
+      "modeRegular": "Обычный",
+      "modeFast": "Быстрый",
+      "modeExploration": "Исследование",
+      "subsections": {
+        "approve": "Одобрение",
+        "evidence": "Подтверждение",
+        "git": "Git"
+      },
+      "autoApprovePrd": "Автоодобрение PRD",
+      "autoApprovePrdDescription": "Пропустить ручную проверку требований",
+      "autoApprovePlan": "Автоодобрение плана",
+      "autoApprovePlanDescription": "Пропустить ручную проверку плана реализации",
+      "autoApproveMerge": "Автоодобрение слияния",
+      "autoApproveMergeDescription": "Сливать без ручной проверки",
+      "collectEvidence": "Сбор подтверждений",
+      "collectEvidenceDescription": "Делать скриншоты и сохранять артефакты после реализации",
+      "addEvidenceToPr": "Добавить подтверждения в PR",
+      "addEvidenceToPrDescription": "Включить подтверждения в тело запроса на слияние",
+      "pushOnComplete": "Отправить по завершении",
+      "pushOnCompleteDescription": "Отправить на удалённый сервер после завершения реализации",
+      "openPrOnComplete": "Открыть PR по завершении",
+      "openPrOnCompleteDescription": "Создать запрос на слияние по готовности",
+      "watchCiAfterPush": "Следить за CI после отправки",
+      "watchCiAfterPushDescription": "Отслеживать CI и автоматически исправлять ошибки. Отключите для избежания превышения лимитов.",
+      "approvalGates": "Этапы одобрения",
+      "prdAutoApproval": "Автоодобрение PRD",
+      "planAutoApproval": "Автоодобрение плана",
+      "mergeAutoApproval": "Автоодобрение слияния",
+      "ciSettings": "Настройки CI",
+      "ciWatchFixLoop": "Цикл наблюдения/исправления CI",
+      "maxFixAttempts": "Максимум попыток исправления",
+      "watchTimeout": "Таймаут наблюдения (секунды)",
+      "maxLogCharacters": "Максимум символов журнала",
+      "pollInterval": "Интервал опроса (секунды)",
+      "hideCiStatus": "Скрыть статус CI",
+      "stageTimeouts": "Таймауты этапов",
+      "failedToSave": "Не удалось сохранить настройки рабочего процесса",
+      "hint": "Управляйте степенью автономности каждого запуска функции. Автоодобрение пропускает паузу для ручной проверки на каждой фазе. Параметры отправки и PR определяют действия после успешной реализации.",
+      "links": {
+        "approvalGates": "Этапы одобрения",
+        "pushAndPrFlags": "Флаги отправки и PR"
+      }
+    },
+    "worktree": {
+      "title": "Подготовка рабочего дерева",
+      "description": "Замените или дополните то, как Shep создаёт рабочее дерево для каждой функции",
+      "createCommand": "Своя команда создания",
+      "createCommandDescription": "Выполняется вместо `git worktree add` из основного репозитория. Оставьте пустым, чтобы использовать встроенный git worktree.",
+      "createCommandPlaceholder": "my-tool worktree add \"$SHEP_WORKTREE_PATH\" \"$SHEP_BRANCH\"",
+      "postCreateCommand": "Команда после создания",
+      "postCreateCommandDescription": "Выполняется внутри нового рабочего дерева — создать симлинк на node_modules, скопировать неотслеживаемые настройки, прогреть кеши.",
+      "postCreateCommandPlaceholder": "ln -s \"$SHEP_REPO_PATH/node_modules\" node_modules",
+      "commandTimeout": "Таймаут команды (мс)",
+      "commandTimeoutDescription": "Применяется к каждой команде. Увеличьте, если команда выполняет установку зависимостей.",
+      "envVarsHint": "Доступные переменные: SHEP_REPO_PATH, SHEP_WORKTREE_PATH, SHEP_BRANCH, SHEP_START_POINT (пусто, если ветка уже существует). Ошибка команды прерывает создание функции.",
+      "hint": "Используйте, когда обычного git worktree недостаточно — монорепозитории с симлинком на node_modules или проекты, которые собираются только из подготовленного каталога.",
+      "links": {
+        "worktreeGuide": "Своя подготовка рабочего дерева"
+      }
+    },
+    "adaptiveModels": {
+      "title": "Адаптивный выбор модели",
+      "description": "Выполнять каждую запланированную задачу на модели, подходящей её сложности",
+      "enabled": "Маршрутизировать задачи по сложности",
+      "enabledDescription": "После планирования каждая задача выполняется на модели, соответствующей её сложности, а не на закреплённой. Простые задачи получают меньшую и более быструю модель.",
+      "derived": "Выводится из закреплённой модели",
+      "planUnavailable": "Не удалось определить модели уровней для текущего агента.",
+      "ceilingHint": "Закреплённая модель {{model}} на {{agent}} — это потолок: ни один уровень не будет мощнее её и не выйдет за пределы её семейства.",
+      "singleModelHint": "У {{model}} нет известного более низкого уровня в каталоге этого агента, поэтому все задачи по-прежнему шли бы на ней. Закрепите модель с меньшим аналогом или выберите модели уровней ниже вручную.",
+      "tiers": {
+        "high": "Высокая сложность",
+        "highDescription": "Новый дизайн, сквозные изменения, безопасность или параллелизм.",
+        "medium": "Средняя сложность",
+        "mediumDescription": "Обычная работа над функциональностью по устоявшемуся шаблону.",
+        "low": "Низкая сложность",
+        "lowDescription": "Механические правки — ключи перевода, значения перечислений, истории, переименования."
+      },
+      "hint": "Включите, если закрепили флагманскую модель, но большая часть задач механическая. Закреплённая модель остаётся потолком, поэтому это может только снизить стоимость.",
+      "links": {
+        "configurationGuide": "Руководство по настройке"
+      }
+    },
+    "ci": {
+      "title": "Непрерывная интеграция",
+      "description": "Лимиты и таймауты для мониторинга CI",
+      "maxFixAttempts": "Максимум попыток исправления",
+      "maxFixAttemptsDescription": "Повторные попытки агента при ошибках CI",
+      "watchTimeout": "Таймаут наблюдения",
+      "watchTimeoutDescription": "Максимальное ожидание завершения CI",
+      "maxLogSize": "Максимальный размер журнала",
+      "maxLogSizeDescription": "Обрезать журналы CI при превышении этого лимита",
+      "pollInterval": "Интервал опроса",
+      "pollIntervalDescription": "Частота проверки статуса CI на GitHub",
+      "hideCiStatus": "Скрыть статус CI",
+      "hideCiStatusDescription": "Скрыть значки статуса CI в панели функции и при проверке слияния",
+      "hint": "Когда функция завершается, агент может отслеживать CI и автоматически исправлять ошибки. Эти лимиты предотвращают бесконечные повторы и контролируют объём журналов, отправляемых агенту для анализа.",
+      "links": {
+        "cicdPipeline": "Конвейер CI/CD",
+        "ciSecurityGates": "Этапы безопасности CI"
+      }
+    },
+    "stageTimeouts": {
+      "title": "Таймауты этапов",
+      "description": "Максимальное время выполнения на каждый этап агента",
+      "subsections": {
+        "featureAgent": "Агент функции",
+        "analyzeRepoAgent": "Агент анализа репозитория"
+      },
+      "analyze": "Анализ",
+      "analyzeDescription": "Таймаут анализа репозитория",
+      "requirements": "Требования",
+      "requirementsDescription": "Таймаут сбора требований",
+      "research": "Исследование",
+      "researchDescription": "Таймаут технического исследования",
+      "plan": "План",
+      "planDescription": "Таймаут планирования реализации",
+      "implement": "Реализация",
+      "implementDescription": "Таймаут реализации кода",
+      "fastImplement": "Быстрая Реализация",
+      "fastImplementDescription": "Таймаут реализации в быстром режиме",
+      "merge": "Слияние",
+      "mergeDescription": "Таймаут создания PR и слияния",
+      "hint": "Каждый агент имеет независимо настраиваемые таймауты этапов. При превышении таймаута агент завершается. Более длительные таймауты полезны для сложных реализаций. Агент функции по умолчанию использует 30 минут на этап. Агент анализа репозитория по умолчанию использует 10 минут."
+    },
+    "notifications": {
+      "title": "Уведомления",
+      "description": "Настройте каналы уведомлений и предпочтения событий",
+      "sectionDescription": "Как и когда вы получаете уведомления",
+      "channels": "Каналы",
+      "inApp": "В приложении",
+      "inAppLabel": "В приложении",
+      "inAppDescription": "Уведомления внутри интерфейса Shep",
+      "subsections": {
+        "agentEvents": "События агента",
+        "pullRequestEvents": "События запросов на слияние"
+      },
+      "events": {
+        "agentStarted": "Агент запущен",
+        "phaseCompleted": "Фаза завершена",
+        "waitingApproval": "Ожидание одобрения",
+        "agentCompleted": "Агент завершил работу",
+        "agentFailed": "Ошибка агента",
+        "mergeReviewReady": "Проверка слияния готова",
+        "prMerged": "PR слит",
+        "prClosed": "PR закрыт",
+        "prChecksPassed": "Проверки PR пройдены",
+        "prChecksFailed": "Проверки PR не пройдены",
+        "prBlocked": "PR заблокирован"
+      },
+      "failedToSave": "Не удалось сохранить настройки уведомлений",
+      "hint": "Всплывающие уведомления в приложении держат вас в курсе. Тонко настройте, какие события жизненного цикла агента вызывают уведомление.",
+      "links": {
+        "notificationSystem": "Система уведомлений"
+      }
+    },
+    "featureFlags": {
+      "title": "Флаги функций",
+      "description": "Включить или отключить экспериментальные и бета-функции",
+      "sectionDescription": "Включение или отключение экспериментальных функций",
+      "badge": "Экспериментальный",
+      "envDeploy": "Развёртывания",
+      "envDeployDescription": "Включить рабочие процессы развёртывания окружений",
+      "debug": "Отладка",
+      "debugDescription": "Показать панели отладки и подробное логирование",
+      "reactFileManager": "Файловый менеджер React",
+      "reactFileManagerDescription": "Использовать встроенный файловый менеджер React вместо системного выбора папок",
+      "projects": "Проекты",
+      "projectsDescription": "Включить навигацию Проектов и страницы управления проектами в веб-интерфейсе",
+      "codeReview": "AI Code Review",
+      "codeReviewDescription": "Enable AI-powered code review that analyzes PR diffs and posts inline comments to GitHub",
+      "collaboration": "Agent Collaboration & Supervision",
+      "collaborationDescription": "Enable agent-to-agent messaging, supervisor delegation, and the unified agent questions inbox",
+      "aspm": "Application Security Posture Management",
+      "aspmDescription": "Enable the ASPM module — findings ingestion, posture dashboard, remediation campaigns, exceptions, and AI-change review queue",
+      "bedrockIntegration": "Project Bedrock Memory",
+      "bedrockIntegrationDescription": "Enable project-bedrock memory integration (markdown project memory for AI coding agents) — surfaces toggles, drawers, and tabs across applications, repositories, and features. Requires Python 3.9+ and pipx.",
+      "whatsappDispatch": "Отправка задач через WhatsApp",
+      "whatsappDispatchDescription": "Запускайте агентов shep и управляйте ими из WhatsApp — создавайте функции, получайте обновления и подтверждайте этапы, отвечая в чате.",
+      "clusters": "Кластеры",
+      "clustersDescription": "Включить навигацию кластеров и управление кластерами Kubernetes в веб-интерфейсе",
+      "hint": "Экспериментальные функции, которые ещё находятся в разработке. Включайте на свой страх и риск — они могут измениться или быть удалены в будущих версиях. Режим отладки добавляет подробное логирование, полезное для устранения неполадок.",
+      "queryAwareHarness": "Harness агента с учётом запроса",
+      "queryAwareHarnessDescription": "Экспериментально: агент Shep Harness, /harness, вкладка «Контекст» у функций и запросы разрешений",
+      "githubImport": "Импорт из GitHub",
+      "githubImportDescription": "Клонировать или форкать репозитории GitHub и добавлять их в Shep",
+      "scheduledWorkflows": "Запланированные процессы",
+      "scheduledWorkflowsDescription": "Создавать, планировать и запускать автоматические процессы по расписанию cron",
+      "spaces": "Пространства",
+      "spacesDescription": "Пространства и продуктовые линии, разделяющие знания и входы агентов каждого контекста",
+      "trackers": "Трекеры",
+      "trackersDescription": "Синхронизировать задачи Linear и Jira с проектами Shep в обе стороны",
+      "knowledge": "Знания",
+      "knowledgeDescription": "Синхронизировать выбранные страницы Notion в знания пространства для его агентов",
+      "signals": "Сигналы",
+      "signalsDescription": "Собирать сигналы клиентов и инцидентов как доказательства для возможностей",
+      "opportunities": "Возможности",
+      "opportunitiesDescription": "Ранжировать возможности по ценности на час ревью и заполнять недельную ёмкость",
+      "feedback": "Отзывы",
+      "feedbackDescription": "Принимать отзывы клиентов через эндпоинт с ключом и группировать их по темам",
+      "discovery": "Исследование",
+      "discoveryDescription": "Позволить агенту предлагать возможности по разрозненным данным пространства",
+      "incidents": "Инциденты",
+      "incidentsDescription": "Открывать инциденты по алертам; агент ранжирует причины и предлагает исправления",
+      "outcomes": "Результаты",
+      "outcomesDescription": "Проверять, решила ли выпущенная работа то, ради чего она делалась",
+      "docsFirst": "Сначала документация",
+      "docsFirstDescription": "Позволить пространствам требовать документацию на этапе планирования, с проверкой документации перед слиянием",
+      "autopilot": "Автопилот",
+      "autopilotDescription": "Позволить пространству самостоятельно исследовать, исправлять и строить в рамках своей политики",
+      "factory": "Фабрика",
+      "factoryDescription": "Показывать страницу статуса фабрики каждого пространства",
+      "sdlcBoard": "Доска SDLC",
+      "sdlcBoardDescription": "Показывать доску SDLC: живую доску задач агентов по всем активным функциям",
+      "agentCoordination": "Координация агентов",
+      "agentCoordinationDescription": "Когда две активные функции меняют одни и те же файлы, агент решает, должна ли одна ждать другую",
+      "selfLearning": "Самообучающийся харнесс",
+      "selfLearningDescription": "Shep учится на каждом запуске функции и предлагает своим агентам более удачные инструкции, навыки и скрипты. Каждое изменение утверждаете вы",
+      "groupPlatform": "Платформа",
+      "groupSoftwareFactory": "Программная фабрика",
+      "groupExperimental": "Экспериментальные",
+      "defaultOn": "По умолчанию: вкл.",
+      "defaultOff": "По умолчанию: выкл.",
+      "openView": "Открыть страницу флагов функций",
+      "backToSettings": "Назад к настройкам",
+      "pageDescription": "Всё, что Shep может включить или выключить. Изменения применяются сразу; страницы и команды CLI выключенной функции скрыты.",
+      "onCount": "Включено {{on}} из {{total}}"
+    },
+    "interactiveAgent": {
+      "title": "Интерактивный агент",
+      "description": "Настройки вкладки чата для интерактивных сессий агента по функциям",
+      "enableChatTab": "Включить вкладку чата",
+      "enableChatTabDescription": "Показать вкладку чата на всех страницах деталей функций",
+      "autoTimeout": "Автоматический таймаут",
+      "autoTimeoutDescription": "Минуты неактивности перед автоматической остановкой агента (1-120)",
+      "maxConcurrentSessions": "Максимум параллельных сессий",
+      "maxConcurrentSessionsDescription": "Максимальное количество активных интерактивных сессий агента одновременно (1-10)",
+      "hint": "Вкладка чата запускает постоянный процесс агента для каждой функции. Автоматический таймаут останавливает неактивные сессии для экономии ресурсов. Ограничение параллельных сессий предотвращает чрезмерное использование ресурсов на машинах разработчиков."
+    },
+    "homePage": {
+      "title": "Home page",
+      "description": "Choose which page opens when you navigate to the root URL",
+      "label": "Default page",
+      "labelDescription": "The page you land on when opening the web UI",
+      "options": {
+        "control-center": "Control Center",
+        "applications": "Приложения",
+        "features": "Features"
+      },
+      "hint": "This controls where you land when you open the web UI. You can change it at any time."
+    },
+    "fabLayout": {
+      "title": "Расположение",
+      "description": "Управление положением плавающих кнопок действий в центре управления",
+      "swapPosition": "Поменять местами кнопки",
+      "swapPositionDescription": "Переместить кнопку чата влево, а кнопку создания вправо",
+      "hint": "Две плавающие кнопки действий (Создать и Чат) расположены в нижних углах центра управления. Включите эту опцию, чтобы поменять их местами."
+    },
+    "security": {
+      "title": "Supply Chain Security",
+      "sectionTitle": "Supply Chain Security",
+      "sectionDescription": "Configure security mode and review policy enforcement findings",
+      "mode": "Security mode",
+      "modeDescription": "Controls how the policy engine responds to violations",
+      "modeDisabled": "Disabled",
+      "modeAdvisory": "Advisory",
+      "modeEnforce": "Enforce",
+      "policySource": "Policy source",
+      "policySourceNone": "No policy loaded",
+      "lastEvaluation": "Last evaluation",
+      "lastEvaluationNever": "Never",
+      "recentFindings": "Recent findings",
+      "noFindings": "No security findings recorded",
+      "runEnforcement": "Run enforcement",
+      "running": "Running...",
+      "severity": {
+        "Low": "Low",
+        "Medium": "Medium",
+        "High": "High",
+        "Critical": "Critical"
+      },
+      "hint": "Security mode controls how the policy engine handles violations. Advisory mode logs findings without blocking. Enforce mode blocks risky actions and fails builds.",
+      "links": {
+        "securitySpec": "Security spec"
+      },
+      "badge": {
+        "advisory": "Security: Advisory",
+        "enforce": "Security: Enforce",
+        "disabled": "Security: Disabled"
+      },
+      "panel": {
+        "title": "Security",
+        "governance": "Governance",
+        "dependencies": "Dependencies",
+        "noFindings": "No security findings",
+        "findingsByCategory": "Findings by category",
+        "totalFindings": "{{count}} finding(s)"
+      }
+    },
+    "database": {
+      "title": "База данных",
+      "description": "Путь к базе данных и управление",
+      "sectionDescription": "Информация о локальном хранилище",
+      "location": "Расположение",
+      "locationDescription": "Путь к локальной базе данных SQLite",
+      "size": "Размер",
+      "hint": "Все настройки хранятся в локальной базе данных SQLite по пути ~/.shep/data. База данных использует шаблон единственной записи с автоматическими миграциями при запуске.",
+      "links": {
+        "settingsService": "Сервис настроек",
+        "settingsSpec": "Спецификация настроек"
+      }
+    },
+    "whatsapp": {
+      "title": "WhatsApp",
+      "description": "Dispatch and steer shep agents from WhatsApp. Send a message to start work, then reply in the thread to keep going.",
+      "hint": "Only numbers in the authorized list can dispatch. Baileys uses your linked WhatsApp Web account (ToS risk); the Cloud API is ban-safe but needs a Meta Business account.",
+      "enable": "Enable WhatsApp integration",
+      "enableDescription": "Connect WhatsApp so you can dispatch and steer agents from your phone.",
+      "adapter": "Adapter",
+      "adapterDescription": "Baileys links a personal/business number; the Cloud API uses the official WhatsApp Business API.",
+      "adapterBaileys": "Baileys (WhatsApp Web)",
+      "adapterCloudApi": "Cloud API (official)",
+      "allowedNumbers": "Authorized senders",
+      "allowedNumbersDescription": "Comma-separated E.164 numbers allowed to dispatch tasks.",
+      "cloudPhoneNumberId": "Cloud API phone number ID",
+      "cloudAccessToken": "Cloud API access token",
+      "cloudVerifyToken": "Webhook verify token",
+      "cloudAppSecret": "App secret",
+      "baileysHint": "Install the optional Baileys package (pnpm add @whiskeysockets/baileys), then link your number — the QR appears here once the server is running.",
+      "cloudApiHint": "Enter your Meta app credentials, then point the WhatsApp webhook at this shep instance.",
+      "statusValue": {
+        "disconnected": "Disconnected",
+        "connecting": "Connecting",
+        "awaiting-scan": "Scan QR",
+        "connected": "Connected",
+        "error": "Error"
+      }
+    },
+    "harness": {
+      "title": "Harness агента",
+      "experimental": "Экспериментально",
+      "description": "Как Shep Harness собирает контекст модели, на какой модели работает и как спрашивает перед действием",
+      "hint": "Harness работает на SDK-бэкенде (OpenRouter, Together AI, Ollama или LLMProxy). Релевантность контекста может оценивать локальная open-source модель или Jev — либо детерминированно, вообще без сети.",
+      "mode": "Режим контекста",
+      "modeDescription": "Режим с учётом запроса строит новый план контекста под каждый вызов модели; базовый режим хранит стенограмму",
+      "backend": "Бэкенд модели",
+      "backendDescription": "SDK-агент, которого вызывает harness; ключ берётся из токена агента или его переменной окружения",
+      "model": "Модель бэкенда",
+      "modelDescription": "ID модели на бэкенде; оставьте пустым для модели бэкенда по умолчанию",
+      "modelPlaceholder": "По умолчанию для бэкенда",
+      "budget": "Режим бюджета",
+      "budgetDescription": "Баланс между стоимостью и качеством при подгонке контекста под бюджет токенов",
+      "maxTurns": "Лимит ходов",
+      "maxTurnsDescription": "Число вызовов модели на задачу до остановки",
+      "modelTimeout": "Тайм-аут вызова модели (секунды)",
+      "modelTimeoutDescription": "Сколько может длиться один вызов модели; увеличьте для медленных локальных моделей",
+      "decisionsTitle": "Поставщик оценки релевантности",
+      "decisionsDescription": "Кто оценивает, насколько каждая часть состояния важна для текущего запроса. При любом сбое поставщика используется детерминированная оценка.",
+      "providerKind": "Поставщик",
+      "providerKindDescription": "Детерминированный (без сети), OpenAI-совместимый сервер, реранкер, собственная модель harness или Jev",
+      "providerEndpoint": "Эндпоинт",
+      "providerEndpointDescription": "Базовый URL поставщика",
+      "providerModel": "Модель",
+      "providerModelDescription": "Модель, которую должен использовать эндпоинт (необязательно)",
+      "providerKeyEnv": "Переменная API-ключа",
+      "providerKeyEnvDescription": "Имя переменной окружения с ключом — но не сам ключ",
+      "shadowTitle": "Теневые режимы",
+      "shadow": {
+        "contextRouter": "Теневой маршрутизатор контекста",
+        "contextRouterDescription": "Работать в базовом режиме и записывать планы с учётом запроса, которые были бы использованы",
+        "permissions": "Теневая оценка риска разрешений",
+        "permissionsDescription": "Записывать AI-оценки риска разрешений, не применяя их",
+        "toolRouter": "Теневой маршрутизатор инструментов",
+        "toolRouterDescription": "Записывать маршрутизацию возможностей, не применяя её"
+      },
+      "permissionsTitle": "Разрешения",
+      "unknownDefault": "Неизвестные действия",
+      "unknownDefaultDescription": "Что происходит, если ни одно правило не подходит к действию",
+      "approvalTimeout": "Таймаут подтверждения (минуты)",
+      "approvalTimeoutDescription": "Запрос без ответа отклоняется по истечении этого времени"
+    },
+    "selfLearning": {
+      "title": "Самообучение",
+      "experimental": "Экспериментально",
+      "description": "Shep учится на каждом запуске фичи и улучшает инструкции, навыки и проверки своих агентов",
+      "hint": "Обучение выключено, пока вы не выберете режим. Каждое выученное изменение — версионированный кандидат, который можно просмотреть, принять или откатить на странице «Обучение».",
+      "mode": "Режим обучения",
+      "modes": {
+        "off": "Выключено",
+        "offDescription": "Ничего не изучается; принятые версии harness продолжают действовать",
+        "reflect": "Анализ",
+        "reflectDescription": "После каждого запуска один разбор предлагает изменения harness — без дополнительных попыток",
+        "explore": "Исследование",
+        "exploreDescription": "Шаг реализации пробует несколько вариантов harness и сохраняет лучший результат"
+      },
+      "exploreTitle": "Бюджет исследования",
+      "exploreK": "k исследования",
+      "exploreKDescription": "{{rollouts}} попыток реализации на фичу — примерно в {{rollouts}} раз дороже одного шага реализации",
+      "exploreRecursion": "Форма поиска",
+      "exploreRecursionDescription": "Параллельно — независимые варианты; последовательно — один вариант уточняется раунд за раундом",
+      "recursion": {
+        "parallel": "Параллельно",
+        "sequential": "Последовательно"
+      },
+      "exploreMaxCostUsd": "Лимит расходов (USD)",
+      "exploreMaxCostUsdDescription": "После этой суммы исследование не начинает новых попыток и оставляет лучшую из уже сделанных",
+      "adoptionTitle": "Принятие",
+      "adoptionPolicy": "Политика принятия",
+      "adoptionPolicyDescription": "Скрипты и хуки всегда принимает человек, независимо от политики",
+      "policies": {
+        "manual": "Спрашивать каждый раз",
+        "auto-text-only": "Автоматически принимать проверенные текстовые изменения",
+        "auto": "Автоматически принимать текстовые изменения"
+      },
+      "alwaysOnCharCap": "Лимит постоянного текста",
+      "alwaysOnCharCapDescription": "Максимум символов выученного текста, добавляемого в каждый промпт",
+      "regressionMinSample": "Выборка для регрессии",
+      "regressionMinSampleDescription": "Сколько запусков нужно версии, прежде чем её можно пометить как регрессию"
+    }
+  },
+  "navigation": {
+    "controlCenter": "Центр управления",
+    "dashboard": "Панель управления",
+    "features": "Функции",
+    "inventory": "Инвентарь",
+    "repositories": "Репозитории",
+    "settings": "Настройки",
+    "sessions": "Сессии",
+    "tools": "Инструменты",
+    "skills": "Навыки",
+    "applications": "Приложения",
+    "agentQuestions": "Agent Questions",
+    "aspm": "Security",
+    "aspmDashboard": "Dashboard",
+    "aspmFindings": "Findings",
+    "aspmInventory": "Inventory",
+    "aspmOwners": "Owners",
+    "aspmAiReview": "AI Review",
+    "aspmCompliance": "Compliance",
+    "collaboration": "Collaboration",
+    "clusters": "Кластеры",
+    "plugins": "Plugins",
+    "projectMemory": "Project Memory",
+    "learning": "Обучение",
+    "harness": "Harness",
+    "spaces": "Пространства",
+    "trackers": "Подключения",
+    "opportunities": "Возможности",
+    "incidents": "Инциденты",
+    "factory": "Фабрика",
+    "chat": "Чат",
+    "agentActivity": "Активность агентов"
+  },
+  "sidebar": {
+    "features": "Функции",
+    "switchToLight": "Светлая тема",
+    "switchToDark": "Тёмная тема",
+    "muteSounds": "Отключить звуки",
+    "unmuteSounds": "Включить звуки",
+    "statusActionNeeded": "Требуется действие",
+    "statusInProgress": "В процессе",
+    "statusPending": "Ожидание",
+    "statusBlocked": "Заблокировано",
+    "statusError": "Ошибка",
+    "statusDone": "Завершено"
+  },
+  "deleteFeature": {
+    "title": "Удалить функцию?",
+    "description": "Это навсегда удалит <strong>{{featureName}}</strong> ({{featureId}}). Это действие нельзя отменить.",
+    "cleanupLabel": "Очистить рабочее дерево и ветки",
+    "deleteSubFeatures": "Удалить подфункции",
+    "closePullRequest": "Закрыть запрос на слияние",
+    "cancel": "Отмена",
+    "deleting": "Удаление…",
+    "delete": "Удалить"
+  },
+  "rejectFeedback": {
+    "defaultTitle": "Отклонить требования",
+    "defaultDescription": "Предоставьте обратную связь для агента к следующей итерации. Обратная связь обязательна.",
+    "ariaLabel": "Обратная связь при отклонении",
+    "placeholder": "Опишите, что нужно изменить...",
+    "cancel": "Отмена",
+    "rejecting": "Отклонение…",
+    "confirmReject": "Подтвердить отклонение"
+  },
+  "emptyState": {
+    "addProject": "Добавить проект",
+    "addProjectDescription": "Добавьте папку проекта для создания функций.",
+    "addProjectDescriptionLine2": "Опишите, что вам нужно — Shep сделает остальное.",
+    "checkingSetup": "Проверка настройки…",
+    "ready": "{{label}} готов",
+    "notInstalled": "{{label}} не установлен",
+    "reCheck": "Проверить снова",
+    "needsAuth": "{{label}} требует аутентификации",
+    "open": "Открыть {{label}}",
+    "checking": "Проверка {{label}}…",
+    "notFound": "{{label}} не найден",
+    "docs": "Документация",
+    "opening": "Открытие…",
+    "chooseFolder": "Выбрать папку",
+    "folderHint": "Подойдёт любая папка — git будет инициализирован автоматически при необходимости.",
+    "orUseCli": "или используйте CLI",
+    "copyCommands": "Копировать команды",
+    "git": "Git",
+    "gitRequired": "Необходим для всех фаз",
+    "githubCli": "GitHub CLI",
+    "githubCliRequired": "Необходим для запросов на слияние",
+    "modes": {
+      "spec": {
+        "label": "По спецификации",
+        "description": "Сначала требования, исследование и план — вы утверждаете их до написания кода.",
+        "stack": "Любой стек, выбирается на этапе исследования"
+      },
+      "fast": {
+        "label": "Быстро",
+        "description": "Реализует сразу по вашему описанию, без этапа спецификации.",
+        "stack": "Любой стек"
+      },
+      "application": {
+        "label": "Быстрый прототип",
+        "description": "Мгновенный прототип веб-приложения из шаблона Vite + shadcn с живым предпросмотром. Без этапа спецификации.",
+        "stack": "Vite + React + Tailwind + shadcn"
+      }
+    },
+    "existingFolder": {
+      "body": "В описании упомянута папка {{path}}. Новый проект создаётся пустым и не заглядывает в эту папку.",
+      "fallback": "Чтобы продолжить работу с существующим кодом, откройте эту папку как проект.",
+      "action": "Работать с этой папкой"
+    }
+  },
+  "welcome": {
+    "loadingAgents": "Загрузка агентов…",
+    "chooseAgent": "Выберите вашего агента",
+    "pickModel": "Выберите модель",
+    "selectAgentSubtitle": "Выберите AI-агента для кодирования, который будет использовать Shep.",
+    "chooseModelSubtitle": "Выберите модель {{label}} для запуска.",
+    "ghCliNotice": "<0>GitHub CLI (gh)</0> необходим для полноценных возможностей CI/CD самовосстановления. <1>Установите здесь</1>.",
+    "ghCliRequired": "GitHub CLI (gh)",
+    "ghCliRequiredText": "необходим для полноценных возможностей CI/CD самовосстановления.",
+    "installHere": "Установите здесь",
+    "back": "Назад"
+  },
+  "canvas": {
+    "noFeatures": "Функций пока нет",
+    "noFeaturesDescription": "Начните с создания вашей первой функции.",
+    "newFeature": "Новая функция",
+    "hideArchived": "Скрыть архивные",
+    "showArchived": "Показать архивные",
+    "hideArchivedLabel": "Скрыть архивные",
+    "showArchivedLabel": "Показать архивные",
+    "zoomOut": "Уменьшить",
+    "zoomIn": "Увеличить",
+    "fitView": "Вписать в экран",
+    "resetView": "Сбросить вид"
+  },
+  "common": {
+    "noData": "Нет данных",
+    "retry": "Повторить",
+    "saving": "Сохранение...",
+    "saved": "Сохранено",
+    "decrease": "Уменьшить",
+    "increase": "Увеличить",
+    "cancel": "Отмена"
+  },
+  "featureNode": {
+    "archiveFeature": "Архивировать функцию",
+    "deleteFeature": "Удалить функцию",
+    "unarchiveFeature": "Разархивировать функцию",
+    "archiveConfirmTitle": "Архивировать функцию?",
+    "archiveConfirmDescription": "<strong>{{name}}</strong> будет скрыта с канвы. Вы сможете разархивировать её позже.",
+    "cancel": "Отмена",
+    "archive": "Архивировать",
+    "fastMode": "Быстрый режим",
+    "explorationMode": "Exploration Mode",
+    "specDriven": "По спецификации",
+    "copied": "Скопировано!",
+    "chatWithAgent": "Чат с агентом",
+    "stopDevServer": "Остановить сервер",
+    "startDevServer": "Запустить сервер",
+    "retryDevServer": "Перезапустить сервер",
+    "starting": "Запуск…",
+    "retry": "Повторить",
+    "start": "Запуск",
+    "failed": "Ошибка",
+    "deleting": "Удаление…",
+    "addFeature": "Добавить функцию",
+    "reviewRequirements": "Проверить требования",
+    "reviewTechnicalPlan": "Проверить технический план",
+    "reviewChanges": "Проверить изменения",
+    "review": "Проверка",
+    "creating": "Создание...",
+    "completedIn": "Завершено за {{runtime}}",
+    "completed": "Завершено",
+    "waitingOn": "Ожидание {{blockedBy}}",
+    "blocked": "Заблокировано",
+    "pending": "Ожидает",
+    "somethingWentWrong": "Что-то пошло не так",
+    "openChat": "Открыть чат",
+    "viewSessions": "Просмотр сессий",
+    "sessionsActive": "Сессии (активные)",
+    "sessions": "Сессии",
+    "agentSessions": "Сессии агента",
+    "noSessionsFound": "Сессии не найдены",
+    "showLess": "Показать меньше",
+    "showMore": "Показать ещё {{count}}"
+  },
+  "applicationNode": {
+    "newFeature": "Новая функция"
+  },
+  "repositoryNode": {
+    "removeRepository": "Удалить репозиторий",
+    "removeFailed": "Не удалось удалить репозиторий",
+    "removeConfirmTitle": "Удалить репозиторий?",
+    "removeConfirmDescription": "Это удалит <strong>{{name}}</strong> и все его функции из рабочего пространства.",
+    "removeConfirmDescriptionKeepFiles": "Файлы репозитория на диске не будут затронуты.",
+    "removeConfirmDescriptionDeleteFiles": "Папка репозитория на диске будет удалена безвозвратно. Это действие нельзя отменить.",
+    "deleteFromDiskLabel": "Также удалить папку репозитория с диска",
+    "cancel": "Отмена",
+    "remove": "Удалить",
+    "openInIde": "Открыть в IDE",
+    "openInShell": "Открыть в терминале",
+    "openFolder": "Открыть папку",
+    "openRepository": "Открыть репозиторий",
+    "webhookEnable": "Включить вебхук",
+    "webhookDisable": "Отключить вебхук",
+    "webhookUnavailable": "Вебхук недоступен — туннель не запущен",
+    "chatWithAgent": "Чат с агентом",
+    "newFeature": "Новая функция",
+    "new": "Новая",
+    "behind": "{{count}} позади",
+    "notAGitRepository": "Не является git-репозиторием",
+    "starting": "Запуск...",
+    "run": "Запуск",
+    "startLocalEnvironment": "запустить локальное окружение",
+    "stopDevServer": "Остановить сервер",
+    "startDevServer": "Запустить сервер",
+    "retry": "Повторить"
+  },
+  "fab": {
+    "closeActions": "Закрыть действия",
+    "createNew": "Создать новое",
+    "newFeature": "Новая функция",
+    "localFolder": "Локальная папка",
+    "folderOfRepos": "Папка с репозиториями",
+    "adoptBranch": "Принять ветку",
+    "fromGithub": "Из GitHub",
+    "newApplication": "Начать с описания",
+    "newSddFeature": "Новая SDD-функция",
+    "newSddForApp": "Новая SDD-функция для {{appName}}",
+    "openInControlCenterSdd": "Открыть в Control Center (режим SDD)",
+    "addFeature": "Добавить функцию"
+  },
+  "chat": {
+    "shepChat": "Shep Чат",
+    "writeMessage": "Напишите сообщение...",
+    "attachFiles": "Прикрепить файлы",
+    "forceStopAgent": "Принудительно остановить агента",
+    "stop": "Стоп",
+    "clearChatHistory": "Очистить историю чата",
+    "clear": "Очистить",
+    "noSession": "Нет сессии",
+    "yourMessage": "Ваше сообщение",
+    "agentMessage": "Сообщение агента",
+    "agentIsTyping": "Агент печатает",
+    "showMore": "Показать больше",
+    "showLess": "Показать меньше",
+    "code": "Код",
+    "preview": "Предпросмотр",
+    "openFullscreen": "Открыть на весь экран",
+    "htmlPreview": "HTML-предпросмотр",
+    "htmlPreviewFullscreen": "HTML-предпросмотр на весь экран"
+  },
+  "createDrawer": {
+    "title": "НОВАЯ ФУНКЦИЯ",
+    "creating": "Создание...",
+    "cancel": "Отмена",
+    "createFeature": "+ Создать функцию",
+    "repository": "РЕПОЗИТОРИЙ",
+    "describeFeature": "ОПИШИТЕ ВАШУ ФУНКЦИЮ",
+    "featurePlaceholder": "напр. Добавить авторизацию через GitHub OAuth с обработкой обратного вызова и обновлением токена...",
+    "parentFeature": "РОДИТЕЛЬСКАЯ ФУНКЦИЯ",
+    "selectParent": "Выберите родительскую функцию...",
+    "searchFeatures": "Поиск функций...",
+    "noParent": "Без родителя",
+    "noFeaturesFound": "Функции не найдены.",
+    "searchRepositories": "Поиск репозиториев...",
+    "approve": "ОДОБРЕНИЕ",
+    "approveDescription": "Автоодобрение переходов между фазами без ручной проверки.",
+    "skippedInFastMode": "Пропущено в быстром режиме",
+    "all": "Все",
+    "toggleAllApprovalGates": "Переключить все этапы одобрения",
+    "evidence": "ПОДТВЕРЖДЕНИЯ",
+    "evidenceDescription": "Сбор и прикрепление подтверждений после реализации.",
+    "collect": "Сбор",
+    "collectDescription": "Делать скриншоты и сохранять артефакты после реализации.",
+    "addToPr": "Добавить в PR",
+    "requiresPr": "Требуется включённый PR",
+    "requiresEvidence": "Требуется включённый сбор подтверждений",
+    "addToPrDescription": "Включить подтверждения в тело запроса на слияние.",
+    "git": "GIT",
+    "push": "Отправить",
+    "pushDescription": "Отправить ветку на удалённый сервер после реализации.",
+    "pr": "PR",
+    "prDescription": "Открыть запрос на слияние после отправки.",
+    "watch": "Наблюдение",
+    "watchDescription": "Следить за CI и автоматически исправлять ошибки.",
+    "sync": "Sync",
+    "syncDescription": "Pull latest main from remote before creating the feature branch.",
+    "commitSpecs": "Коммит спецификаций",
+    "commitSpecsDescription": "Закоммитить спецификации в репозиторий.",
+    "forkAndPr": "Форк и PR",
+    "forkAndPrDescription": "Внести вклад через форк (PR в upstream).",
+    "pendingMode": "Ожидание",
+    "pendingModeDescription": "Создать без запуска — запустить вручную позже.",
+    "fastModeLabel": "Быстрый режим",
+    "fastModeDescription": "Пропустить фазы SDLC и реализовать напрямую из промпта.",
+    "modeGroupLabel": "Режим сборки",
+    "modeApplication": "Приложение",
+    "modeApplicationDescription": "Полный цикл приложения с исследованием, планом и реализацией.",
+    "modeFast": "Быстро",
+    "modeFastDescription": "Пропустить фазы SDLC и реализовать напрямую из промпта.",
+    "modeSpec": "Spec",
+    "modeSpecDescription": "Spec-управляемый поток с явными шагами PRD и плана.",
+    "lockedByApplication": "Заблокировано контекстом приложения — откройте из другой точки входа, чтобы изменить.",
+    "fileDropZone": "Зона перетаскивания файлов",
+    "prd": "PRD",
+    "prdDescription": "Автоодобрение перехода требований к планированию.",
+    "plan": "План",
+    "planDescription": "Автоодобрение перехода планирования к реализации.",
+    "merge": "Слияние",
+    "mergeDescription": "Автоодобрение перехода слияния к завершению.",
+    "skills": "SKILLS",
+    "skillsDescription": "Curated skills to guide the agent during feature development.",
+    "injectSkills": "Inject",
+    "injectSkillsDescription": "Include curated skills in the feature worktree.",
+    "explore": {
+      "label": "ОБУЧЕНИЕ",
+      "toggle": "Исследовать варианты harness",
+      "k": "Бюджет исследования k",
+      "cost": "{{attempts}} попыток реализации — примерно в {{attempts}} раз дороже реализации"
+    },
+    "effort": "Уровень",
+    "effortFromSettings": "Из настроек"
+  },
+  "featureDrawer": {
+    "copyFeatureId": "Копировать ID функции",
+    "unarchiveFeature": "Разархивировать функцию",
+    "archiveFeature": "Архивировать функцию",
+    "deleteFeature": "Удалить функцию",
+    "stopDevServer": "Остановить сервер",
+    "startDevServer": "Запустить сервер",
+    "failedToReject": "Не удалось отклонить {{label}}",
+    "rejected": "{{label}} отклонено — агент повторяет (итерация {{n}})",
+    "excessiveIterations": "Итерация {{n}} — рассмотрите одобрение или корректировку отзыва",
+    "failedToApprove": "Не удалось одобрить {{label}}",
+    "approved": "{{label}} одобрено — агент продолжает",
+    "failedToApproveRequirements": "Не удалось одобрить требования",
+    "requirementsApproved": "Требования одобрены — агент продолжает",
+    "featureResumed": "Функция возобновлена — агент перезапускается",
+    "featureStarted": "Функция запущена",
+    "approvePlan": "Одобрить план",
+    "sendRevisionFeedback": "Отправить отзыв для доработки"
+  },
+  "coordinationNote": {
+    "waitsFor": "Ждёт {{peer}}",
+    "runsAlongside": "Идёт параллельно с {{peer}}",
+    "anotherFeature": "другую функцию",
+    "sharedFiles": "Общие файлы ({{count}})",
+    "decidedBy": "Решение агента-координатора · {{when}}",
+    "title": "Координация агентов"
+  },
+  "overviewTab": {
+    "created": "Создано",
+    "runtime": "Время выполнения",
+    "runningFor": "Работает",
+    "blockedBy": "Заблокировано",
+    "error": "Ошибка",
+    "prd": "PRD",
+    "plan": "План",
+    "merge": "Слияние",
+    "collect": "Сбор",
+    "addToPr": "Добавить в PR",
+    "push": "Отправка",
+    "pr": "PR",
+    "watch": "Наблюдение",
+    "commitSpecs": "Коммит спецификаций",
+    "forkAndPr": "Форк и PR",
+    "effortValue": "Уровень: {{level}}"
+  },
+  "activityTab": {
+    "copyPromptToClipboard": "Копировать промпт в буфер обмена",
+    "execution": "Выполнение",
+    "wait": "Ожидание",
+    "cost": "Стоимость",
+    "modelUsed": "Выполнено на {{model}}",
+    "noActivityRecorded": "Активность пока не зафиксирована",
+    "decisions": {
+      "title": "Решения",
+      "pending": "Ожидает ответа",
+      "answered": "{{actor}} ответил: {{answer}}",
+      "defaulted": "Ответа к сроку не было — продолжено с рекомендуемым вариантом: {{answer}}",
+      "cancelled": "Отменено без ответа"
+    }
+  },
+  "logTab": {
+    "structuredView": "Структурированный вид",
+    "rawView": "Исходный вид",
+    "noLogOutput": "Журнал пока пуст"
+  },
+  "planTab": {
+    "noPlanCreated": "План пока не создан"
+  },
+  "branchSyncStatus": {
+    "refreshSyncStatus": "Обновить статус синхронизации",
+    "rebaseOnMain": "Rebase на Main"
+  },
+  "drawerActionBar": {
+    "fileDropZone": "Зона перетаскивания файлов",
+    "askAiToRevise": "Попросить AI доработать...",
+    "attachFiles": "Прикрепить файлы",
+    "reject": "Отклонить",
+    "sendRevisionFeedback": "Отправить отзыв для доработки",
+    "approve": "Одобрить",
+    "fileTooLarge": "\"{{name}}\" превышает лимит 10 МБ",
+    "fileTypeNotAllowed": "Тип файла \"{{ext}}\" не разрешён",
+    "uploadFailed": "Ошибка загрузки"
+  },
+  "taskProgress": {
+    "done": "Готово",
+    "inProgress": "В процессе",
+    "review": "На проверке",
+    "todo": "К выполнению",
+    "noTasksDefined": "Задачи пока не определены"
+  },
+  "repositoryDrawer": {
+    "openInIde": "Открыть в IDE",
+    "openInShell": "Открыть в терминале",
+    "openFolder": "Открыть папку",
+    "syncMain": "Синхронизировать Main"
+  },
+  "adoptBranch": {
+    "failedToAdopt": "Не удалось принять ветку",
+    "repository": "Репозиторий",
+    "branchName": "Имя ветки",
+    "searchRepositories": "Поиск репозиториев...",
+    "searchBranches": "Поиск веток..."
+  },
+  "githubImport": {
+    "title": "Импорт из GitHub",
+    "description": "Клонировать репозиторий GitHub и добавить в Shep.",
+    "githubUrl": "URL GitHub",
+    "urlPlaceholder": "owner/repo или https://github.com/owner/repo",
+    "searchRepositories": "Поиск репозиториев..."
+  },
+  "versionBadge": {
+    "version": "Версия",
+    "branch": "Ветка",
+    "commit": "Коммит",
+    "path": "Путь"
+  },
+  "mergeReview": {
+    "download": "Скачать",
+    "dataUnavailable": "Данные проверки слияния недоступны"
+  },
+  "baseDrawer": {
+    "close": "Закрыть",
+    "stopDevServer": "Остановить сервер",
+    "startDevServer": "Запустить сервер"
+  },
+  "addRepository": {
+    "addRepository": "Добавить репозиторий"
+  },
+  "modelPicker": {
+    "searchPlaceholder": "Поиск или введите ID модели…"
+  },
+  "effortSelect": {
+    "agentDefault": "По умолчанию агента",
+    "levels": {
+      "low": "Низкий",
+      "medium": "Средний",
+      "high": "Высокий",
+      "xhigh": "Очень высокий",
+      "max": "Максимальный"
+    }
+  },
+  "skills": {
+    "searchPlaceholder": "Поиск навыков..."
+  },
+  "tools": {
+    "noCategoryTools": "Нет инструментов в этой категории."
+  },
+  "accessibility": {
+    "close": "Закрыть",
+    "loading": "Загрузка",
+    "send": "Отправить",
+    "imageNotes": "Заметки к изображению",
+    "viewServerLogs": "Просмотр журналов сервера",
+    "toggleSidebar": "Переключить боковую панель"
+  },
+  "agentEditor": {
+    "prompts": "Промпты",
+    "graph": "Граф",
+    "playground": "Песочница",
+    "usePrompt": "Использовать промпт:",
+    "noAgentsRegistered": "Агенты не зарегистрированы",
+    "emptyRegistryPrefix": "Встроенный реестр промптов пуст - зарегистрируйте слоты в",
+    "emptyRegistrySuffix": "чтобы показать агентов в этом редакторе.",
+    "custom": "Пользовательский",
+    "promptCount_one": "{{count}} промпт",
+    "promptCount_few": "{{count}} промпта",
+    "promptCount_many": "{{count}} промптов",
+    "promptCount_other": "{{count}} промпта",
+    "overrideCount_one": "{{count}} переопределение",
+    "overrideCount_few": "{{count}} переопределения",
+    "overrideCount_many": "{{count}} переопределений",
+    "overrideCount_other": "{{count}} переопределения",
+    "noGraphDescriptor": "Для этого агента еще не зарегистрирован дескриптор графа.",
+    "overridden": "Переопределено",
+    "bundled": "Встроено",
+    "addNode": "Добавить узел",
+    "resetToBundled": "Сбросить к встроенному",
+    "cancel": "Отмена",
+    "edit": "Редактировать",
+    "saveGraph": "Сохранить граф",
+    "saving": "Сохранение...",
+    "savedAt": "Сохранено в {{time}}",
+    "newStep": "Новый шаг",
+    "failedToSaveGraph": "Не удалось сохранить граф",
+    "failedToResetGraph": "Не удалось сбросить граф",
+    "nodeLabelPlaceholder": "метка",
+    "nodeDescriptionPlaceholder": "описание",
+    "nodeLabelAria": "Метка узла {{id}}",
+    "nodeDescriptionAria": "Описание узла {{id}}",
+    "deleteNodeAria": "Удалить узел {{id}}",
+    "graphMustHaveNode": "В графе должен быть хотя бы один узел.",
+    "nodeMustHaveLabel": "У узла {{id}} должна быть метка.",
+    "duplicateNodeId": "Дублирующийся ID узла: {{id}}",
+    "edgeUnknownSource": "Ребро ссылается на неизвестный источник: {{id}}",
+    "edgeUnknownTarget": "Ребро ссылается на неизвестную цель: {{id}}",
+    "createCustomAgent": "Создать пользовательского агента",
+    "createCustomAgentDescription": "Создайте новый тип агента с собственными слотами промптов и редактируемым графом. Встроенные агенты не меняются.",
+    "stableTypeId": "Стабильный ID типа",
+    "stableTypeIdPlaceholder": "например, code-review",
+    "stableTypeIdHelpPrefix": "kebab-case, начинается с буквы, максимум 64 символа (соответствует",
+    "stableTypeIdHelpSuffix": ")",
+    "displayName": "Отображаемое имя",
+    "displayNamePlaceholder": "например, агент ревью кода",
+    "description": "Описание",
+    "descriptionPlaceholder": "Что делает этот агент?",
+    "seedFirstPrompt": "Создать первый промпт (необязательно)",
+    "promptSlotId": "ID слота промпта",
+    "promptSlotIdPlaceholder": "например, system, plan.system",
+    "promptBody": "Текст промпта",
+    "promptBodyPlaceholder": "Системный промпт, с которым будет работать агент...",
+    "failedToCreateAgent": "Не удалось создать агента",
+    "newAgent": "Новый агент",
+    "creating": "Создание...",
+    "createAgent": "Создать агента"
+  },
+  "cluster": {
+    "status": {
+      "provisioning": "Развёртывание",
+      "ready": "Готов",
+      "stopping": "Остановка",
+      "stopped": "Остановлен",
+      "error": "Ошибка",
+      "destroying": "Уничтожение"
+    },
+    "createTitle": "Create cluster",
+    "createDescription": "Spin up a local k3s Kubernetes cluster in Docker.",
+    "createAndProvision": "Create & provision",
+    "creating": "Creating…",
+    "nameLabel": "Name",
+    "namePlaceholder": "my-cluster",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "What is this cluster for?",
+    "argoCdLabel": "Install ArgoCD",
+    "argoCdDescription": "Bootstrap GitOps with ArgoCD after the cluster is ready.",
+    "provision": "Provision",
+    "destroy": "Destroy",
+    "remove": "Remove",
+    "cancel": "Cancel",
+    "removeCluster": "Remove cluster",
+    "removeConfirmTitle": "Remove this cluster?",
+    "removeConfirmDescription": "Cluster \"{{name}}\" will be removed from Shep. If it is running it will be destroyed first.",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "fieldStatus": "Status",
+    "fieldKubeconfig": "Kubeconfig",
+    "fieldArgoCd": "ArgoCD",
+    "fieldArgoCdNamespace": "ArgoCD namespace",
+    "fieldLastProvisioned": "Last provisioned",
+    "fieldLastHealthCheck": "Last health check",
+    "fieldError": "Error",
+    "tabOverview": "Overview",
+    "tabRepositories": "Repositories",
+    "tabApplications": "Applications",
+    "tabStatus": "Live status",
+    "noLinkedRepos": "No repositories linked yet.",
+    "noLinkedApps": "No applications linked yet.",
+    "statusLive": "Live cluster status updates here once the cluster is ready.",
+    "statusNotAvailable": "Live status is only available when the cluster is Ready.",
+    "linkedRepos_one": "{{count}} repo",
+    "linkedRepos_other": "{{count}} repos",
+    "linkedApps_one": "{{count}} app",
+    "linkedApps_other": "{{count}} apps"
+  },
+  "memory": {
+    "title": "Project Memory",
+    "subtitle": "Durable knowledge agents read at the start of every feature. Updated automatically after each merged PR.",
+    "empty": {
+      "title": "No project memory yet",
+      "description": "As features merge, agents distil conventions, library choices, and fixes here."
+    },
+    "categories": {
+      "convention": "Conventions",
+      "architectureDecision": "Architecture Decisions",
+      "library": "Preferred Libraries & Tools",
+      "namingPattern": "Naming Patterns",
+      "ciFixResolution": "Past CI/Build Fixes"
+    },
+    "actions": {
+      "edit": "Edit",
+      "delete": "Delete",
+      "save": "Save",
+      "cancel": "Cancel",
+      "scope": "Изменить, кто это видит"
+    },
+    "deleteDialog": {
+      "title": "Delete this memory entry?",
+      "description": "Agents will no longer see this guidance when starting a feature. This cannot be undone."
+    },
+    "errors": {
+      "emptyContent": "Memory content cannot be empty.",
+      "updateFailed": "Failed to update the memory entry.",
+      "scopeFailed": "Не удалось изменить, кто видит эту запись."
+    },
+    "scope": {
+      "project": "Только этот репозиторий",
+      "productLine": "Его продуктовая линейка",
+      "space": "Всё его пространство",
+      "menuLabel": "Доступно для"
+    },
+    "filter": {
+      "label": "Фильтр по пространству",
+      "allSpaces": "Все пространства"
+    }
+  },
+  "sessionTree": {
+    "title": "Сессии",
+    "loading": "Загрузка сессий…",
+    "empty": "Пока нет отслеживаемых репозиториев",
+    "noSessions": "Нет сессий",
+    "notConverted": "Не преобразованы",
+    "showArchived": "Показать архив",
+    "hideArchived": "Скрыть архив",
+    "refresh": "Обновить",
+    "collapseAll": "Свернуть все",
+    "expandAll": "Развернуть все",
+    "collapsePanel": "Свернуть панель",
+    "expandPanel": "Развернуть панель",
+    "sessionActions": "Действия сессии",
+    "repositoryActions": "Действия с репозиторием",
+    "archive": "В архив",
+    "unarchive": "Восстановить",
+    "delete": "Удалить расшифровку…",
+    "deleteConfirmTitle": "Удалить эту расшифровку?",
+    "deleteConfirmDescription": "Файл беседы будет безвозвратно удалён с диска. Отменить нельзя, и shep не владеет этим файлом.",
+    "deleteConfirm": "Удалить безвозвратно",
+    "deleteAdoptedNote": "Функция, созданная из этой сессии, не будет удалена.",
+    "cancel": "Отмена",
+    "archivedHidden": "Скрыто в архиве: {{count}}"
+  },
+  "runPlan": {
+    "title": "План запуска",
+    "description": "Что запускается при старте dev-сервера",
+    "show": "Показать план запуска",
+    "hide": "Скрыть план запуска",
+    "loading": "Загрузка плана запуска…",
+    "empty": "Плана запуска пока нет — запустите dev-сервер один раз, и определённый план появится здесь.",
+    "fields": {
+      "command": "Команда",
+      "cwd": "Рабочий каталог",
+      "language": "Язык",
+      "framework": "Фреймворк",
+      "expectedPort": "Ожидаемый порт",
+      "packageManager": "Менеджер пакетов",
+      "setupCommands": "Команды подготовки"
+    },
+    "source": {
+      "label": "Источник",
+      "deterministic": "Определено",
+      "agent": "Проанализировано ИИ",
+      "manual": "Закреплено"
+    },
+    "staleHint": "Файлы конфигурации репозитория изменились с момента создания этого плана. Проанализируйте заново, чтобы учесть изменения, или оставьте как есть.",
+    "repoConfigControlled": "Этим репозиторием управляет закоммиченный файл .shep/dev.json. Он перечитывается при каждом запуске и имеет приоритет над любым сохранённым планом — измените этот файл, чтобы поменять то, что запускается.",
+    "actions": {
+      "edit": "Изменить",
+      "reanalyze": "Проанализировать заново",
+      "reanalyzing": "Анализ…",
+      "save": "Сохранить",
+      "saving": "Сохранение…",
+      "cancel": "Отмена"
+    },
+    "editor": {
+      "title": "Изменить план запуска",
+      "executionNotice": "Эта команда будет выполнена на вашем компьютере.",
+      "commandPlaceholder": "pnpm dev",
+      "cwdPlaceholder": "Корень репозитория",
+      "cwdHelp": "Абсолютный путь или относительно корня репозитория.",
+      "expectedPortPlaceholder": "Определяется автоматически",
+      "setupCommandsLabel": "Команды подготовки",
+      "setupCommandsHelp": "По одной команде в строке, выполняются перед запуском dev-сервера."
+    },
+    "errors": {
+      "loadFailed": "Не удалось загрузить план запуска.",
+      "saveFailed": "Не удалось сохранить план запуска.",
+      "reanalyzeFailed": "Не удалось сбросить план запуска."
+    }
+  },
+  "features": {
+    "queued": "В очереди",
+    "queuedWithPosition": "В очереди · {{position}} впереди",
+    "queuedTooltip": "Ожидает свободного места ({{position}} в очереди)",
+    "startAnyway": "Всё равно запустить"
+  },
+  "harness": {
+    "title": "Harness агента",
+    "subtitle": "Отдельные задачи, что модель видела на каждом ходе, и действия, ожидающие вашего подтверждения",
+    "loading": "Загрузка…",
+    "noTasks": "Задач пока нет.",
+    "taskN": "Задача {{n}}",
+    "turn": "Ход {{n}}",
+    "tabs": {
+      "sessions": "Сессии",
+      "newTask": "Новая задача",
+      "approvals": "Подтверждения",
+      "catalog": "Инструменты и политики",
+      "setup": "Настроить репозиторий",
+      "evals": "Оценки"
+    },
+    "mode": {
+      "query_aware": "С учётом запроса",
+      "baseline": "Базовый"
+    },
+    "budget": {
+      "economy": "Экономный",
+      "balanced": "Сбалансированный",
+      "quality": "Качество"
+    },
+    "effect": {
+      "allow": "Разрешить",
+      "ask": "Спросить",
+      "deny": "Запретить"
+    },
+    "origin": {
+      "feature": "Функция",
+      "standalone": "Отдельная",
+      "eval": "Оценка"
+    },
+    "sessionStatus": {
+      "active": "Выполняется",
+      "idle": "Простаивает",
+      "completed": "Завершена",
+      "failed": "Ошибка",
+      "discarded": "Отброшена"
+    },
+    "visibility": {
+      "hidden": "Скрыто",
+      "short": "Кратко",
+      "long": "Подробно",
+      "full": "Полностью"
+    },
+    "source": {
+      "deterministic": "детерминированно",
+      "ai": "AI",
+      "policy": "политика",
+      "degraded": "деградация",
+      "escalation": "запрошено агентом",
+      "user": "вы",
+      "budget": "бюджет"
+    },
+    "providerKind": {
+      "deterministic": "Детерминированный",
+      "openai_compatible": "OpenAI-совместимый сервер",
+      "reranker": "Реранкер",
+      "structured_llm": "Модель harness",
+      "jev": "Jev"
+    },
+    "sessions": {
+      "empty": "Сессий harness пока нет. Запустите одну на вкладке «Новая задача».",
+      "title": "Сессия",
+      "origin": "Источник",
+      "mode": "Режим",
+      "status": "Статус",
+      "tasks": "Задачи",
+      "pending": "Ожидают: {{count}}"
+    },
+    "newTask": {
+      "repository": "Репозиторий",
+      "task": "Задача",
+      "taskPlaceholder": "Исправить проверку срока действия refresh-токена",
+      "worktreeNote": "Выполняется в отдельном рабочем дереве — ваш checkout не затрагивается. Затем вы применяете результат к ветке, превращаете его в функцию или отбрасываете.",
+      "run": "Запустить задачу"
+    },
+    "approvals": {
+      "empty": "Нет действий, ожидающих подтверждения."
+    },
+    "permission": {
+      "reason": "Причина агента:",
+      "willDo": "Это действие:",
+      "noEffects": "(нет прогнозируемых эффектов)",
+      "rules": "Правила:",
+      "notePlaceholder": "Заметка агенту (необязательно), например: используй вместо этого jose",
+      "allowOnce": "Разрешить один раз",
+      "allowPhase": "Разрешить для этой фазы",
+      "allowFeature": "Разрешить для этой функции",
+      "allowSession": "Разрешить для этой сессии",
+      "deny": "Запретить",
+      "hardDeny": "Запрещено жёстким правилом; подтвердить нельзя."
+    },
+    "banner": {
+      "waiting": "Действий harness, ожидающих вашего подтверждения: {{count}}",
+      "review": "Просмотреть"
+    },
+    "context": {
+      "empty": "Эта функция ещё не запускалась на Shep Harness."
+    },
+    "usage": {
+      "turns": "Ходы",
+      "input": "Входные токены",
+      "output": "Выходные токены",
+      "cost": "Стоимость",
+      "toolOutputSeen": "Просмотренный вывод инструментов",
+      "denied": "Запрещённые действия"
+    },
+    "plan": {
+      "summary": "{{tokens}} из {{budget}} токенов · кандидатов: {{count}}",
+      "shadow": "тень",
+      "degraded": "деградация",
+      "overBudget": "сверх бюджета",
+      "none": "Выберите ход, чтобы увидеть, что видела модель.",
+      "chunk": "Фрагмент",
+      "visibility": "Видимость",
+      "tokens": "Токены показано/всего",
+      "relevance": "Релевантность",
+      "reason": "Причина",
+      "view": "Просмотр",
+      "why": "Почему?"
+    },
+    "chunk": {
+      "redacted": "Этот фрагмент помечен как секретный и никогда не отображается.",
+      "truncated": "обрезано",
+      "storedNote": "отображено из сохранённого вывода; ничего не перезапускалось"
+    },
+    "why": {
+      "title": "Почему такая видимость?",
+      "tokens": "Показано {{visible}} из {{raw}} токенов",
+      "relevance": "Релевантность {{score}}",
+      "bands": "скрыто < {{hide}} ≤ кратко < {{long}} ≤ подробно < {{full}} ≤ полностью",
+      "noProbabilities": "Нет вероятностей классов: этот поставщик их не возвращает.",
+      "provider": "Решение {{provider}} за {{latency}} мс · {{cost}}",
+      "shadow": "тень",
+      "degraded": "деградация",
+      "include": "Включить со следующего хода",
+      "included": "Включено со следующего хода"
+    },
+    "actions": {
+      "stop": "Остановить",
+      "stopRequested": "Остановка запрошена; задача остановится перед следующим ходом",
+      "stoppedOrphan": "Остановлено: процесс, выполнявший задачу, завершился, поэтому она отменена",
+      "branchPlaceholder": "Ветка (необязательно)",
+      "apply": "Применить к ветке",
+      "applied": "Закоммичено файлов в {{branch}}: {{count}}",
+      "promote": "Превратить в функцию",
+      "discard": "Отбросить",
+      "discarded": "Рабочее дерево удалено; сессия сохранена"
+    },
+    "capabilities": {
+      "title": "Инструменты, которые может загрузить агент",
+      "description": "Фрагменты уровня 1 показываются всегда; схемы уровня 2 загружаются, только когда агент запрашивает возможность.",
+      "cost": "{{snippet}} / {{schema}} токенов"
+    },
+    "policies": {
+      "title": "Правила разрешений",
+      "description": "Значения Shep по умолчанию плюс .shep/harness/policies/*.yaml. Приоритет: deny > ask > allow.",
+      "hard": "жёсткое"
+    },
+    "setup": {
+      "description": "Находит файлы инструкций, команды тестов и линтера, а также чувствительные файлы, показывает предпросмотр .shep/harness/ и записывает только после вашего подтверждения. Исходные файлы никогда не изменяются.",
+      "preview": "Предпросмотр",
+      "instructions": "Инструкции",
+      "manifests": "Манифесты",
+      "commands": "Тесты / линтер",
+      "sensitive": "Чувствительные файлы",
+      "exists": "существует, сохранён",
+      "confirm": "Записать файлы",
+      "written": "Записано файлов: {{count}}"
+    },
+    "evals": {
+      "description": "Запустите одни и те же задачи в режимах baseline и query-aware, каждую в одноразовом репозитории, и сравните успешность, токены, стоимость, ходы и полноту доказательств.",
+      "repeats": "Повторы",
+      "run": "Запустить eval",
+      "empty": "Запусков eval пока нет.",
+      "score": "Метрика",
+      "change": "Изменение",
+      "status": {
+        "pending": "Ожидает",
+        "running": "Выполняется",
+        "completed": "Завершён",
+        "failed": "Ошибка"
+      },
+      "scores": {
+        "success": "Успешность",
+        "inputTokens": "Входные токены",
+        "outputTokens": "Выходные токены",
+        "costUsd": "Стоимость",
+        "turns": "Ходы",
+        "wallMs": "Время",
+        "repeatedReads": "Повторные чтения",
+        "toolOutputRatio": "Видимый вывод инструментов",
+        "evidenceRecall": "Полнота доказательств"
+      }
+    }
+  },
+  "spaces": {
+    "title": "Пространства",
+    "subtitle": "Разделяйте области работы. Память, общая в пространстве, никогда не попадает в другое.",
+    "create": {
+      "title": "Новое пространство",
+      "name": "Имя",
+      "namePlaceholder": "Acme",
+      "description": "Описание",
+      "descriptionPlaceholder": "Работа для клиента Acme Corp",
+      "color": "Цвет",
+      "submit": "Создать пространство"
+    },
+    "card": {
+      "default": "По умолчанию",
+      "makeDefault": "Сделать основным",
+      "delete": "Удалить пространство",
+      "counts": "Репозитории: {{repositories}} · Записи памяти: {{memory}}",
+      "edit": "Изменить пространство",
+      "save": "Сохранить"
+    },
+    "lines": {
+      "title": "Продуктовые линейки",
+      "empty": "Линеек пока нет.",
+      "placeholder": "Новая линейка",
+      "add": "Добавить",
+      "remove": "Удалить {{name}}"
+    },
+    "rules": {
+      "title": "Правила",
+      "empty": "Правил нет. Репозитории попадают сюда только при закреплении.",
+      "placeholder": "/work/acme или github.com/acme/*",
+      "line": "Линейка для подходящих репозиториев",
+      "noLine": "Без линейки",
+      "add": "Добавить правило",
+      "remove": "Удалить правило"
+    },
+    "repositories": {
+      "title": "Репозитории",
+      "empty": "Репозиториев пока нет. Добавьте их в центре управления.",
+      "repository": "Репозиторий",
+      "space": "Пространство",
+      "line": "Линейка",
+      "because": "Причина",
+      "sourceAssignment": "Закреплён",
+      "sourceRule": "Правило",
+      "sourceDefault": "Пространство по умолчанию",
+      "pin": "Закрепить за пространством…",
+      "unpin": "Открепить, чтобы действовали правила"
+    },
+    "deleteDialog": {
+      "title": "Удалить {{name}}?",
+      "description": "Правила, закрепления и линейки удаляются. Репозитории переходят под другие правила или в пространство по умолчанию.",
+      "confirm": "Удалить пространство",
+      "cancel": "Отмена"
+    },
+    "errors": {
+      "actionFailed": "Не удалось сохранить изменение. Попробуйте ещё раз."
+    },
+    "agent": {
+      "title": "Настройки агентов",
+      "customised": "Настроено",
+      "inherits": "Наследует от хоста",
+      "claudeConfigDir": "Каталог конфигурации Claude",
+      "ghConfigDir": "Каталог конфигурации gh",
+      "gitName": "Имя автора git",
+      "gitEmail": "Email автора git",
+      "awsProfile": "Профиль AWS",
+      "bedrock": "Amazon Bedrock",
+      "bedrockInherit": "Наследовать от хоста",
+      "bedrockOn": "Направлять Claude через Bedrock",
+      "bedrockOff": "Никогда не использовать Bedrock",
+      "loginHint": "Войдите один раз с заданным каталогом, например CLAUDE_CONFIG_DIR=~/.claude-acme claude или GH_CONFIG_DIR=~/.config/gh-acme gh auth login. Shep никогда не хранит учётные данные.",
+      "allowedAgents": "Разрешённые агенты",
+      "allowedAgentsHint": "Если ничего не выбрано, разрешены все агенты.",
+      "save": "Сохранить настройки агентов",
+      "prComments": "Комментарии к pull requests",
+      "prCommentsHint": "На какие комментарии ревью к pull requests shep отвечает без запроса. Остальные можно обработать из функции.",
+      "prTrigger": {
+        "Off": "Только по запросу",
+        "Mention": "Комментарии с #shep",
+        "All": "Все комментарии"
+      },
+      "resolveThreads": "Закрывать ветки, где изменён код",
+      "autoActions": "Выполняются без вопросов при инцидентах",
+      "autoActionsHint": "Shep выполняет их на нагрузке инцидента без одобрения. Остальные ждут, пока их кто-то одобрит.",
+      "docsFirst": "Docs first",
+      "docsFirstHint": "Агенты пишут пользовательскую документацию при планировании и строят по ней. Изменение без документации ждёт человека перед слиянием.",
+      "docsFirstOn": "Требовать docs first",
+      "docsPaths": "Пути документации"
+    }
+  },
+  "trackers": {
+    "title": "Подключения",
+    "subtitle": "Задачи Linear и Jira в проектах shep и страницы Notion как знания команды.",
+    "syncAll": "Синхронизировать",
+    "empty": "Подключений пока нет. Добавьте выше API-ключ Linear, токен Jira или токен интеграции Notion.",
+    "add": {
+      "title": "Добавить подключение",
+      "provider": "Сервис",
+      "name": "Имя",
+      "space": "Пространство",
+      "site": "Сайт Jira",
+      "email": "Email аккаунта",
+      "linearSecret": "API-ключ Linear",
+      "jiraSecret": "API-токен Jira",
+      "submit": "Подключить",
+      "notionSecret": "Токен интеграции Notion"
+    },
+    "connection": {
+      "connected": "Подключено",
+      "error": "Ошибка",
+      "account": "как {{account}}",
+      "space": "пространство {{space}}",
+      "test": "Проверить",
+      "remove": "Удалить подключение",
+      "removeTitle": "Удалить {{name}}?",
+      "removeDescription": "Его правила синхронизации и источники знаний остановятся и будут удалены. Уже синхронизированные задачи останутся в проектах.",
+      "cancel": "Отмена"
+    },
+    "rules": {
+      "title": "Правила синхронизации",
+      "empty": "Правил пока нет. Добавьте правило, чтобы импортировать задачи.",
+      "noProjects": "Сначала создайте проект: правила записывают задачи в проект.",
+      "scope": "Ключ команды Linear или JQL Jira",
+      "project": "Проект",
+      "twoWay": "В обе стороны",
+      "import": "Импорт",
+      "every": "каждые",
+      "minutes": "мин",
+      "everyShort": "каждые {{minutes}} мин",
+      "paused": "Приостановлено",
+      "summary": "создано {{created}}, обновлено {{updated}}, отправлено {{pushed}}, конфликтов {{conflicts}}, ошибок {{failed}}",
+      "never": "Ещё не запускалось",
+      "add": "Добавить правило",
+      "pause": "Приостановить",
+      "resume": "Возобновить",
+      "runNow": "Запустить сейчас",
+      "remove": "Удалить правило"
+    },
+    "errors": {
+      "actionFailed": "Не удалось сохранить изменение. Попробуйте ещё раз."
+    },
+    "badge": {
+      "open": "Открыть {{key}} в трекере"
+    }
+  },
+  "bugLoop": {
+    "title": "Исследование",
+    "intro": "Агент читает репозиторий во временной копии только для чтения и ранжирует вероятные причины. Ваша рабочая копия не затрагивается.",
+    "repository": "Репозиторий",
+    "noRepositories": "Добавьте репозиторий в shep, чтобы исследовать этот элемент.",
+    "investigate": "Исследовать",
+    "investigateAgain": "Исследовать снова",
+    "running": "Агент читает копию {{repository}} только для чтения…",
+    "approved": "Гипотеза {{number}} исправляется.",
+    "openFeature": "Открыть исправление",
+    "fullSpec": "Исправлять через полный конвейер спецификации, а не в быстром режиме",
+    "status": {
+      "Pending": "Запуск",
+      "Running": "Идёт исследование",
+      "Completed": "Гипотезы готовы",
+      "Failed": "Ошибка"
+    },
+    "confidence": {
+      "High": "Высокая уверенность",
+      "Medium": "Средняя уверенность",
+      "Low": "Низкая уверенность"
+    },
+    "hypothesis": {
+      "evidence": "Доказательства",
+      "test": "Падающий тест",
+      "fix": "Исправление",
+      "fixThis": "Исправить",
+      "fixing": "Запуск исправления…",
+      "approved": "Исправляется"
+    }
+  },
+  "prComments": {
+    "title": "Комментарии ревью",
+    "refresh": "Прочитать комментарии с GitHub",
+    "address": "Обработать ожидающие: {{count}}",
+    "running": "Агент обрабатывает комментарии ({{count}}) в worktree функции…",
+    "roundPushed": "Последний раунд отправил {{sha}} и ответил.",
+    "roundAnswered": "Последний раунд ответил без изменения кода.",
+    "roundFailed": "Последний раунд завершился ошибкой: {{error}}",
+    "empty": "Комментариев ревью к pull request пока нет.",
+    "openOnGitHub": "Открыть на GitHub",
+    "status": {
+      "Pending": "Ожидает",
+      "Addressing": "В работе",
+      "Addressed": "Обработан",
+      "Declined": "Отклонён",
+      "Failed": "Ошибка"
+    },
+    "kind": {
+      "Inline": "К строке",
+      "Conversation": "Обсуждение",
+      "Review": "Ревью"
+    },
+    "addressNone": "Нечего обрабатывать"
+  },
+  "knowledge": {
+    "sources": {
+      "title": "Источники знаний",
+      "empty": "Источников пока нет. Откройте доступ к странице или базе Notion для интеграции и добавьте ссылку.",
+      "kind": {
+        "Page": "Дерево страниц",
+        "Database": "База данных"
+      },
+      "productLine": "только {{name}}",
+      "wholeSpace": "Всё пространство",
+      "productLineLabel": "Продуктовая линия",
+      "scope": "Ссылка на страницу или базу Notion",
+      "documents_one": "{{count}} документ",
+      "documents_few": "{{count}} документа",
+      "documents_many": "{{count}} документов",
+      "documents_other": "{{count}} документа",
+      "summary": "{{added}} добавлено, {{updated}} обновлено, {{removed}} удалено, {{failed}} с ошибкой",
+      "never": "Ещё не синхронизирован",
+      "add": "Добавить источник",
+      "syncNow": "Синхронизировать",
+      "remove": "Удалить источник"
+    },
+    "documents": {
+      "title": "Знания команды",
+      "subtitle": "Страницы Notion, которые агенты каждого пространства читают, если они подходят к задаче.",
+      "empty": "Знаний команды пока нет. Добавьте подключение Notion и его страницы на странице",
+      "connections": "Подключения"
+    }
+  },
+  "opportunities": {
+    "title": "Возможности",
+    "subtitle": "Ставки, подкреплённые свидетельствами, по ценности на час ревью.",
+    "space": "Пространство",
+    "empty": "В этом пространстве нет открытых возможностей. Создайте выше.",
+    "errors": {
+      "actionFailed": "Не удалось сохранить изменение. Попробуйте ещё раз."
+    },
+    "capacity": {
+      "title": "Ёмкость ревью на этой неделе",
+      "used": "{{used}} из {{capacity}} часов ревью",
+      "waiting_one": "{{count}} принятая ставка ждёт ёмкости",
+      "waiting_few": "{{count}} принятые ставки ждут ёмкости",
+      "waiting_many": "{{count}} принятых ставок ждут ёмкости",
+      "waiting_other": "{{count}} принятой ставки ждут ёмкости"
+    },
+    "row": {
+      "inLine": "В линии этой недели",
+      "outOfLine": "Вне линии",
+      "strategic": "Стратегическая",
+      "cost": "{{hours}} ч · уверенность {{confidence}}%",
+      "evidenceParts": {
+        "signals_one": "{{count}} сигнал",
+        "signals_few": "{{count}} сигнала",
+        "signals_many": "{{count}} сигналов",
+        "signals_other": "{{count}} сигнала",
+        "customers_one": "{{count}} клиент",
+        "customers_few": "{{count}} клиента",
+        "customers_many": "{{count}} клиентов",
+        "customers_other": "{{count}} клиента",
+        "urgent_one": "{{count}} срочный",
+        "urgent_few": "{{count}} срочных",
+        "urgent_many": "{{count}} срочных",
+        "urgent_other": "{{count}} срочных",
+        "revenue": "{{revenue}}/мес."
+      }
+    },
+    "status": {
+      "Proposed": "Предложена",
+      "Accepted": "Принята",
+      "Building": "Строится",
+      "Shipped": "Выпущена",
+      "Dropped": "Отклонена"
+    },
+    "kind": {
+      "Feedback": "Отзыв",
+      "Incident": "Инцидент",
+      "Tracker": "Трекер",
+      "Discovery": "Находка",
+      "Manual": "Заметка"
+    },
+    "actions": {
+      "accept": "Принять",
+      "build": "Строить",
+      "drop": "Отклонить",
+      "cancel": "Отмена",
+      "reason": "Почему отклонить?",
+      "project": "Проект",
+      "noProjects": "Сначала создайте проект; при строительстве в нём создаётся рабочий элемент.",
+      "ship": "Отметить выпущенной"
+    },
+    "inbox": {
+      "title": "Сигналы для связи ({{count}})",
+      "empty": "Каждый сигнал поддерживает возможность.",
+      "urgent": "Срочно",
+      "customerRevenue": "{{customer}} · {{revenue}}/мес.",
+      "link": "Связать с…",
+      "remove": "Удалить сигнал"
+    },
+    "signalForm": {
+      "title": "Записать сигнал",
+      "signal": "Сигнал",
+      "placeholder": "Что попросил пользователь или что сломалось?",
+      "kind": "Тип",
+      "customer": "Клиент",
+      "revenue": "Выручка/мес.",
+      "urgent": "Срочно",
+      "submit": "Записать"
+    },
+    "opportunityForm": {
+      "title": "Сформировать возможность",
+      "name": "Возможность",
+      "placeholder": "Ставка, которую стоит строить",
+      "hours": "ч ревью",
+      "confidence": "% уверенности",
+      "productLine": "Продуктовая линия",
+      "anyLine": "Всё пространство",
+      "strategic": "Стратегическая",
+      "submit": "Добавить"
+    },
+    "weights": {
+      "title": "Веса и ёмкость",
+      "formula": "Ценность = охват × клиенты + выручка × (выручка под угрозой ÷ 1000) + срочность × срочные сигналы + стратегия. Оценка = ценность × уверенность ÷ часы ревью.",
+      "reach": "Охват",
+      "revenue": "Выручка",
+      "urgency": "Срочность",
+      "strategic": "Стратегия",
+      "weeklyReviewHours": "Ч ревью/нед.",
+      "save": "Сохранить"
+    },
+    "themes": {
+      "title": "Темы в несвязанных сигналах",
+      "empty": "Тем пока нет: никакие два несвязанных сигнала не имеют достаточно общих слов.",
+      "promote": "Продвинуть",
+      "hours": "Часы ревью"
+    },
+    "feedbackKeys": {
+      "title": "Ключи для отзывов",
+      "subtitle": "Сервисы присылают отзывы с ключом: {{endpoint}} с \"Authorization: Bearer <ключ>\".",
+      "empty": "Ключей пока нет.",
+      "name": "Сервис",
+      "namePlaceholder": "Zendesk, виджет, скрипт…",
+      "create": "Создать ключ",
+      "secretOnce": "Скопируйте ключ сейчас — он больше не будет показан.",
+      "revoke": "Отозвать",
+      "revoked": "Отозван",
+      "lastUsed": "Использован {{when}}",
+      "neverUsed": "Не использовался"
+    },
+    "source": {
+      "Manual": "Вручную",
+      "Theme": "Из темы",
+      "Discovery": "Найдена агентом"
+    },
+    "discovery": {
+      "title": "Поиск возможностей",
+      "run": "Найти сейчас",
+      "discovering": "Ищу…",
+      "schedule": "Расписание",
+      "off": "Выкл.",
+      "everyHours": "Каждые {{hours}} ч",
+      "never": "В этом пространстве поиск ещё не запускался.",
+      "running": "Идёт поиск…",
+      "failed": "Последний запуск завершился ошибкой: {{error}}",
+      "succeeded": "Последний запуск: предложено {{proposed}} из {{read}} сигналов, {{when}}"
+    },
+    "outcomes": {
+      "title": "Итоги",
+      "check": "Проверить сейчас",
+      "empty": "В этом пространстве ещё ничего не выпущено.",
+      "judgedOn": "Оценка {{date}}",
+      "counts": "Похожих сообщений до: {{before}}, после: {{after}}",
+      "hours": "Часы ревью",
+      "saveHours": "Сохранить",
+      "hoursTaken": "Заняло {{actual}} ч из {{estimated}} ч по оценке",
+      "note": "Сообщите им, что «{{title}}» выпущено:",
+      "markTold": "Отметить извещёнными",
+      "hoursRatio": "Фактические часы ревью — {{ratio}}× от оценок (записано: {{timed}})",
+      "noHours": "Фактические часы ревью ещё не записаны",
+      "solvedShare": "Решено итогов: {{solved}} из {{judged}}",
+      "noVerdicts": "Итоги ещё не оценены",
+      "verdict": {
+        "Pending": "Ожидает",
+        "Solved": "Решено",
+        "Persisting": "Сохраняется"
+      }
+    }
+  },
+  "incidents": {
+    "title": "Инциденты",
+    "subtitle": "Проблемы в продакшене, их разбор, перезапуски, откаты и масштабирование, которые их устраняют, и постмортем.",
+    "space": "Пространство",
+    "list": "Инциденты",
+    "empty": "В этом пространстве нет инцидентов.",
+    "timeline": "Хронология",
+    "actions": "Действия в среде",
+    "approve": "Одобрить",
+    "reject": "Отклонить",
+    "recovered": "Восстановлено",
+    "notRecovered": "Не восстановлено",
+    "scaleTo": "Масштабировать до {{replicas}} реплик",
+    "showEvidence": "Показать данные",
+    "triage": "Разобрать",
+    "triaging": "Разбор…",
+    "workload": "deployment/{{workload}} в {{namespace}} ({{context}})",
+    "currentContext": "текущий контекст",
+    "noWorkload": "Нет нагрузки — действия выключены.",
+    "openLink": "Открыть оповещение",
+    "errors": {
+      "actionFailed": "Действие не удалось."
+    },
+    "form": {
+      "title": "Открыть инцидент",
+      "incident": "Инцидент",
+      "placeholder": "Что сломалось?",
+      "severity": "Серьёзность",
+      "workload": "Нагрузка",
+      "namespace": "Namespace",
+      "context": "Контекст",
+      "submit": "Открыть"
+    },
+    "act": {
+      "title": "Выполнить действие",
+      "kind": "Действие",
+      "replicas": "Реплики",
+      "reason": "Почему?",
+      "submit": "Выполнить",
+      "running": "Выполняется…"
+    },
+    "note": {
+      "title": "Заметка",
+      "placeholder": "Добавить заметку в хронологию",
+      "submit": "Добавить"
+    },
+    "resolve": {
+      "title": "Закрыть",
+      "postmortem": "Постмортем",
+      "placeholder": "Напишите постмортем или оставьте пустым для черновика по хронологии",
+      "submit": "Закрыть"
+    },
+    "severity": {
+      "Critical": "Критический",
+      "Major": "Серьёзный",
+      "Minor": "Незначительный"
+    },
+    "status": {
+      "Open": "Открыт",
+      "Mitigated": "Смягчён",
+      "Resolved": "Закрыт"
+    },
+    "actionKind": {
+      "Restart": "Перезапуск",
+      "Rollback": "Откат",
+      "Scale": "Масштабирование"
+    },
+    "actionStatus": {
+      "Proposed": "Ждёт одобрения",
+      "Approved": "Одобрено",
+      "Rejected": "Отклонено",
+      "Succeeded": "Выполнено",
+      "Failed": "Не удалось"
+    },
+    "proposedBy": {
+      "Agent": "предложено агентом",
+      "Person": "запрошено человеком"
+    },
+    "eventKind": {
+      "Opened": "Открыт",
+      "Note": "Заметка",
+      "Evidence": "Данные",
+      "Hypothesis": "Гипотеза",
+      "ActionProposed": "Действие предложено",
+      "ActionApproved": "Действие одобрено",
+      "ActionRejected": "Действие отклонено",
+      "ActionSucceeded": "Действие выполнено",
+      "ActionFailed": "Действие не удалось",
+      "Recovered": "Восстановлено",
+      "NotRecovered": "Не восстановлено",
+      "Resolved": "Закрыт"
+    }
+  },
+  "factory": {
+    "title": "Фабрика",
+    "subtitle": "Что делает фабрика ПО пространства и что ждёт людей.",
+    "space": "Пространство",
+    "errors": {
+      "actionFailed": "Действие не удалось."
+    },
+    "cards": {
+      "line": "Часы ревью на этой неделе",
+      "building": "В работе",
+      "incidents": "Открытые инциденты",
+      "actions": "Действия на одобрении",
+      "outcomes": "Итоги в ожидании",
+      "customers": "Клиенты, которых известить",
+      "features": "Фичи в работе",
+      "approval": "Ждут одобрения"
+    },
+    "runs": {
+      "title": "Проходы autopilot",
+      "none": "Autopilot ещё не запускался в этом пространстве.",
+      "pass": "расследовано {{investigated}} · исправлено {{fixed}} · построено {{built}}"
+    },
+    "autopilot": {
+      "title": "Autopilot",
+      "hint": "Что shep запускает здесь сам каждый час. Всё выключено, пока вы не включите.",
+      "investigate": "Расследовать открытые срочные задачи",
+      "fix": "Исправлять, когда главная гипотеза High",
+      "mergeFixes": "Разрешить этим исправлениям сливаться без человека",
+      "fillLine": "Строить принятые возможности из линии",
+      "budget": "Исправлений в день",
+      "project": "Строить в",
+      "noProject": "Без проекта",
+      "save": "Сохранить",
+      "run": "Запустить сейчас",
+      "running": "Выполняется…"
+    }
+  },
+  "decision": {
+    "answeredQuestions": "Отвеченные вопросы",
+    "recommended": "Рекомендуется",
+    "selectMany": "Выберите один или несколько вариантов.",
+    "otherPlaceholder": "Введите свой ответ или оставьте пустым, чтобы использовать выбранный вариант",
+    "composerHint": "Напишите в поле сообщения, чтобы ответить своими словами.",
+    "restoreText": "Вернуть введённый текст",
+    "notResumable": "На этот вопрос больше нельзя ответить — задавший его агент больше не ждёт.",
+    "defaultsAt": "Если никто не ответит до {{time}}, агент продолжит с рекомендуемым вариантом.",
+    "preview": "Предпросмотр",
+    "previous": "Назад",
+    "next": "Далее",
+    "submit": "Отправить",
+    "submitting": "Отправка…",
+    "new": "Новый"
+  },
+  "telemetry": {
+    "fieldsHeading": "Что отправляется",
+    "fields": {
+      "installId": "Случайный ID установки",
+      "usage": "Какие команды, страницы и функции вы используете и чем завершаются запуски",
+      "platform": "Версия Shep, операционная система и версия Node.js",
+      "agentAccountHash": "Хеш SHA-256 ID вашего аккаунта Claude или Codex",
+      "githubUsername": "Ваше имя пользователя GitHub (считывается через gh)",
+      "githubOwners": "Владельцы GitHub (пользователи или организации) репозиториев, которые вы используете с Shep",
+      "contactConsent": "Может ли команда Shep связаться с вами на GitHub"
+    },
+    "identityHeading": "Отправляется, только если вы включите «Включать мою личность» (по умолчанию выключено)",
+    "neverSent": "Никогда не отправляются: промпты, код, пути к файлам, названия репозиториев и веток, заголовки фич и сообщения об ошибках.",
+    "reasons": {
+      "ci": "задана переменная окружения CI",
+      "do-not-track": "задана DO_NOT_TRACK",
+      "env-disabled": "задана SHEP_TELEMETRY_DISABLED",
+      "test": "запуск в среде тестирования",
+      "user-opt-out": "вы их выключили"
+    },
+    "notice": {
+      "title": "Shep собирает метрики использования",
+      "intro": "Чтобы понимать, какие функции используются, Shep отправляет события использования команде Shep (PostHog, регион ЕС). Это можно выключить в любой момент.",
+      "turnOff": "Выключить",
+      "turnedOff": "Метрики использования выключены. События в очереди удалены.",
+      "dismiss": "Понятно",
+      "failed": "Не удалось обновить метрики использования. Повторите попытку в настройках."
+    },
+    "controls": {
+      "enabled": "Отправлять метрики использования",
+      "enabledDescription": "При выключении также удаляются ещё не отправленные события.",
+      "identity": "Включать мою личность (имя пользователя GitHub, организация, хеш аккаунта)",
+      "identityDescription": "Выключено, пока вы это не включите. Пока выключено, метрики использования остаются анонимными.",
+      "contact": "Команда Shep может связаться со мной на GitHub",
+      "contactDescription": "Выключено, пока вы не включите."
+    },
+    "settings": {
+      "title": "Метрики использования",
+      "description": "Помогите решить, что разрабатывать дальше, отправляя события использования команде Shep.",
+      "forcedOff": "Выключено в этом окружении: {{reason}}.",
+      "queued": "Событий в очереди на отправку: {{count}}",
+      "destination": "Отправляются в {{destination}}",
+      "notConfigured": "В этой сборке не настроен ключ проекта, поэтому ничего не отправляется.",
+      "hint": "Выполните `shep telemetry show`, чтобы увидеть, что именно будет отправлено.",
+      "loading": "Загрузка настроек метрик использования…",
+      "loadFailed": "Не удалось загрузить настройки метрик использования."
+    }
+  },
+  "checkpoints": {
+    "loading": "Загрузка чекпоинтов…",
+    "empty": "Чекпоинтов пока нет. Shep сохраняет worktree после каждого шага, когда работает агент.",
+    "modeStep": "По шагам",
+    "modeCompare": "Сравнить",
+    "kindBaseline": "начало",
+    "kindPreRestore": "перед восстановлением",
+    "files_one": "{{count}} файл",
+    "files_few": "{{count}} файла",
+    "files_many": "{{count}} файлов",
+    "files_other": "{{count}} файла",
+    "from": "С",
+    "to": "По",
+    "selectStep": "Выберите шаг, чтобы увидеть его изменения.",
+    "baselineSelected": "Это начальная точка: до неё ничего нет.",
+    "diffLoading": "Загрузка изменений…",
+    "noChanges": "Между этими шагами нет изменений.",
+    "restore": "Восстановить",
+    "restoreAria": "Вернуть worktree к {{step}}",
+    "restoreTitle": "Вернуть worktree к {{step}}?",
+    "restoreDescription": "Файлы worktree заменяются этим чекпоинтом. Текущее состояние сначала сохраняется новым чекпоинтом; ветка и её коммиты не меняются.",
+    "restoreConfirm": "Восстановить",
+    "cancel": "Отмена",
+    "restored": "Worktree возвращён к {{step}}",
+    "restoreFailed": "Не удалось восстановить",
+    "blocked": {
+      "NoOwnWorktree": "Восстановление доступно только для фичи с собственным worktree.",
+      "NotLinkedWorktree": "Восстановление недоступно: папка не является связанным git worktree.",
+      "WorktreeUnavailable": "Восстановление недоступно: worktree не удаётся прочитать.",
+      "AgentRunning": "Восстановление недоступно, пока работает агент."
+    }
+  },
+  "chatBlocks": {
+    "kinds": {
+      "spec_review": "Проверка спецификации",
+      "html_preview": "Превью",
+      "plan_card": "План"
+    },
+    "actions": {
+      "approve": "Одобрить",
+      "request_changes": "Запросить изменения",
+      "implement": "Реализовать",
+      "refine": "Уточнить"
+    },
+    "resolved": {
+      "approve": "Одобрено",
+      "request_changes": "Запрошены изменения",
+      "implement": "Реализуется",
+      "refine": "Запрошено уточнение"
+    },
+    "notePlaceholder": "Что нужно изменить?",
+    "send": "Отправить",
+    "cancel": "Отмена",
+    "preview": "Превью",
+    "source": "Исходный код",
+    "openFullScreen": "Открыть на весь экран",
+    "sandboxNote": "Работает в песочнице без доступа к сети.",
+    "answerFailed": "Ваш ответ не доставлен",
+    "answerFailedDescription": "Блок всё ещё открыт. Попробуйте ещё раз.",
+    "retry": "Повторить"
+  },
+  "chats": {
+    "title": "Чат",
+    "conversations": "Беседы",
+    "conversation": "Беседа",
+    "groups": {
+      "global": "Shep",
+      "repository": "Репозитории",
+      "feature": "Фичи",
+      "application": "Приложения"
+    },
+    "openOnCanvas": "Открыть на холсте",
+    "openApplication": "Открыть приложение",
+    "lifecycle": {
+      "Started": "Начата",
+      "Analyze": "Анализ",
+      "Requirements": "Требования",
+      "Research": "Исследование",
+      "Planning": "Планирование",
+      "Implementation": "Реализация",
+      "Review": "Ревью",
+      "Maintain": "Слита",
+      "Blocked": "Заблокирована",
+      "Pending": "Ожидает",
+      "Exploring": "Исследуется",
+      "Deleting": "Удаляется",
+      "AwaitingUpstream": "Ждёт upstream",
+      "Archived": "В архиве"
+    }
+  },
+  "agentActivity": {
+    "states": {
+      "working": "Работает",
+      "blocked": "Ждёт вас",
+      "waiting": "Ожидает",
+      "done": "Готово",
+      "failed": "Ошибка"
+    },
+    "reasons": {
+      "deleting": "Удаляется",
+      "archived": "В архиве",
+      "queued-for-capacity": "В очереди, пока не освободится место в лимите параллельных фич",
+      "deferred": "Отложена: агент ещё не запускался",
+      "waiting-on-parent": "Ждёт завершения родительской фичи",
+      "approval-gate": "Ждёт вашего одобрения",
+      "agent-question": "Агент задал вопрос",
+      "run-failed": "Запуск завершился ошибкой",
+      "run-interrupted": "Запуск был прерван",
+      "run-cancelled": "Запуск был отменён",
+      "run-completed": "Готово",
+      "agent-running": "Агент работает",
+      "process-died": "Процесс агента неожиданно завершился",
+      "maintained": "Готово; на поддержке",
+      "awaiting-review": "Pull request ждёт вашего ревью",
+      "plan-task-in-review": "Задача плана ждёт вашего ревью",
+      "plan-tasks-done": "Все задачи плана выполнены",
+      "in-progress": "В работе"
+    },
+    "labels": {
+      "why": "Почему",
+      "asks": "Спрашивает",
+      "phase": "Фаза",
+      "run": "Запуск",
+      "error": "Ошибка",
+      "pr": "Pull request",
+      "next": "Дальше"
+    },
+    "next": {
+      "answer": "Ответить на вопрос",
+      "review": "Проверить и одобрить",
+      "openPr": "Проверить pull request",
+      "resume": "Открыть, чтобы продолжить",
+      "inDrawer": {
+        "review": "Одобрите или отклоните во вкладке ревью",
+        "resume": "Нажмите «Retry» вверху этой панели"
+      }
+    },
+    "card": {
+      "title": "Состояние агента",
+      "loading": "Читаем состояние агента…",
+      "error": "Не удалось прочитать состояние агента: {{error}}",
+      "notFound": "У этой фичи нет состояния агента"
+    },
+    "notify": {
+      "start": "Уведомить меня",
+      "stop": "Стоп",
+      "watching": "Наблюдаем — вы получите уведомление, когда понадобитесь, когда фича завершится или упадёт",
+      "failed": "Наблюдение остановлено: {{error}}",
+      "title": "{{name}}: {{state}}"
+    },
+    "list": {
+      "empty": "Сейчас нет активных фич",
+      "open": "Открыть"
+    },
+    "page": {
+      "title": "Активность агентов",
+      "description": "Что делает агент каждой фичи и почему — тот же ответ, что дают shep feat status, MCP и A2A",
+      "showFinished": "Показать завершённые",
+      "needsYou": "Ждут вас: {{count}}",
+      "error": "Не удалось прочитать активность агентов: {{error}}"
+    },
+    "connect": {
+      "title": "Подключить агентов",
+      "badge": "A2A 1.0",
+      "description": "Другие агенты и оркестраторы передают Shep запросы на фичи и следят за ними как за задачами A2A: работает, нужен ввод (вас ждёт gate или вопрос), завершена или упала.",
+      "endpoint": "Эндпоинт JSON-RPC",
+      "agentCard": "Agent card",
+      "token": "Аутентификация",
+      "tokenHelp": "Отправляйте Authorization: Bearer с токеном из этого файла. Браузер его никогда не видит.",
+      "request": "Попробовать",
+      "copied": "Скопировано",
+      "copyFailed": "Не удалось скопировать",
+      "herdr": "Herdr",
+      "herdrHelp": "Запустите shep tui в панели Herdr: боковая панель Herdr покажет Shep как работающий или заблокированный, когда фиче нужны вы.",
+      "cli": "Терминал",
+      "cliHelp": "shep feat status <id> объясняет фичу; shep feat wait <id> возвращается, когда фиче нужны вы, она завершилась или упала.",
+      "guide": "Руководство по A2A",
+      "cardVersion": "Shep {{version}}",
+      "cardError": "Agent card не загрузилась: {{error}}",
+      "copyLabel": "Копировать: {{label}}",
+      "hint": "Другие агентные системы отправляют Shep запрос на фичу по A2A и следят за ним как за задачей. Та же активность питает MCP, CLI, Herdr и этот интерфейс."
+    }
+  },
+  "learning": {
+    "title": "Обучение",
+    "subtitle": "Чему Shep научился при работе в этом репозитории, как показала себя каждая версия и что оставить",
+    "repository": "Репозиторий",
+    "chooseRepository": "Выберите репозиторий",
+    "loadError": "Не удалось загрузить выученный harness: {{error}}",
+    "noRepositories": "Добавьте репозиторий, чтобы начать обучение.",
+    "current": "Работает на версии {{id}}",
+    "currentNone": "Работает на базовом harness — пока ничего не принято",
+    "rollback": "Откатить",
+    "rollbackConfirm": "Вернуться к предыдущей версии?",
+    "cancel": "Отмена",
+    "rolledBack": "Откачено",
+    "versions": "Версии",
+    "selectVersion": "Выберите версию, чтобы увидеть её изменения.",
+    "lessons": "Уроки",
+    "adopted": "Версия принята",
+    "rejected": "Версия отклонена",
+    "working": "Выполняется…",
+    "noVersions": "Версий пока нет. Включите режим обучения в настройках и завершите фичу.",
+    "noLessons": "Уроков пока нет.",
+    "trend": {
+      "regressed": "Ухудшилась",
+      "improved": "Улучшилась",
+      "unchanged": "Без изменений",
+      "insufficient-data": "Пока мало запусков",
+      "no-baseline": "Нет более ранней версии для сравнения"
+    },
+    "status": {
+      "candidate": "Кандидат",
+      "adopted": "Принята",
+      "rejected": "Отклонена",
+      "rolled-back": "Откачена",
+      "superseded": "Заменена"
+    },
+    "origin": {
+      "base": "Базовая",
+      "reflect": "Анализ",
+      "explore": "Исследование",
+      "manual": "Вручную"
+    },
+    "metrics": {
+      "runs": "Запусков: {{count}}",
+      "mergeRate": "Слито: {{percent}}%"
+    },
+    "detail": {
+      "title": "Версия {{id}}",
+      "against": "Сравнение с версией {{id}}",
+      "againstBase": "Сравнение с базовым harness",
+      "reason": "Причина: {{reason}}",
+      "runsCode": "Эта версия выполняет код (скрипты или хуки). Прочитайте их перед принятием — Shep никогда не принимает такое сам.",
+      "added": "Добавлено",
+      "modified": "Изменено",
+      "removed": "Удалено",
+      "noChanges": "Файлы не изменены.",
+      "edits": "Зачем было сделано каждое изменение",
+      "feedbackPlaceholder": "Необязательно: почему вы отклоняете (Shep учтёт это в следующий раз)",
+      "adopt": "Принять",
+      "reject": "Отклонить"
+    },
+    "verdict": {
+      "helped": "Помогло",
+      "hurt": "Навредило",
+      "no-observed-effect": "Эффекта не замечено",
+      "confounded": "Неоднозначно",
+      "untested": "Не проверено"
+    },
+    "lesson": {
+      "when": "Когда: {{cue}}"
+    },
+    "confidence": {
+      "high": "Высокая уверенность",
+      "medium": "Средняя уверенность",
+      "low": "Низкая уверенность"
+    }
+  }
+}
