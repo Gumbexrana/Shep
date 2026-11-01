@@ -1,3 +1,4 @@
+<p align="center"><img alt="Node" src="https://img.shields.io/badge/Node-24-339933?style=flat-square&logo=nodedotjs&logoColor=white"> <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white"> <img alt="Agents" src="https://img.shields.io/badge/Agents-parallel-6f42c1?style=flat-square"></p>
 <p align="center">
   <a href="https://github.com/Gumbexrana/Shep#readme"><img alt="Docs" src="https://img.shields.io/badge/Docs-Read%20the%20guide-2f81f7?style=for-the-badge&logo=readthedocs&logoColor=white"></a>
   <a href="https://github.com/Gumbexrana/Shep/issues"><img alt="Issues" src="https://img.shields.io/badge/Issues-Open%20a%20report-0e8a16?style=for-the-badge&logo=github&logoColor=white"></a>
