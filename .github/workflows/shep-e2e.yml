@@ -48,7 +48,7 @@ jobs:
       # 1. Checkout, build, link
       # ─────────────────────────────────────────────────────────────────────
       - name: Checkout shep CLI
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
@@ -302,7 +302,7 @@ jobs:
 
     steps:
       - name: Checkout shep CLI
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
@@ -442,7 +442,7 @@ jobs:
 
     steps:
       - name: Checkout shep CLI
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
