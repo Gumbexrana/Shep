@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout shep-cloud
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: shep-ai/shep-cloud
           token: ${{ secrets.SHEP_CLOUD_PAT }}
